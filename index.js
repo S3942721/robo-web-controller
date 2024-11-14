@@ -8,8 +8,10 @@ app.use(require("cors")())
 
 const router = express.Router();
 
-router.get("/", (req, res)=>{
-    res.sendFile(join(__dirname, 'index.html'))
+app.use(express.static(join(__dirname, 'dist')));
+
+router.get("*", (req, res)=>{
+    res.redirect(join(__dirname, 'dist', 'index.html'));
 })
 
 app.use('/', router);
