@@ -1,7 +1,23 @@
 {
-	"dependencies": {
+  "name": "pepper-controller",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "npm --prefix ./frontend run build",
+    "build-start": "npm run build && npm run start"
+  },
+  "dependencies": {
 		"express": "^4.21.1",
 		"body-parser": "^1.20.3",
 		"cors": "^2.8.5"
-	}
+	},
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
