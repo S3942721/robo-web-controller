@@ -1,8 +1,9 @@
 export default function trigger({title, status, setStatus, sendTriggerUpdate}) {
 
     function selectTriggerChange(event) {
-        setStatus(event.target.checked);
-        sendTriggerUpdate(title, status)
+        const s = event.target.checked
+        setStatus(s);
+        sendTriggerUpdate(title, s)
     }
 
     return (
