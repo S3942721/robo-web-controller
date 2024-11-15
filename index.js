@@ -47,6 +47,7 @@ const server = net.createServer((socket) => {
 	socket.on('data', (data) => {
 		const data_str = data.toString();
 		console.log('Received:', data_str);
+		if(data_str === 'SHUTDOWN') socket.write('SHUTDOWN_PONG')
 	});
 
 	socket.on('end', () => {
