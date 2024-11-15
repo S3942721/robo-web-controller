@@ -1,0 +1,149 @@
+* {
+    box-sizing: border-box;
+    font-family: ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji",Segoe UI Symbol,"Noto Color Emoji";
+}
+
+input:focus {
+    outline: none;
+}
+
+.btn:hover,
+.clickable:hover {
+    cursor: pointer;
+}
+
+#root {
+    width: 800px;
+    max-width: 100dvw;
+    margin: auto;
+}
+
+.btn {
+    width: 230px;
+    height: 40px;
+    font-size: 16px;
+    color: white;
+    background-color: dodgerblue;
+    border-radius: 7px;
+    user-select: none;
+    align-content: center;
+    text-align: center;
+    transition-duration: .3s;
+}
+
+.btn:hover {
+    background-color: rgb(14, 105, 196);
+}
+section {
+    width: 100%;
+    margin: 10px 0px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    padding: 20px;
+    height: fit-content;
+}
+
+section > .btn {
+    margin: auto;
+    margin-top: 20px;
+}
+
+section > div.selected {
+    border-color: dodgerblue;
+}
+
+/* PROFILE */
+
+section > .profile {
+    width: 100%;
+    border: 2px solid lightgray;
+    border-radius: 7px;
+    padding: 20px;
+    margin-bottom: 10px;
+}
+
+section > .profile > div {
+    margin-bottom: 10px;
+}
+
+section > .profile > .name {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+section > .profile > .flags > .title {
+    font-size: 17px;
+    margin-bottom: 5px;
+}
+
+section > .profile > .flags > div:not(.title) {
+    margin-left: 10px;
+    margin-bottom: 3px;
+}
+
+section > .profile > .html {
+    color: gray;
+}
+
+/* SCRIPTS */
+
+section > .script {
+    width: 100%;
+    height: 50px;
+    align-content: center;
+    font-size: 17px;
+    padding: 0px 10px;
+    margin: 20px 0px;
+    border: 2px solid lightgray;
+    border-radius: 5px;
+}
+
+section > .manual-script {
+    width: 100%;
+    min-height: 100px;
+    border-radius: 10px;
+    max-width: 100%;
+    min-width: 100%;
+    padding: 10px;
+    font-size: 17px;
+}
+section > .manual-script:focus {
+    outline: none;
+}
+
+
+/* Trigger */
+section > .trigger {
+    width: fit-content;
+    display: inline-block;
+    min-height: 40px;
+    position: relative;
+    border: 2px solid lightgray;
+    margin: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background-color: white;
+}
+
+section > .trigger > .title {
+    z-index: 1;
+}
+
+section > .trigger > .trigger-checkbox {
+    opacity: 0;
+    z-index: 2;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+section > .trigger > .trigger-checkbox:hover {
+    cursor: pointer;
+}
+
+section > .trigger:has(.trigger-checkbox:checked) {
+    background-color: dodgerblue;
+    color: white;
+    border-color: blue;
+}
