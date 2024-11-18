@@ -1,13 +1,20 @@
-import { useState } from "react";
-import { scripts } from "../utils/types";
+import { useEffect, useState } from "react";
+import { getScript } from "../utils/types";
 
-export default function PreDefinedScripts({ send }) {
-
-    const [s, setScript] = useState(Object.keys(scripts)[0]);
+export default function PreDefinedScripts({ profile, send }) {
+    
+    const [scripts, setAllScripts] = useState({});
+    const [s, setScript] = useState("");
 
     function executeSelectedScript() {
         send('script', scripts[s]);
     }
+
+    useEffect(()=>{
+        const all_scripts = getScript(profile)
+        setAllScripts(all_scripts);
+        setScript(Object.keys(all_scripts)[0] ?? "")
+    }, [profile])
 
     return (
         <section>

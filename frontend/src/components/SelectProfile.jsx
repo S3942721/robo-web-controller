@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { profiles } from "../utils/types";
 
-export default function SelectProfile({ send }) {
-
-    const [p, setProfile] = useState(profiles[0])
+export default function SelectProfile({ current_profile, setCurrentProfile, send }) {
     
     function sendUpdateProfile() {
-        send('profile', p)
+        send('profile', current_profile)
     }
 
     return (
@@ -17,8 +14,8 @@ export default function SelectProfile({ send }) {
                 return (
                     <div
                         key={`profile-${index}`}
-                        className={`profile clickable ${name === p.name ? ' selected' : ''}`}
-                        onClick={()=>setProfile(profile)}
+                        className={`profile clickable ${name === current_profile.name ? ' selected' : ''}`}
+                        onClick={()=>setCurrentProfile(profile)}
                     >
                         <div className="name">{name}</div>
                         <div className="html">HTML File: {html}</div>

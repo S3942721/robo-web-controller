@@ -8,7 +8,7 @@ export default function trigger({title, status, setStatus, sendTriggerUpdate}) {
 
     return (
         <div className="trigger">
-            <input className="trigger-checkbox" type="checkbox" value={status} onChange={selectTriggerChange} />
+            <input className="trigger-checkbox" type="checkbox" checked={status} onChange={selectTriggerChange} />
             <div className="title">{title}</div>
         </div>
     )
