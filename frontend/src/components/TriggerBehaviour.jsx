@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { triggers } from "../utils/types"
-import Trigger from "./sub-components/trigger"
+import Trigger from "./sub-components/Trigger"
 
 export default function TriggerBehaviour({send}) {
 
