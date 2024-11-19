@@ -29,6 +29,12 @@ input:focus {
     align-content: center;
     text-align: center;
     transition-duration: .3s;
+    margin: auto;
+}
+
+.inline-btns {
+    display: flex;
+    align-items: center;
 }
 
 .btn:hover {
@@ -106,21 +112,25 @@ section > .script > .script-name {
 section > .script > .script-value {
     color: gray;
     margin-top: 5px;
+    height: 20px;
+    align-content: center;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-section > .manual-script {
+section > form > .manual-script {
     width: 100%;
-    min-height: 100px;
+    min-height: 50px;
     border-radius: 10px;
     max-width: 100%;
     min-width: 100%;
     padding: 10px;
     font-size: 17px;
+    margin-bottom: 10px;
 }
-section > .manual-script:focus {
+section > form > .manual-script:focus {
     outline: none;
 }
-
 
 /* Trigger */
 section > .trigger {
