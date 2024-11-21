@@ -10,10 +10,11 @@
     "build-start": "npm run build && npm run start"
   },
   "dependencies": {
-		"express": "^4.21.1",
-		"body-parser": "^1.20.3",
-		"cors": "^2.8.5"
-	},
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "express-ws": "^5.0.2"
+  },
   "devDependencies": {
     "nodemon": "^3.1.7"
   },

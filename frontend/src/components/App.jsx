@@ -1,29 +1,49 @@
-import request from "../utils/request"
-import PreDefinedScripts from "./PreDefinedScripts"
-import SelectProfile from "./SelectProfile"
-import TriggerBehaviour from "./TriggerBehaviour"
-import ManualDefinedScript from "./ManualDefinedScript"
-import { useState } from "react"
-import { profiles } from "../utils/types"
+// import PreDefinedScripts from "./PreDefinedScripts"
+// import SelectProfile from "./SelectProfile"
+// import TriggerBehaviour from "./TriggerBehaviour"
+// import ManualDefinedScript from "./ManualDefinedScript"
+import Controller from "./pages"
+import {
+    createBrowserRouter, RouterProvider
+} from 'react-router-dom'
+import RunScriptPage from "./pages/RunScriptPage"
+import ShortCuts from "./ShortCuts"
+import UploadSettings from "./pages/UploadSettings"
+import { requestWS } from "../utils/useWebSocket"
+import { useEffect } from "react"
 
 export default function App() {
-
-    async function send(type, message) {
-        await request('api/send-command', {
-            body: {
-                type, message
-            }
-        }, { returns_json: false })
+    function globalBackspaceListener(event) {
+        if( event.shiftKey && event.key === 'Backspace' ) {
+            requestWS('req-execute', {type:'shortcut', message: '$StopAction=None'});
+        }
     }
 
-    const [profile, setProfile] = useState(profiles[0])
+    useEffect(()=>{
+        document.addEventListener("keydown", globalBackspaceListener)
+        return ()=>{
+            document.removeEventListener("keydown", globalBackspaceListener);
+        }
+    })
 
     return (
-        <div>
-            <SelectProfile current_profile={profile} setCurrentProfile={setProfile} send={send} />
-            <PreDefinedScripts send={send} profile={profile.name} />
-            <ManualDefinedScript send={send} />
-            <TriggerBehaviour send={send} />
-        </div>
+        <RouterProvider router={createBrowserRouter([
+            {
+                path: '/',
+                element: <Controller />
+            },
+            {
+                path: '/scripts',
+                element: <RunScriptPage />
+            },
+            {
+                path: '/shortcuts',
+                element: <ShortCuts full_screen={true} />
+            },
+            {
+                path: '/upload-json',
+                element: <UploadSettings />
+            }
+        ])} />
     )
 }

@@ -1,13 +1,14 @@
 import { useState } from "react"
+import { requestWS } from "../utils/useWebSocket";
 
-export default function ManualDefinedScript({ send }) {
+export default function ManualDefinedScript() {
 
     const [script, setScript] = useState('')
 
     function executeScript() {
         if(!script) return;
         setScript('');
-        send('script', script);
+        requestWS('req-execute', {type: "script", message: script })
     }
 
     return (

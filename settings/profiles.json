@@ -1,0 +1,26 @@
+[
+    {
+        "name": "LLM Profile",
+        "html": "chatbot.html",
+        "flags": {
+            "gap_fill": true,
+            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v1"
+        }
+    },
+    {
+        "name": "CityNorth Event Agenda Profile",
+        "html": "event-agenda-citynorth.html",
+        "flags": {
+            "gap_fill": false,
+            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+        }
+    },
+    {
+        "name": "LTQ Showcase Event Agenda Profile",
+        "html": "event-agenda-ltq.html",
+        "flags": {
+            "gap_fill": false,
+            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+        }
+    }
+]

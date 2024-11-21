@@ -1,25 +1,21 @@
 import { useEffect, useState } from "react";
-import { getScript } from "../utils/types";
+import useWebSocket, { requestWS } from "../utils/useWebSocket";
 
-export default function PreDefinedScripts({ profile, send }) {
+export default function PreDefinedScripts({ controller, resetController }) {
     
-    const [scripts, setAllScripts] = useState({});
+    const { scripts } = useWebSocket();
     const [arrScripts, setArrScripts] = useState([]);
     const [s, setScript] = useState("");
 
     function executeSelectedScript() {
-        send('script', scripts[s]);
+        requestWS("req-execute", {type: "script", message:scripts[s]})
     }
 
-
-
     useEffect(()=>{
-        const all_scripts = getScript(profile)
-        setAllScripts(all_scripts);
-        const script_keys = Object.keys(all_scripts);
+        const script_keys = Object.keys(scripts);
         setScript(script_keys[0] ?? "")
         setArrScripts(script_keys)
-    }, [profile])
+    }, [scripts])
 
     function switchSelect(way) {
         let idx = arrScripts.indexOf(s)
@@ -34,6 +30,21 @@ export default function PreDefinedScripts({ profile, send }) {
         }
         setScript(arrScripts[idx])
     }
+
+    useEffect(()=>{
+        if(controller) {
+            switch(controller) {
+                case 'Enter':
+                    executeSelectedScript(); break;
+                case 'ArrowUp':
+                    switchSelect('last'); break;
+                case 'ArrowDown':
+                    switchSelect('next'); break;
+            }
+            resetController();
+        }
+    // eslint-disable-next-line
+    }, [controller])
 
     return (
         <section>

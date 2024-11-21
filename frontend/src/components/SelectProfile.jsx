@@ -1,9 +1,13 @@
-import { profiles } from "../utils/types";
+import useWebSocket, { requestWS } from "../utils/useWebSocket";
 
-export default function SelectProfile({ current_profile, setCurrentProfile, send }) {
-    
+export default function SelectProfile() {
+    const {
+        profiles, current_profile, setCurrentProfile
+    } = useWebSocket();
+
     function sendUpdateProfile() {
-        send('profile', current_profile)
+        requestWS("req-update-profile", current_profile)
+        requestWS("req-execute", {type: "profile", message: current_profile})
     }
 
     return (
