@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-export default function ScrollBar({ name, initial, max, min, callback  }) {
+export default function ScrollBar({ name, initial, max, min, step, callback  }) {
     const [value, setValue] = useState(initial);
 
     function updateValue(event) {
@@ -13,7 +13,7 @@ export default function ScrollBar({ name, initial, max, min, callback  }) {
         <div className="scroll-bar-container" >
             <h3>{ name }</h3>
             <div className="number">Current Value: {value}</div>
-            <input type="range" min={min ?? 0} max={max ?? 100} step={1} onChange={updateValue} value={value} />
+            <input type="range" min={min ?? 0} max={max ?? 100} step={step ?? 1} onChange={updateValue} value={value} />
         </div>
     )
 }
