@@ -1,14 +1,15 @@
-export default function trigger({title, status, setStatus, sendTriggerUpdate}) {
+export default function trigger({title, signal, value, setStatus, sendTriggerUpdate}) {
 
     function selectTriggerChange(event) {
-        const s = event.target.checked
-        setStatus(s);
-        sendTriggerUpdate(title, s)
+        const val = event.target.checked
+        const status_obj = { Signal:signal, Value:val }
+        setStatus(status_obj);
+        sendTriggerUpdate(title, status_obj)
     }
 
     return (
         <div className="trigger">
-            <input className="trigger-checkbox" type="checkbox" checked={status} onChange={selectTriggerChange} />
+            <input className="trigger-checkbox" type="checkbox" checked={value} onChange={selectTriggerChange} />
             <div className="title">{title}</div>
         </div>
     )

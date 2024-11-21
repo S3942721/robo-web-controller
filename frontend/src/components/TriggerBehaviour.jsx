@@ -5,15 +5,16 @@ export default function TriggerBehaviour() {
 
     const { triggers, setTriggers } = useWebSocket();
 
-    function sendTriggerUpdate(name, status) {
-        requestWS('req-update-trigger', { name, status });
-        requestWS("req-execute", {type: "trigger", message: { name, status }})
+    function sendTriggerUpdate(name, s) {
+        requestWS('req-update-trigger', { name: s });
+        requestWS("req-execute", {type: "trigger", message: { name, ...s }})
     }
 
     function sendAllUpdates() {
         requestWS("req-execute", {
-            type: "trigger-all", message: Object.keys(triggers).map(e=>{
-                return { name: e, status: triggers[e] }
+            type: "trigger-all", message: Object.keys(triggers).map(name=>{
+                const { Signal, Value } = triggers[name];
+                return { name, Signal, Value };
             })
         })
     }
@@ -21,11 +22,11 @@ export default function TriggerBehaviour() {
     return (
         <section>
             { Object.keys(triggers).map((trigger, index)=>{
-                const status = triggers[trigger]
+                const { Signal, Value } = triggers[trigger]
                 return (
                     <Trigger 
                         key={`trigger-${index}` } 
-                        title={trigger} status={status} 
+                        title={trigger} signal={Signal} value={Value}
                         setStatus={(s)=>setTriggers({...triggers, [trigger]: s})} 
                         sendTriggerUpdate={sendTriggerUpdate}
                     />
