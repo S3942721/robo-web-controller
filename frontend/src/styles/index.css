@@ -253,3 +253,22 @@ section > .grid-shortcuts > .shortcut:active {
     margin-top: 30px;
     width: var(--elem-width);
 }
+
+/* scroll bar */
+.scroll-bar-container {
+    /* width: 500px; */
+    height: fit-content;
+    margin-left: 20px;
+    margin-bottom: 30px;
+    width: calc(100% - 60px);
+}
+
+.scroll-bar-container > .number {
+    color: gray;
+    font-size: 17px;
+    margin-bottom: 10px;
+}
+
+.scroll-bar-container > input[type='range'] {
+    width: 100%;
+}
