@@ -13,9 +13,10 @@ export default function ScrollControllers() {
         <section>
             <h1>Numerical Triggers</h1>
             <ScrollBar name='Adjust Volume' initial={80} callback={updateCallback("Volume")} />
+            <ScrollBar name='Response Speed' initial={90} max={120} min={40} callback={updateCallback("ChangeResponseSpeed")} />
+            <ScrollBar name='Sentence Pause (x200ms)' initial={4} max={10} min={1} callback={updateCallback("ChangeSentencePause")} />
             <ScrollBar name='Greet Face Lost Timeout' initial={1} max={5} min={0.5} step={0.5} callback={updateCallback("ChangeGreetFaceLostTimeout")} />
             <ScrollBar name='Greet Timeout' initial={3} max={10} min={1} step={0.5} callback={updateCallback("ChangeGreetTimeout")} />
-            <ScrollBar name='Response Speed' initial={90} max={120} min={40} callback={updateCallback("ChangeResponseSpeed")} />
         </section>
     )
 }
