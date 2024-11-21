@@ -87,6 +87,9 @@ app.ws('/api/sync', (ws, req)=>{
 	ws.on("close", ()=>{
 		sendWebSockets = sendWebSockets.filter(e=>e!==ws);
 	})
+	ws.on("error", ()=>{
+		sendWebSockets = sendWebSockets.filter(e=>e!==ws);
+	})
 
 })
 
