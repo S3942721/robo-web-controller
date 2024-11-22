@@ -11,6 +11,7 @@ import ShortCuts from "./ShortCuts"
 import UploadSettings from "./pages/UploadSettings"
 import { requestWS } from "../utils/useWebSocket"
 import { useEffect } from "react"
+import MoveController from "./MoveController"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -43,6 +44,10 @@ export default function App() {
             {
                 path: '/upload-json',
                 element: <UploadSettings />
+            },
+            {
+                path: '/move-control',
+                element: <MoveController />
             }
         ])} />
     )

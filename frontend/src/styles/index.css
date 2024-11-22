@@ -14,7 +14,8 @@ section > .grid-shortcuts > .shortcut:hover,
 }
 
 #root {
-    width: 800px;
+    --root-width: 800px;
+    width: var(--root-width);
     max-width: 100dvw;
     margin: auto;
 }
@@ -271,4 +272,70 @@ section > .grid-shortcuts > .shortcut:active {
 
 .scroll-bar-container > input[type='range'] {
     width: 100%;
+}
+
+/* move control */
+.movement-controller {
+    --direction-size: 70px;
+    --rotation-width: var(--direction-size);
+    --rotation-height: calc(var(--direction-size) * 3);
+    --controller-width: calc(var(--direction-size) * 6 + 10px);
+    --controller-height: var(--rotation-height);
+    width: var(--controller-width);
+    height: var(--controller-height);
+    position: relative;
+    margin: auto;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.movement-controller > .direction {
+    width: var(--direction-size);
+    height: var(--direction-size);
+    position: absolute;
+}
+
+.movement-controller > .rotation {
+    width: var(--rotation-width);
+    height: var(--rotation-height);
+    position: absolute;
+}
+
+.movement-controller > .W {
+    left: var(--direction-size);
+    top: 0;
+}
+.movement-controller > .A {
+    left: 0;
+    top: var(--direction-size);
+}
+.movement-controller > .S {
+    left: var(--direction-size);
+    top: calc(var(--direction-size) * 2);
+}
+.movement-controller > .D {
+    left: calc(var(--direction-size) * 2);
+    top: var(--direction-size);
+}
+.movement-controller > .Q {
+    right: calc(var(--rotation-width) + 10px);
+    top: 0;
+}
+.movement-controller > .E {
+    right: 0;
+    top: 0;
+}
+.movement-controller > div {
+    border-radius: 10px;
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+}
+.movement-controller > div.holding {
+    background-color: dodgerblue;
+    color: white;
+}
+.movement-controller > div > * {
+    margin: auto;
 }
