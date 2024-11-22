@@ -1,4 +1,5 @@
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
+import FoldableSection from "./FoldableSection";
 
 export default function SelectProfile() {
     const {
@@ -11,8 +12,7 @@ export default function SelectProfile() {
     }
 
     return (
-        <section className="select-profile">
-            <h1>Profiles</h1>
+        <FoldableSection className="select-profile" title={'Profiles'}>
             { profiles.map((profile, index)=>{
                 const { name, html, flags } = profile;
                 return (
@@ -37,6 +37,6 @@ export default function SelectProfile() {
                 )
             }) }
             <div className="btn" onClick={sendUpdateProfile}>Update Profile</div>
-        </section>
+        </FoldableSection>
     )
 }

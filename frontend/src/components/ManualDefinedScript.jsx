@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { requestWS } from "../utils/useWebSocket";
+import FoldableSection from "./FoldableSection";
 
 export default function ManualDefinedScript() {
 
@@ -12,7 +13,7 @@ export default function ManualDefinedScript() {
     }
 
     return (
-        <section>
+        <FoldableSection title={`Manual Defined Scripts`}>
             <form onSubmit={evt=>{
                 evt.preventDefault();
                 executeScript();
@@ -26,6 +27,6 @@ export default function ManualDefinedScript() {
                 />
                 <div className="btn" onClick={executeScript}>Execute Current Script</div>
             </form>
-        </section>
+        </FoldableSection>
     )
 }

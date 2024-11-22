@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
+import FoldableSection from "./FoldableSection";
 
 export default function PreDefinedScripts({ controller, resetController }) {
     
@@ -47,8 +48,7 @@ export default function PreDefinedScripts({ controller, resetController }) {
     }, [controller])
 
     return (
-        <section>
-            <h1>Pre-Defined Scripts</h1>
+        <FoldableSection title={"Pre-Defined Scripts"}>
             { arrScripts.map((script_name, i)=>{
                 const script_value = scripts[script_name];
                 return (
@@ -67,6 +67,6 @@ export default function PreDefinedScripts({ controller, resetController }) {
                 <div className="btn" onClick={executeSelectedScript}>Execute Selected Script</div>
                 <div className="btn" onClick={()=>switchSelect('next')}>Switch to Next Script</div>
             </div>
-        </section>
+        </FoldableSection>
     )
 }

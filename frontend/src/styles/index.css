@@ -8,7 +8,7 @@ input:focus {
 }
 
 .btn:hover,
-section > .grid-shortcuts > .shortcut:hover,
+section > .foldable > .grid-shortcuts > .shortcut:hover,
 .clickable:hover {
     cursor: pointer;
 }
@@ -42,6 +42,7 @@ section > .grid-shortcuts > .shortcut:hover,
 .btn:hover {
     background-color: rgb(14, 105, 196);
 }
+
 section {
     width: 100%;
     margin: 10px 0px;
@@ -51,13 +52,39 @@ section {
     height: fit-content;
 }
 
-section > .btn {
+section > .title-bar {
+    position: relative;
+    width: 100%;
+    height: fit-content;
+}
+section > .title-bar > .fold-button {
+    position: absolute;
+    right: 0;
+    top: 10px;
+    transition-duration: .5s;
+    transform-origin: center;
+}
+section > .title-bar > .fold-button.expand {
+    transform: rotate(90deg);
+}
+section > .foldable {
+    transform-origin: top;
+}
+section > .foldable.folded {
+    transform: scaleY(0);
+}
+
+section > .foldable > .btn {
     margin: auto;
     margin-top: 20px;
 }
 
-section > div.selected {
+section > .foldable > div.selected {
     border-color: dodgerblue;
+}
+
+section.folded {
+    height: 100px;
 }
 
 #root:has(section.full-screen) {
@@ -66,7 +93,7 @@ section > div.selected {
 
 /* PROFILE */
 
-section > .profile {
+section > .foldable > .profile {
     width: 100%;
     border: 2px solid lightgray;
     border-radius: 7px;
@@ -74,32 +101,32 @@ section > .profile {
     margin-bottom: 10px;
 }
 
-section > .profile > div {
+section > .foldable > .profile > div {
     margin-bottom: 10px;
 }
 
-section > .profile > .name {
+section > .foldable > .profile > .name {
     font-size: 18px;
     font-weight: bold;
 }
 
-section > .profile > .flags > .title {
+section > .foldable > .profile > .flags > .title {
     font-size: 17px;
     margin-bottom: 5px;
 }
 
-section > .profile > .flags > div:not(.title) {
+section > .foldable > .profile > .flags > div:not(.title) {
     margin-left: 10px;
     margin-bottom: 3px;
 }
 
-section > .profile > .html {
+section > .foldable > .profile > .html {
     color: gray;
 }
 
 /* SCRIPTS */
 
-section > .script {
+section > .foldable > .script {
     width: 100%;
     min-height: 50px;
     align-content: center;
@@ -110,12 +137,12 @@ section > .script {
     border-radius: 5px;
 }
 
-section > .script > .script-name {
+section > .foldable > .script > .script-name {
     font-size: 19px;
     font-size: bold;
 }
 
-section > .script > .script-value {
+section > .foldable > .script > .script-value {
     color: gray;
     margin-top: 5px;
     height: 20px;
@@ -124,7 +151,7 @@ section > .script > .script-value {
     overflow: hidden;
 }
 
-section > form > .manual-script {
+section > .foldable > form > .manual-script {
     width: 100%;
     min-height: 50px;
     border-radius: 10px;
@@ -134,12 +161,12 @@ section > form > .manual-script {
     font-size: 17px;
     margin-bottom: 10px;
 }
-section > form > .manual-script:focus {
+section > .foldable > form > .manual-script:focus {
     outline: none;
 }
 
 /* Trigger */
-section > .trigger {
+section > .foldable > .trigger {
     width: fit-content;
     display: inline-block;
     min-height: 40px;
@@ -151,11 +178,11 @@ section > .trigger {
     background-color: white;
 }
 
-section > .trigger > .title {
+section > .foldable > .trigger > .title {
     z-index: 1;
 }
 
-section > .trigger > .trigger-checkbox {
+section > .foldable > .trigger > .trigger-checkbox {
     opacity: 0;
     z-index: 2;
     position: absolute;
@@ -164,18 +191,18 @@ section > .trigger > .trigger-checkbox {
     width: 100%;
     height: 100%;
 }
-section > .trigger > .trigger-checkbox:hover {
+section > .foldable > .trigger > .trigger-checkbox:hover {
     cursor: pointer;
 }
 
-section > .trigger:has(.trigger-checkbox:checked) {
+section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     background-color: dodgerblue;
     color: white;
     border-color: blue;
 }
 
 /* shortcuts */
-section > .grid-shortcuts {
+section > .foldable > .grid-shortcuts {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
@@ -186,7 +213,7 @@ section.full-screen > .grid-shortcuts {
     gap: 20px;
 }
 
-section > .grid-shortcuts > .shortcut {
+section > .foldable > .grid-shortcuts > .shortcut {
     width: auto;
     min-height: 100px;
     background-color: dodgerblue;
@@ -197,7 +224,7 @@ section > .grid-shortcuts > .shortcut {
     border-radius: 10px;
 }
 
-section > .grid-shortcuts > .shortcut:active {
+section > .foldable > .grid-shortcuts > .shortcut:active {
     background-color: rgb(14, 105, 196);
 }
 

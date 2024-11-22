@@ -1,4 +1,5 @@
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
+import FoldableSection from "./FoldableSection";
 
 export default function ShortCuts({ full_screen }) {
     const {
@@ -17,8 +18,7 @@ export default function ShortCuts({ full_screen }) {
     }
 
     return (
-        <section className={full_screen ? 'full-screen' : ''}>
-            <h1>Shortcuts</h1>
+        <FoldableSection className={full_screen ? 'full-screen' : ''} title={'Shortcuts'}>
             <div className="grid-shortcuts">
                 {
                     Object.keys(shortcuts).map((name, index)=>{
@@ -31,6 +31,6 @@ export default function ShortCuts({ full_screen }) {
                     })
                 }
             </div>
-        </section>
+        </FoldableSection>
     )
 }

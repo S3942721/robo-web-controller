@@ -1,5 +1,6 @@
 import Trigger from "./sub-components/Trigger"
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
+import FoldableSection from "./FoldableSection";
 
 export default function TriggerBehaviour() {
 
@@ -20,7 +21,7 @@ export default function TriggerBehaviour() {
     }
 
     return (
-        <section>
+        <FoldableSection title={'Triggers'}>
             { Object.keys(triggers).map((trigger, index)=>{
                 const { Signal, Value } = triggers[trigger]
                 return (
@@ -33,6 +34,6 @@ export default function TriggerBehaviour() {
                 )
             }) }
             <div className="btn" onClick={sendAllUpdates}>Update All Triggers</div>
-        </section>
+        </FoldableSection>
     )
 }

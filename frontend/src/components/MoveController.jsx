@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { requestWS } from "../utils/useWebSocket";
 import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "./icons";
 import ScrollBar from "./sub-components/ScrollBar";
+import FoldableSection from "./FoldableSection";
 
 export default function MoveController() {
 
@@ -72,6 +73,7 @@ export default function MoveController() {
             window.removeEventListener('blur', lostFocus);
             document.removeEventListener('visibilitychange', visibilityChange);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     function updateCallback(Signal) {
@@ -81,18 +83,18 @@ export default function MoveController() {
     }
 
     return (
-        <>
-        <div className="movement-controller">
-            <div className={`direction W ${keys.W?"holding":""}`}><CaretUp /></div>
-            <div className={`direction A ${keys.A?"holding":""}`}><CaretLeft /></div>
-            <div className={`direction S ${keys.S?"holding":""}`}><CaretDown /></div>
-            <div className={`direction D ${keys.D?"holding":""}`}><CaretRight /></div>
-            <div className={`rotation  E ${keys.E?"holding":""}`}><Arrow90degRight /></div>
-            <div className={`rotation  Q ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
-        </div>
-        <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
-        <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
-        <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
-        </>
+        <FoldableSection title={"Movement Controller"}>
+            <div className="movement-controller">
+                <div className={`direction W ${keys.W?"holding":""}`}><CaretUp /></div>
+                <div className={`direction A ${keys.A?"holding":""}`}><CaretLeft /></div>
+                <div className={`direction S ${keys.S?"holding":""}`}><CaretDown /></div>
+                <div className={`direction D ${keys.D?"holding":""}`}><CaretRight /></div>
+                <div className={`rotation  E ${keys.E?"holding":""}`}><Arrow90degRight /></div>
+                <div className={`rotation  Q ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
+            </div>
+            <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
+            <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
+            <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
+        </FoldableSection>
     );
 }
