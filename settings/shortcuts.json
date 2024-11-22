@@ -59,9 +59,15 @@
         "^start(thinking) I'm not so sure ^wait(thinking)",
         "^start(thinking) I'm not too sure about that ^wait(thinking)",
         "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
-        "^start(thinking) Hmm i don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+        "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
         "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
-        "^start(thinking) As robot, I don't know sorry ^stop(thinking) ^start(lookhand)  ^wait(lookhand)"
+        "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+        "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
+        "^start(sad) My circuits are not equipped for this ^wait(sad)",
+        "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
+        "^start(thinking) I'm not programmed to know that ^wait(thinking)",
+        "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
+        "^start(thinking) My creators didn't teach me that ^wait(thinking)"
     ],
     "Intro Crowd": [
         "^start(hey) Hello everyone, I'm Pepper ^wait(hey)",
@@ -86,6 +92,22 @@
         "**audio=calm_bell** ^start(hey) 15 minutes left of this session ^wait(hey)",
         "**audio=calm_bell** ^start(hey) 15 minutes left everyone ^wait(hey)",
         "**audio=calm_bell** ^start(hey) 15 minutes left ^wait(hey)"
+    ],
+    "10m left": [
+        "**audio=calm_bell** Hey everyone 10 minutes left of this session",
+        "**audio=calm_bell** 10 minutes left everyone",
+        "**audio=calm_bell** Just letting you know there is 10 minutes left",
+        "**audio=calm_bell** ^start(hey) 10 minutes left of this session ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 10 minutes left everyone ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 10 minutes left ^wait(hey)"
+    ],
+    "5m left": [
+        "**audio=calm_bell** Hey everyone 5 minutes left of this session",
+        "**audio=calm_bell** 5 minutes left everyone",
+        "**audio=calm_bell** Just letting you know there is 5 minutes left",
+        "**audio=calm_bell** ^start(hey) 5 minutes left of this session ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 5 minutes left everyone ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 5 minutes left ^wait(hey)"
     ],
     "30s left": [
         "**audio=singlebell** time to wrap up",
