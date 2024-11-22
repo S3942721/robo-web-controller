@@ -36,14 +36,14 @@ export default function MoveController() {
 
     const handleKeyDown = (event) => {
         const key = event.key.toUpperCase();
-        if (keys.hasOwnProperty(key)) {
+        if (Object.hasOwn(keys, key)) {
             setKey(key, true);
         }
     };
 
     const handleKeyUp = (event) => {
         const key = event.key.toUpperCase();
-        if (keys.hasOwnProperty(key)) {
+        if (Object.hasOwn(keys, key)) {
             setKey(key, false);
         }
     };
