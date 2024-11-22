@@ -286,7 +286,7 @@ section > .grid-shortcuts > .shortcut:active {
     position: relative;
     margin: auto;
     margin-top: 20px;
-    margin-bottom: 20px;
+    margin-bottom: 50px;
 }
 
 .movement-controller > .direction {
@@ -330,7 +330,6 @@ section > .grid-shortcuts > .shortcut:active {
     border: 1px solid gray;
     display: flex;
     align-items: center;
-    font-size: 20px;
 }
 .movement-controller > div.holding {
     background-color: dodgerblue;
@@ -338,4 +337,6 @@ section > .grid-shortcuts > .shortcut:active {
 }
 .movement-controller > div > * {
     margin: auto;
+    width: 20px;
+    height: 20px;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { requestWS } from "../utils/useWebSocket";
-import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "react-bootstrap-icons";
-import ScrollControllers from "./ScrollControllers";
+import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "./icons";
+import ScrollBar from "./sub-components/ScrollBar";
 
 export default function MoveController() {
 
@@ -48,15 +48,37 @@ export default function MoveController() {
         }
     };
 
+    function lostFocus() {
+        for(const i in keys) {
+            setKey(i, false);
+        }
+    }
+
+    function visibilityChange() {
+        if(document.visibilityState === 'hidden') {
+            lostFocus();
+        }
+    }
+
     useEffect(() => {
         document.addEventListener("keydown", handleKeyDown);
         document.addEventListener("keyup", handleKeyUp);
+        window.addEventListener('blur', lostFocus);
+        document.addEventListener('visibilitychange', visibilityChange);
 
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
             document.removeEventListener("keyup", handleKeyUp);
+            window.removeEventListener('blur', lostFocus);
+            document.removeEventListener('visibilitychange', visibilityChange);
         };
     }, []);
+
+    function updateCallback(Signal) {
+        return function(Value) {
+            requestWS('req-execute', { type: 'trigger', message: {Signal, Value} })
+        }
+    }
 
     return (
         <>
@@ -68,7 +90,9 @@ export default function MoveController() {
             <div className={`rotation  E ${keys.E?"holding":""}`}><Arrow90degRight /></div>
             <div className={`rotation  Q ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
         </div>
-        <ScrollControllers to_right={true} />
+        <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
+        <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
+        <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
         </>
     );
 }
