@@ -11,6 +11,10 @@
         "**audio=multiplebells**",
         "**audio=multiplebells** ^run(hey)"
     ],
+    "🔔🎶": [
+        "**audio=calm_bell**",
+        "**audio=calm_bell** ^run(hey)"
+    ],
     "🤔": [
         "^start(thinking) Hmm let me think about that ^wait(thinking)",
         "^start(thinking) Hmm let me think ^wait(thinking)",
@@ -22,32 +26,32 @@
         "^start(thinking) Let me see, just a sec ^wait(thinking)"
     ],
     "Greet": [
-        "^start(hey) \\rspd=90\\ Hello ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Howdy ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hi ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hey ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Glad you came ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Welcome ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Welcome in ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Nice to see you here ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Greetings, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hello, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Welcome, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hey, my name is Pepper ^wait(hey)",
-        "^start(bowshort) \\rspd=90\\ Welcome ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Welcome in ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Nice to see you here ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Greetings, I'm Pepper ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Hello, I'm Pepper ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Welcome, I'm Pepper ^wait(bowshort)",
-        "^start(bowshort) \\rspd=90\\ Hello, my name is Pepper ^wait(bowshort)",
-        "^start(salute) \\rspd=90\\ Welcome ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Welcome in ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Nice to see you here ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Greetings, I'm Pepper ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Hello, I'm Pepper ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Welcome, I'm Pepper ^wait(salute)",
-        "^start(salute) \\rspd=90\\ Welcome, my name is Pepper ^wait(salute)"
+        "^start(hey) Hello ^wait(hey)",
+        "^start(hey) Howdy ^wait(hey)",
+        "^start(hey) Hi ^wait(hey)",
+        "^start(hey) Hey ^wait(hey)",
+        "^start(hey) Glad you came ^wait(hey)",
+        "^start(hey) Welcome ^wait(hey)",
+        "^start(hey) Welcome in ^wait(hey)",
+        "^start(hey) Nice to see you here ^wait(hey)",
+        "^start(hey) Greetings, I'm Pepper ^wait(hey)",
+        "^start(hey) Hello, I'm Pepper ^wait(hey)",
+        "^start(hey) Welcome, I'm Pepper ^wait(hey)",
+        "^start(hey) Hey, my name is Pepper ^wait(hey)",
+        "^start(bowshort) Welcome ^wait(bowshort)",
+        "^start(bowshort) Welcome in ^wait(bowshort)",
+        "^start(bowshort) Nice to see you here ^wait(bowshort)",
+        "^start(bowshort) Greetings, I'm Pepper ^wait(bowshort)",
+        "^start(bowshort) Hello, I'm Pepper ^wait(bowshort)",
+        "^start(bowshort) Welcome, I'm Pepper ^wait(bowshort)",
+        "^start(bowshort) Hello, my name is Pepper ^wait(bowshort)",
+        "^start(salute) Welcome ^wait(salute)",
+        "^start(salute) Welcome in ^wait(salute)",
+        "^start(salute) Nice to see you here ^wait(salute)",
+        "^start(salute) Greetings, I'm Pepper ^wait(salute)",
+        "^start(salute) Hello, I'm Pepper ^wait(salute)",
+        "^start(salute) Welcome, I'm Pepper ^wait(salute)",
+        "^start(salute) Welcome, my name is Pepper ^wait(salute)"
     ],
     "IDK": [
         "^start(thinking) I'm not sure about that ^wait(thinking)",
@@ -55,33 +59,33 @@
         "^start(thinking) I'm not so sure ^wait(thinking)",
         "^start(thinking) I'm not too sure about that ^wait(thinking)",
         "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
-        "^start(thinking) Hmm i don't know, I'm artificial, not too intelligent ^wait(thinking)",
-        "^start(thinking) I'm not sure, I'm just a robot ^wait(thinking)",
-        "^start(thinking) As robot, I don't know sorry ^wait(thinking)"
+        "^start(thinking) Hmm i don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+        "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+        "^start(thinking) As robot, I don't know sorry ^stop(thinking) ^start(lookhand)  ^wait(lookhand)"
     ],
     "Intro Crowd": [
-        "^start(hey) \\rspd=90\\ Hello everyone, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hi everyone, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hey everyone, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hello! I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ I'm Pepper, nice to meet you all ^wait(hey)",
-        "^start(hey) \\rspd=90\\ I'm Pepper, nice to see you all ^wait(hey)"
+        "^start(hey) Hello everyone, I'm Pepper ^wait(hey)",
+        "^start(hey) Hi everyone, I'm Pepper ^wait(hey)",
+        "^start(hey) Hey everyone, I'm Pepper ^wait(hey)",
+        "^start(hey) Hello! I'm Pepper ^wait(hey)",
+        "^start(hey) I'm Pepper, nice to meet you all ^wait(hey)",
+        "^start(hey) I'm Pepper, nice to see you all ^wait(hey)"
     ],
     "Intro Single": [
-        "^start(hey) \\rspd=90\\ Hello, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hi, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hey, I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ Hello! I'm Pepper ^wait(hey)",
-        "^start(hey) \\rspd=90\\ I'm Pepper, nice to meet you ^wait(hey)",
-        "^start(hey) \\rspd=90\\ I'm Pepper, nice to see you ^wait(hey)"
+        "^start(hey) Hello, I'm Pepper ^wait(hey)",
+        "^start(hey) Hi, I'm Pepper ^wait(hey)",
+        "^start(hey) Hey, I'm Pepper ^wait(hey)",
+        "^start(hey) Hello! I'm Pepper ^wait(hey)",
+        "^start(hey) I'm Pepper, nice to meet you ^wait(hey)",
+        "^start(hey) I'm Pepper, nice to see you ^wait(hey)"
     ],
     "15m left": [
-        "**audio=multiplebells** 15 minutes left of this session",
-        "**audio=multiplebells** 15 minutes left everyone",
-        "**audio=multiplebells** 15 minutes left",
-        "**audio=multiplebells** ^run(hey) 15 minutes left of this session",
-        "**audio=multiplebells** ^run(hey) 15 minutes left everyone",
-        "**audio=multiplebells** ^run(hey) 15 minutes left"
+        "**audio=calm_bell** Hey everyone 15 minutes left of this session",
+        "**audio=calm_bell** 15 minutes left everyone",
+        "**audio=calm_bell** Just letting you know there is 15 minutes left",
+        "**audio=calm_bell** ^start(hey) 15 minutes left of this session ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 15 minutes left everyone ^wait(hey)",
+        "**audio=calm_bell** ^start(hey) 15 minutes left ^wait(hey)"
     ],
     "30s left": [
         "**audio=singlebell** time to wrap up",
@@ -92,6 +96,42 @@
         "**audio=singlebell** ^start(hey) almost time ^wait(hey)",
         "**audio=singlebell** ^start(hey) 30 seconds left ^wait(hey)"
     ],
+    "🎸": "^run(airguitar)",
+    "🕊️": "^run(wings)",
+    "📸": "^run(takepicture)",
+    "🕺": "^run(funnydancer)",
+    "excited": "^run(excited)",
+    "💪": "^run(fitness)",
+    "🚁": "^run(helicopter)",
+    "👋": "^run(hey)",
+    "Shy": "^run(shy)",
+    "Yes": "^run(yes)",
+    "No": [
+        "^run(no)",
+        "^run(reject)"
+    ],
+    "Love you": "^run(loveyou)",
+    "Eye Broke": "^run(knockeye)",
+    "Laugh": "^run(quicklaugh)",
+    "🥁": "$Sound=badoom_tss ^start(clap) \\pau=3000\\",
+    "🦗": "$Sound=crickets ^run(thinking)",
+    "🐺": "^run(monster)",
+    "🪄": "^run(mysticalpower)",
+    "😵": "$Sound=error",
+    "⚠️🎉": "$Sound=yippee",
+    "⚠️VineBoom": "$Sound=vine_boom",
+    "⚠️🎺WompWomp": "$Sound=womp_womp",
+    "⚠️SadMeowSong": "$Sound=sad_meow_song ^run(sad)",
+    "Strike a pose": "^run(strikeapose)",
+    "Pose for photo": [
+        "^start(strikeapose) Say cheese ^wait(strikeapose)",
+        "^start(strikeapose) Smile ^wait(strikeapose)",
+        "^start(strikeapose) 3, 2, 1, pose ^wait(strikeapose)",
+        "^start(strikeapose) 3, 2, 1, smile ^wait(strikeapose)",
+        "^start(strikeapose) 3, 2, 1, say cheese ^wait(strikeapose)",
+        "^start(strikeapose) 3, 2, 1, pose for the camera ^wait(strikeapose)"
+    ],
     "I'll be back": "Goodbye everyone, and just remember ^start(you) $EyeColour=red $Sound=ill_be_back $EyeColour=red ^wait(you) \\pau=1000\\",
-    "Get to choppa": "^start(helicopter) Oh my, what's that. \\pau=1000\\ $EyeColour=red $Sound=get_to_the_choppa $EyeColour=red ^wait(helicopter)"
+    "Get to choppa": "^start(helicopter) Oh my, what's that. \\pau=1000\\ $EyeColour=red $Sound=get_to_the_choppa $EyeColour=red ^wait(helicopter)",
+    "🛑STOP🛑": "$StopAction=None"
 }

@@ -1,9 +1,30 @@
 {
-    "Forced Eye Contact": false,
-    "Wandering": false,
-    "Expressions": false,
-    "Need free space for animations": false,
-    "Search for new people if not interacting": false,
-    "Trigger strike a pose": false,
-    "Speech Recognition": true
+    "Mute": {
+        "Signal": "Mute",
+        "Value": false
+    },
+    "Greetings": {
+        "Signal": "ControlGreetings",
+        "Value": false
+    },
+    "Face Lost needed for Greetings": {
+        "Signal": "GreetingsRequireFaceLost",
+        "Value": true
+    },
+    "Speech Recognition": {
+        "Signal": "ControlRecording",
+        "Value": false
+    },
+    "Move contextually": {
+        "Signal": "ControlContextMovement",
+        "Value": false
+    },
+    "Awareness": {
+        "Signal": "ControlAwareness",
+        "Value": true
+    },
+    "Engaged": {
+        "Signal": "ControlEngagement",
+        "Value": true
+    }
 }
