@@ -208,8 +208,8 @@ section > .foldable > .grid-shortcuts {
     gap: 10px;
 }
 
-section.full-screen > .grid-shortcuts {
-    grid-template-columns: repeat(6, 1fr);
+section.full-screen > .foldable > .grid-shortcuts {
+    grid-template-columns: repeat(8, 1fr);
     gap: 20px;
 }
 
@@ -218,10 +218,14 @@ section > .foldable > .grid-shortcuts > .shortcut {
     min-height: 100px;
     background-color: dodgerblue;
     color: white;
-    font-size: 30px;
+    font-size: 20px;
     text-align: center;
     align-content: center;
     border-radius: 10px;
+}
+section.full-screen > .foldable > .grid-shortcuts > .shortcut {
+    font-size: 40px;
+    min-height: 150px;
 }
 
 section > .foldable > .grid-shortcuts > .shortcut:active {
