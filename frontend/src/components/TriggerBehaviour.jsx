@@ -7,7 +7,6 @@ export default function TriggerBehaviour() {
     const { triggers, setTriggers } = useWebSocket();
 
     function sendTriggerUpdate(name, s) {
-        requestWS('req-update-trigger', { name: s });
         requestWS("req-execute", {type: "trigger", message: { name, ...s }})
     }
 

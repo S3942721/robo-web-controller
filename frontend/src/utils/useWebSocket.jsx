@@ -53,10 +53,6 @@ socket.onmessage = message =>{
             g_scripts = value;
             update('scripts')
             break;
-        case "res-update-trigger":
-            g_triggers = value;
-            update('triggers')
-            break;
     }
 }
 
@@ -65,7 +61,7 @@ socket.onopen = () => {
 }
 
 /**
- * @param {"req-update-profile"|"req-update-trigger"|"req-update-announce"|"req-execute"} cmd 
+ * @param {"req-update-profile"|"req-update-announce"|"req-execute"} cmd 
  * @param {*} value 
  */
 export function requestWS(cmd, value) {

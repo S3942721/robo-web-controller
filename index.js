@@ -79,10 +79,6 @@ app.ws('/api/sync', (ws, req)=>{
 				syncWSWithAll('res-update-profile', current_profile)
 				syncWSWithAll('res-update-scripts', scripts)
 				break;
-			case 'req-update-trigger':
-				triggers = {...triggers, [value.name]: value.status};
-				syncWSWithAll('res-update-trigger', triggers)
-				break;
 			case 'req-execute':
 				sendSockets.forEach(s=>{
 					s(JSON.stringify(value))
