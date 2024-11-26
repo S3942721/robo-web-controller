@@ -11,7 +11,7 @@ export default function SelectAnnouncements() {
         const option = event.target.value;
         if(!option) return;
         setAnnounce(option);
-        requestWS("req-execute", { type: 'announcement', message: announcements[option] })
+        requestWS("req-execute", { type: 'announcement', message: option })
     }
 
     return (
