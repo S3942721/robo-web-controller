@@ -141,9 +141,11 @@
     "🪄": "^run(mysticalpower)",
     "😵": "$Sound=error",
     "⚠️🎉": "$Sound=yippee",
-    "⚠️VineBoom": "$Sound=vine_boom",
-    "⚠️🎺WompWomp": "$Sound=womp_womp",
-    "⚠️SadMeowSong": "$Sound=sad_meow_song ^run(sad)",
+    "⚠️Vine Boom": "$Sound=vine_boom",
+    "⚠️🎺Womp Womp": "$Sound=womp_womp",
+    "⚠️Sad Meow Song": "$Sound=sad_meow_song ^run(sad)",
+    "⚠️Cat Rot": "$Sound=cat_brain_rot",
+    "⚠️Ooeeaa": "$Sound=ooeeaa",
     "Strike a pose": "^run(strikeapose)",
     "Pose for photo": [
         "^start(strikeapose) Say cheese ^wait(strikeapose)",
@@ -155,5 +157,5 @@
     ],
     "I'll be back": "Goodbye everyone, and just remember ^start(you) $EyeColour=red $Sound=ill_be_back $EyeColour=red ^wait(you) \\pau=1000\\",
     "Get to choppa": "^start(helicopter) Oh my, what's that. \\pau=1000\\ $EyeColour=red $Sound=get_to_the_choppa $EyeColour=red ^wait(helicopter)",
-    "🛑STOP🛑": "$StopAction=None"
+    "🛑 STOP 🛑": "$StopAction=None"
 }

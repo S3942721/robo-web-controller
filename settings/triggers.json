@@ -7,7 +7,7 @@
         "Signal": "ControlMovement",
         "Value": false
     },
-    "Greetings": {
+    "Greetings/Announcements": {
         "Signal": "ControlGreetings",
         "Value": false
     },
@@ -37,6 +37,14 @@
     },
     "!!!Collision Avoidance!!!": {
         "Signal": "ControlCollisionAvoidance",
+        "Value": true
+    },
+    "Wandering": {
+        "Signal": "ControlWandering",
+        "Value": false
+    },
+    "Announcements on face detection": {
+        "Signal": "ControlFaceDetectionAnnouncements",
         "Value": true
     }
 }
