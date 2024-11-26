@@ -4,6 +4,7 @@ import TriggerBehaviour from "../TriggerBehaviour"
 import ManualDefinedScript from "../ManualDefinedScript"
 import ShortCuts from "../ShortCuts"
 import ScrollControllers from "../ScrollControllers"
+import SelectAnnouncements from "../SelectAnnouncements"
 
 export default function Controller() {
     return (
@@ -12,6 +13,7 @@ export default function Controller() {
             <ShortCuts />
             <PreDefinedScripts />
             <ManualDefinedScript />
+            <SelectAnnouncements />
             <TriggerBehaviour />
             <ScrollControllers />
         </div>

@@ -371,3 +371,13 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     width: 20px;
     height: 20px;
 }
+/* announcements */
+.select-announces {
+    width: 100%;
+    appearance: menulist-button;
+    height: 40px;
+}
+
+.include-announces > .lines {
+    margin-left:7px;
+}
