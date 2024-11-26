@@ -311,7 +311,9 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     --rotation-width: var(--direction-size);
     --rotation-height: calc(var(--direction-size) * 3);
     --controller-width: calc(var(--direction-size) * 6 + 10px);
-    --controller-height: var(--rotation-height);
+    --controller-height: calc(var(--rotation-height) + var(--head-height) + 20px);
+    --head-width: calc((var(--controller-width) - 30px) / 4);
+    --head-height: calc(var(--direction-size) / 2);
     width: var(--controller-width);
     height: var(--controller-height);
     position: relative;
@@ -330,6 +332,13 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     width: var(--rotation-width);
     height: var(--rotation-height);
     position: absolute;
+}
+
+.movement-controller > .head-pos {
+    width: var(--head-width);
+    height: var(--head-height);
+    position: absolute;
+    top: calc(var(--rotation-height) + 20px);
 }
 
 .movement-controller > .W {
@@ -355,6 +364,18 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
 .movement-controller > .E {
     right: 0;
     top: 0;
+}
+.movement-controller > .UP {
+    left: 0;
+}
+.movement-controller > .DOWN {
+    left: calc(var(--head-width) + 10px);
+}
+.movement-controller > .LEFT {
+    left: calc(var(--head-width) * 2 + 20px);
+}
+.movement-controller > .RIGHT {
+    left: calc(var(--head-width) * 3 + 30px);
 }
 .movement-controller > div {
     border-radius: 10px;

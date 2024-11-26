@@ -13,6 +13,10 @@ export default function MoveController() {
         D: false,
         E: false,
         Q: false,
+        ARROWUP: false,
+        ARROWDOWN: false,
+        ARROWLEFT: false,
+        ARROWRIGHT: false,
     });
 
     const debounceTimeouts = useRef({});
@@ -85,12 +89,16 @@ export default function MoveController() {
     return (
         <FoldableSection title={"Movement Controller"}>
             <div className="movement-controller">
-                <div className={`direction W ${keys.W?"holding":""}`}><CaretUp /></div>
-                <div className={`direction A ${keys.A?"holding":""}`}><CaretLeft /></div>
-                <div className={`direction S ${keys.S?"holding":""}`}><CaretDown /></div>
-                <div className={`direction D ${keys.D?"holding":""}`}><CaretRight /></div>
-                <div className={`rotation  E ${keys.E?"holding":""}`}><Arrow90degRight /></div>
-                <div className={`rotation  Q ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
+                <div className={`direction W     ${keys.W?"holding":""}`}><CaretUp /></div>
+                <div className={`direction A     ${keys.A?"holding":""}`}><CaretLeft /></div>
+                <div className={`direction S     ${keys.S?"holding":""}`}><CaretDown /></div>
+                <div className={`direction D     ${keys.D?"holding":""}`}><CaretRight /></div>
+                <div className={`rotation  E     ${keys.E?"holding":""}`}><Arrow90degRight /></div>
+                <div className={`rotation  Q     ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
+                <div className={`head-pos  UP    ${keys.ARROWUP?"holding":""}`}><CaretUp /></div>
+                <div className={`head-pos  DOWN  ${keys.ARROWDOWN?"holding":""}`}><CaretDown /></div>
+                <div className={`head-pos  LEFT  ${keys.ARROWLEFT?"holding":""}`}><CaretLeft /></div>
+                <div className={`head-pos  RIGHT ${keys.ARROWRIGHT?"holding":""}`}><CaretRight /></div>
             </div>
             <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
             <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
