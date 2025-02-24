@@ -1,4 +1,4 @@
-## Pepper Robot Controller
+## Robot Web Controller
 This project is for control the pepper robot, using socket to establish connection and send events handle by Pepper Robot
 ## Build & Start
 > Please make sure you have `Node.JS` installed.
