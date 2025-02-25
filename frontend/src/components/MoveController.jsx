@@ -77,9 +77,21 @@ export default function MoveController() {
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
-                setX(controller.axes[0].toFixed(2));
-                setY(controller.axes[1].toFixed(2));
-                requestWS("req-execute", { type: "ConMove", message: { x: controller.axes[0].toFixed(2), y: controller.axes[1].toFixed(2) } });
+                const newX = Math.abs(controller.axes[0]) < 0.06 ? 0.00 : controller.axes[0].toFixed(2);
+                const newY = Math.abs(controller.axes[1]) < 0.06 ? 0.00 : controller.axes[1].toFixed(2);
+                const newZ = Math.abs(controller.axes[1]) < 0.06 ? 0.00 : controller.axes[3].toFixed(2)
+                setX(newX);
+                setY(newY);
+                setZ(newZ);
+                if (newX !== 0 || newY !== 0 || newZ !== 0){
+                    controller.vibrationActuator.playEffect("dual-rumble", {
+                        startDelay: 0,
+                        duration: 200,
+                        weakMagnitude: 1.0,
+                        strongMagnitude: 1.0,
+                    });
+                    requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, z: newZ} });
+                }
             }
         }, 10);
 
