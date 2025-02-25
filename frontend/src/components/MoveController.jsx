@@ -21,6 +21,7 @@ export default function MoveController() {
 
     const [x, setX] = useState(0);
     const [y, setY] = useState(0);
+    const [z, setZ] = useState(0);
 
     const debounceTimeouts = useRef({});
 
@@ -114,6 +115,7 @@ export default function MoveController() {
         <FoldableSection title={"Movement Controller"}>
             <div>X {x}</div>
             <div>Y {y}</div>
+            <div>Z {z}</div>
             <div className="movement-controller">
                 <div className={`direction W     ${keys.W?"holding":""}`}><CaretUp /></div>
                 <div className={`direction A     ${keys.A?"holding":""}`}><CaretLeft /></div>
