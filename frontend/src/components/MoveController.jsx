@@ -79,10 +79,10 @@ export default function MoveController() {
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
-                const newX = Math.abs(controller.axes[0]) < 0.06 ? 0.00 : controller.axes[0].toFixed(2);
-                const newY = Math.abs(controller.axes[1]) < 0.06 ? 0.00 : controller.axes[1].toFixed(2);
-                const headX = Math.abs(controller.axes[2]) < 0.00 ? 0.00 : controller.axes[2].toFixed(2);
-                const headY = Math.abs(controller.axes[3]) < 0.00 ? 0.00 : controller.axes[3].toFixed(2);
+                const newX = Math.abs(controller.axes[0]) < 0.1 ? 0.00 : controller.axes[0].toFixed(2);
+                const newY = Math.abs(controller.axes[1]) < 0.1 ? 0.00 : controller.axes[1].toFixed(2);
+                const headX = Math.abs(controller.axes[2]) < 0.1 ? 0.00 : controller.axes[2].toFixed(2);
+                const headY = Math.abs(controller.axes[3]) < 0.1 ? 0.00 : controller.axes[3].toFixed(2);
                 setX(newX);
                 setY(newY);
                 setheadX(headX);
