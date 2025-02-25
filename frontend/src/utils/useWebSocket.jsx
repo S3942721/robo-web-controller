@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const ws_url = (import.meta.env.PROD ? '' : 'ws://localhost:3000')+'/api/sync'
+const ws_url = (import.meta.env.PROD ? '' : 'ws://10.234.7.248:3000')+'/api/sync'
 
 let g_profiles = [], g_current_profile = {}, g_scripts = {}, g_triggers = {}, g_shortcuts = {}, g_announcements = {};
 

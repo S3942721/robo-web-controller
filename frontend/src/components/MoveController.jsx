@@ -19,6 +19,9 @@ export default function MoveController() {
         ARROWRIGHT: false,
     });
 
+    const [x, setX] = useState(0);
+    const [y, setY] = useState(0);
+
     const debounceTimeouts = useRef({});
 
     function debounceKeyUpdate(key, holding) {
@@ -71,6 +74,15 @@ export default function MoveController() {
         window.addEventListener('blur', lostFocus);
         document.addEventListener('visibilitychange', visibilityChange);
 
+        const interval = setInterval(() => {
+            const controller = navigator.getGamepads()[0];
+            if (controller) {
+                setX(controller.axes[0].toFixed(2));
+                setY(controller.axes[1].toFixed(2));
+                requestWS("req-execute", { type: "ConMove", message: { x: controller.axes[0].toFixed(2), y: controller.axes[1].toFixed(2) } });
+            }
+        }, 10);
+
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
             document.removeEventListener("keyup", handleKeyUp);
@@ -88,6 +100,8 @@ export default function MoveController() {
 
     return (
         <FoldableSection title={"Movement Controller"}>
+            <div>X {x}</div>
+            <div>Y {y}</div>
             <div className="movement-controller">
                 <div className={`direction W     ${keys.W?"holding":""}`}><CaretUp /></div>
                 <div className={`direction A     ${keys.A?"holding":""}`}><CaretLeft /></div>
@@ -101,7 +115,7 @@ export default function MoveController() {
                 <div className={`head-pos  RIGHT ${keys.ARROWRIGHT?"holding":""}`}><CaretRight /></div>
             </div>
             <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
-            <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
+            <ScrollBar  name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
             <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
         </FoldableSection>
     );
