@@ -21,7 +21,8 @@ export default function MoveController() {
 
     const [x, setX] = useState(0);
     const [y, setY] = useState(0);
-    const [z, setZ] = useState(0);
+    const [hx, setheadX] = useState(0);
+    const [hy, setheadY] = useState(0);
 
     const debounceTimeouts = useRef({});
 
@@ -80,19 +81,21 @@ export default function MoveController() {
             if (controller) {
                 const newX = Math.abs(controller.axes[0]) < 0.06 ? 0.00 : controller.axes[0].toFixed(2);
                 const newY = Math.abs(controller.axes[1]) < 0.06 ? 0.00 : controller.axes[1].toFixed(2);
-                const newZ = Math.abs(controller.axes[1]) < 0.06 ? 0.00 : controller.axes[3].toFixed(2)
+                const headX = Math.abs(controller.axes[2]) < 0.00 ? 0.00 : controller.axes[2].toFixed(2);
+                const headY = Math.abs(controller.axes[3]) < 0.00 ? 0.00 : controller.axes[3].toFixed(2);
                 setX(newX);
                 setY(newY);
-                setZ(newZ);
-                if (newX !== 0 || newY !== 0 || newZ !== 0){
+                setheadX(headX);
+                setheadY(headY);
+                if (newX !== 0 || newY !== 0 || headX !== 0 || headY !== 0){
                     controller.vibrationActuator.playEffect("dual-rumble", {
                         startDelay: 0,
                         duration: 200,
                         weakMagnitude: 1.0,
                         strongMagnitude: 1.0,
                     });
-                    requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, z: newZ} });
                 }
+                requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY} });
             }
         }, 10);
 
@@ -115,7 +118,8 @@ export default function MoveController() {
         <FoldableSection title={"Movement Controller"}>
             <div>X {x}</div>
             <div>Y {y}</div>
-            <div>Z {z}</div>
+            <div>Hx {hx}</div>
+            <div>Hy {hy}</div>
             <div className="movement-controller">
                 <div className={`direction W     ${keys.W?"holding":""}`}><CaretUp /></div>
                 <div className={`direction A     ${keys.A?"holding":""}`}><CaretLeft /></div>
