@@ -1,0 +1,7 @@
+{
+	"ext": "js,mjs,cjs,json,jsx",
+  	"events": {
+		 "restart": "npm run build"
+	},
+	"watch": "frontend/src"
+}
