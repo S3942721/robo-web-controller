@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { requestWS } from "../utils/useWebSocket";
-import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "./icons";
-import ScrollBar from "./sub-components/ScrollBar";
-import FoldableSection from "./FoldableSection";
+import { requestWS } from "../../utils/useWebSocket";
+import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "./../icons";
+import ScrollBar from "./../sub-components/ScrollBar";
+import FoldableSection from "./../FoldableSection";
 
-export default function MoveController() {
+export default function MoveController({foldable, compact=false}) {
 
     const [keys, setKeys] = useState({
         W: false,
@@ -88,16 +88,20 @@ export default function MoveController() {
                 setheadX(headX);
                 setheadY(headY);
                 if (newX !== 0 || newY !== 0 || headX !== 0 || headY !== 0){
-                    controller.vibrationActuator.playEffect("dual-rumble", {
-                        startDelay: 0,
-                        duration: 200,
-                        weakMagnitude: 1.0,
-                        strongMagnitude: 1.0,
-                    });
+                    try {
+                        controller.vibrationActuator.playEffect("dual-rumble", {
+                            startDelay: 0,
+                            duration: 200,
+                            weakMagnitude: 1.0,
+                            strongMagnitude: 1.0,
+                        });
+                    } catch (error) {
+                        console.error("Vibration effect failed:", error);
+                    }
                 }
                 requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY} });
             }
-        }, 10);
+        }, 3);
 
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
@@ -114,8 +118,43 @@ export default function MoveController() {
         }
     }
 
+    if (compact) {
+        // Return compact version of the component
+        return (
+            <FoldableSection title={"Movement Controller"} foldable={foldable} compact={true}>
+                <div className="joystick-container">
+                    <div className="joystick-box">
+                        <div 
+                            className="joystick-point" 
+                            style={{ 
+                                left: `${(x * 50) + 50}%`, 
+                                top: `${(y * 50) + 50}%` 
+                            }} 
+                        />
+                    </div>
+                    <div className="joystick-box">
+                        <div 
+                            className="joystick-point" 
+                            style={{ 
+                                left: `${(hx * 50) + 50}%`, 
+                                top: `${(hy * 50) + 50}%` 
+                            }} 
+                        />
+                    </div>
+                </div>
+                {/* <div>X {x}</div>
+                <div>Y {y}</div>
+                <div>Hx {hx}</div>
+                <div>Hy {hy}</div> */}
+                <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
+                <ScrollBar  name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
+                <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
+            </FoldableSection>
+        );
+    }
     return (
-        <FoldableSection title={"Movement Controller"}>
+        
+        <FoldableSection title={"Movement Controller"} foldable={foldable}>
             <div>X {x}</div>
             <div>Y {y}</div>
             <div>Hx {hx}</div>
