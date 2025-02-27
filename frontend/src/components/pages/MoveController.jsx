@@ -48,6 +48,7 @@ export default function MoveController({foldable, compact=false}) {
         const key = event.key.toUpperCase();
         if (Object.hasOwn(keys, key)) {
             setKey(key, true);
+            updateDisplayValues(key, true);
         }
     };
 
@@ -55,12 +56,46 @@ export default function MoveController({foldable, compact=false}) {
         const key = event.key.toUpperCase();
         if (Object.hasOwn(keys, key)) {
             setKey(key, false);
+            updateDisplayValues(key, false);
         }
     };
+
+    function updateDisplayValues(key, holding) {
+        const delta = holding ? 1 : -1;
+        switch (key) {
+            case 'W':
+                setY(prevY => prevY - delta);
+                break;
+            case 'A':
+                setX(prevX => prevX - delta);
+                break;
+            case 'S':
+                setY(prevY => prevY + delta);
+                break;
+            case 'D':
+                setX(prevX => prevX + delta);
+                break;
+            case 'ARROWUP':
+                setheadY(prevHy => prevHy - delta);
+                break;
+            case 'ARROWDOWN':
+                setheadY(prevHy => prevHy + delta);
+                break;
+            case 'ARROWLEFT':
+                setheadX(prevHx => prevHx - delta);
+                break;
+            case 'ARROWRIGHT':
+                setheadX(prevHx => prevHx + delta);
+                break;
+            default:
+                break;
+        }
+    }
 
     function lostFocus() {
         for(const i in keys) {
             setKey(i, false);
+            updateDisplayValues(i, false);
         }
     }
 

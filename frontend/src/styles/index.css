@@ -158,6 +158,29 @@ section > .foldable > .script > .script-value {
     overflow: hidden;
 }
 
+section > .foldable > .script.selected {
+    background-color: dodgerblue;
+    color: white;
+    transition: background-color 0.5s ease;
+}
+
+section > .foldable > .script.executed {
+    background-color: dodgerblue;
+    color: white;
+    animation: flash 2s ease;
+}
+
+@keyframes flash {
+    0% {
+        background-color: dodgerblue;
+        color: black
+    }
+    100% {
+        background-color: lightgray;
+        color: black;
+    }
+}
+
 section > .foldable > form > .manual-script {
     width: 100%;
     min-height: 50px;
@@ -383,15 +406,6 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     top: 0;
 }
 
-.movement-controller > .Q.compact {
-    /* Place in the middle of the bounding div */
-    right: calc(var(--rotation-width) + 10px);
-    top: calc(var(--rotation-height) / 2 - 10px);
-    
-    width: 100%;
-    height: 100%;
-}
-
 .movement-controller > .E {
     right: 0;
     top: 0;
@@ -534,8 +548,8 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
 }
 
 .compact .script {
-    display: flex;
-    flex-direction: column;
+    /* display: flex;
+    flex-direction: column; */
     width: 100%;
     min-height: 30px;
     align-content: center;
@@ -566,4 +580,28 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     justify-content: space-around;
     padding: 10px;
     position: absolute;
+}
+
+.compact .script-container {
+    height: calc(100% - 60px); /* Adjust this value as needed to fit within the padding */
+    overflow-y: auto;
+    border: 1px solid lightgray;
+    border-radius: 5px;
+    padding: 5px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.compact .script.selected {
+    background-color: rgb(213, 213, 213);
+    border: 4px dashed dodgerblue;
+    border-width: 4px;
+    /* color: white; */
+    transition: background-color 0.5s ease;
+}
+
+.compact .script.executed {
+    background-color: dodgerblue;
+    color: white;
+    animation: flash 2s ease;
 }
