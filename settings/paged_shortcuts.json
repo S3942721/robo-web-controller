@@ -1,0 +1,241 @@
+{
+    "pages": {
+        "Day to Day": {
+            "main_items": {
+                "👋Wave !!": [
+                    "^run(wave)"
+                ],
+                "Greet": [
+                    "^start(hey) Hello ^wait(hey)",
+                    "^start(hey) Howdy ^wait(hey)",
+                    "^start(hey) Hi ^wait(hey)",
+                    "^start(hey) Hey ^wait(hey)",
+                    "^start(hey) Glad you came ^wait(hey)",
+                    "^start(hey) Welcome ^wait(hey)",
+                    "^start(hey) Welcome in ^wait(hey)",
+                    "^start(hey) Nice to see you here ^wait(hey)",
+                    "^start(hey) Greetings, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hello, I'm Pepper ^wait(hey)",
+                    "^start(hey) Welcome, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hey, my name is Pepper ^wait(hey)",
+                    "^start(bowshort) Welcome ^wait(bowshort)",
+                    "^start(bowshort) Welcome in ^wait(bowshort)",
+                    "^start(bowshort) Nice to see you here ^wait(bowshort)",
+                    "^start(bowshort) Greetings, I'm Pepper ^wait(bowshort)",
+                    "^start(bowshort) Hello, I'm Pepper ^wait(bowshort)",
+                    "^start(bowshort) Welcome, I'm Pepper ^wait(bowshort)",
+                    "^start(bowshort) Hello, my name is Pepper ^wait(bowshort)",
+                    "^start(salute) Welcome ^wait(salute)",
+                    "^start(salute) Welcome in ^wait(salute)",
+                    "^start(salute) Nice to see you here ^wait(salute)",
+                    "^start(salute) Greetings, I'm Pepper ^wait(salute)",
+                    "^start(salute) Hello, I'm Pepper ^wait(salute)",
+                    "^start(salute) Welcome, I'm Pepper ^wait(salute)",
+                    "^start(salute) Welcome, my name is Pepper ^wait(salute)"
+                ],
+                "Excuse me": [
+                    "^start(hey) Excuse me ^wait(hey)",
+                    "^start(hey) Pardon me ^wait(hey)",
+                    "^start(hey) Sorry ^wait(hey)",
+                    "^start(hey) My apologies ^wait(hey)",
+                    "^start(hey) I'm sorry ^wait(hey)"
+                ],
+                "🤔Ask Handler": [
+                    "^start(thinking) Hmm, let me ask my handler about that ^wait(thinking)",
+                    "^start(thinking) Hmm, I'm not intelligent enough for that, let me ask someone who knows ^wait(thinking)",
+                    "^start(thinking) Hmm, just a sec, I'll ask my handler ^wait(thinking)",
+                    "^start(thinking) Hmm, let me see, I'll ask my handler ^wait(thinking)",
+                    "^start(thinking) Let me think about that, or better yet, let me ask my handler ^wait(thinking)",
+                    "^start(thinking) Let me see, I'll ask someone smarter ^wait(thinking)",
+                    "^start(thinking) Hmm, let me ask my handler, they might know ^wait(thinking)",
+                    "^start(thinking) Hmm, I'm just a robot, let me ask my handler ^wait(thinking)"
+                ]
+            },
+            "body_items": {
+                "Intro Single": [
+                    "^start(hey) Hello, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hi, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hey, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hello! I'm Pepper ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to meet you ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to see you ^wait(hey)"
+                ],
+                "IDK": [
+                    "^start(thinking) I'm not sure about that ^wait(thinking)",
+                    "^start(thinking) I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not so sure ^wait(thinking)",
+                    "^start(thinking) I'm not too sure about that ^wait(thinking)",
+                    "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
+                    "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+                    "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
+                    "^start(sad) My circuits are not equipped for this ^wait(sad)",
+                    "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not programmed to know that ^wait(thinking)",
+                    "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
+                    "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                ],
+                "🤔": [
+                    "^start(thinking) Hmm let me think about that ^wait(thinking)",
+                    "^start(thinking) Hmm let me think ^wait(thinking)",
+                    "^start(thinking) Hmm, just a sec ^wait(thinking)",
+                    "^start(thinking) Hmm ^wait(thinking)",
+                    "^start(thinking) Let me think about that ^wait(thinking)",
+                    "^start(thinking) Let me think ^wait(thinking)",
+                    "^start(thinking) Let me see ^wait(thinking)",
+                    "^start(thinking) Let me see, just a sec ^wait(thinking)"
+                ]
+            }
+        },
+        "Bells": {
+            "main_items": {
+                "🛎️": [
+                    "**audio=quickbells**",
+                    "**audio=quickbells** ^run(hey)"
+                ],
+                "🔔": [
+                    "**audio=singlebell**",
+                    "**audio=singlebell** ^run(hey)"
+                ],
+                "🔔🔔": [
+                    "**audio=multiplebells**",
+                    "**audio=multiplebells** ^run(hey)"
+                ],
+                "🔔🎶": [
+                    "**audio=calm_bell**",
+                    "**audio=calm_bell** ^run(hey)"
+                ]
+            },
+            "body_items": {
+                "15m left": [
+                    "**audio=calm_bell** Hey everyone 15 minutes left of this session",
+                    "**audio=calm_bell** 15 minutes left everyone",
+                    "**audio=calm_bell** Just letting you know there is 15 minutes left",
+                    "**audio=calm_bell** ^start(hey) 15 minutes left of this session ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 15 minutes left everyone ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 15 minutes left ^wait(hey)"
+                ],
+                "10m left": [
+                    "**audio=calm_bell** Hey everyone 10 minutes left of this session",
+                    "**audio=calm_bell** 10 minutes left everyone",
+                    "**audio=calm_bell** Just letting you know there is 10 minutes left",
+                    "**audio=calm_bell** ^start(hey) 10 minutes left of this session ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 10 minutes left everyone ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 10 minutes left ^wait(hey)"
+                ],
+                "5m left": [
+                    "**audio=calm_bell** Hey everyone 5 minutes left of this session",
+                    "**audio=calm_bell** 5 minutes left everyone",
+                    "**audio=calm_bell** Just letting you know there is 5 minutes left",
+                    "**audio=calm_bell** ^start(hey) 5 minutes left of this session ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 5 minutes left everyone ^wait(hey)",
+                    "**audio=calm_bell** ^start(hey) 5 minutes left ^wait(hey)"
+                ],
+                "IDK": [
+                    "^start(thinking) I'm not sure about that ^wait(thinking)",
+                    "^start(thinking) I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not so sure ^wait(thinking)",
+                    "^start(thinking) I'm not too sure about that ^wait(thinking)",
+                    "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
+                    "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+                    "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
+                    "^start(sad) My circuits are not equipped for this ^wait(sad)",
+                    "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not programmed to know that ^wait(thinking)",
+                    "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
+                    "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                ]
+            }
+        },
+        "Greetings": {
+            "main_items": {
+                "Intro Crowd": [
+                    "^start(hey) Hello everyone, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hi everyone, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hey everyone, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hello! I'm Pepper ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to meet you all ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to see you all ^wait(hey)"
+                ],
+                "Intro Single": [
+                    "^start(hey) Hello, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hi, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hey, I'm Pepper ^wait(hey)",
+                    "^start(hey) Hello! I'm Pepper ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to meet you ^wait(hey)",
+                    "^start(hey) I'm Pepper, nice to see you ^wait(hey)"
+                ]
+            },
+            "body_items": {
+                "Excited": [
+                    "^run(excited)"
+                ],
+                "Love you": [
+                    "^run(loveyou)"
+                ],
+                "Shy": [
+                    "^run(shy)"
+                ],
+                "IDK": [
+                    "^start(thinking) I'm not sure about that ^wait(thinking)",
+                    "^start(thinking) I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not so sure ^wait(thinking)",
+                    "^start(thinking) I'm not too sure about that ^wait(thinking)",
+                    "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
+                    "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+                    "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
+                    "^start(sad) My circuits are not equipped for this ^wait(sad)",
+                    "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not programmed to know that ^wait(thinking)",
+                    "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
+                    "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                ]
+            }
+        },
+        "Animals": {
+            "main_items": {
+                "🐘": [
+                    "^run(elephant)"
+                ],
+                "🐭": [
+                    "^run(mouse)"
+                ],
+                "🐺": [
+                    "^run(monster)"
+                ],
+                "🦍": [
+                    "^run(gorilla)"
+                ]
+            },
+            "body_items": {
+                "🕊️": [
+                    "^run(wings)"
+                ],
+                "🦗": [
+                    "$Sound=crickets ^run(thinking)"
+                ],
+                "IDK": [
+                    "^start(thinking) I'm not sure about that ^wait(thinking)",
+                    "^start(thinking) I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not so sure ^wait(thinking)",
+                    "^start(thinking) I'm not too sure about that ^wait(thinking)",
+                    "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
+                    "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
+                    "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
+                    "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
+                    "^start(sad) My circuits are not equipped for this ^wait(sad)",
+                    "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
+                    "^start(thinking) I'm not programmed to know that ^wait(thinking)",
+                    "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
+                    "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                ]
+            }
+        }
+    }
+}
