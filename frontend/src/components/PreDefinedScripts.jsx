@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import FoldableSection from "./FoldableSection";
+import { TbXboxAFilled } from "react-icons/tb";
+import { FaCaretSquareDown, FaCaretSquareUp } from "react-icons/fa";
 
 export default function PreDefinedScripts({ controller, resetController, foldable, compact }) {
     
@@ -9,6 +11,9 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     const [s, setScript] = useState("");
     const [executed, setExecuted] = useState(false);
     const scriptContainerRef = useRef(null);
+    const lastButtonRef = useRef(null);
+    const nextButtonRef = useRef(null);
+    const executeButtonRef = useRef(null);
 
     function executeSelectedScript() {
         requestWS("req-execute", {type: "script", message:scripts[s]});
@@ -42,9 +47,14 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                 case 'Enter':
                     executeSelectedScript(); break;
                 case 'ArrowUp':
-                    switchSelect('last'); break;
+                case 'DPAD_UP':
+                    lastButtonRef.current.click(); break;
                 case 'ArrowDown':
-                    switchSelect('next'); break;
+                case 'DPAD_DOWN':
+                    nextButtonRef.current.click(); break;
+                case 'X':
+                case 'A':
+                    executeButtonRef.current.click(); break;
             }
             resetController();
         }
@@ -55,10 +65,33 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
         if (compact && scriptContainerRef.current) {
             const selectedScript = scriptContainerRef.current.querySelector('.selected');
             if (selectedScript) {
-                selectedScript.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const containerHeight = scriptContainerRef.current.clientHeight;
+                const scriptHeight = selectedScript.clientHeight;
+                const scrollTop = selectedScript.offsetTop - (containerHeight / 2) + (scriptHeight / 2);
+                scriptContainerRef.current.scrollTo({ top: scrollTop, behavior: 'smooth' });
             }
         }
     }, [s, compact]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const controller = navigator.getGamepads()[0];
+            if (controller) {
+                const dpadUp = controller.buttons[12].pressed;
+                const dpadDown = controller.buttons[13].pressed;
+                const execute = controller.buttons[0].pressed; // A button on Xbox controller
+                if (dpadUp) {
+                    lastButtonRef.current.click();
+                } else if (dpadDown) {
+                    nextButtonRef.current.click();
+                } else if (execute) {
+                    executeButtonRef.current.click();
+                }
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, []);
 
     if (compact) {
         return (
@@ -79,9 +112,15 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                     }) }
                 </div>
                 <div className="inline-btns">
-                    <div className="btn" onClick={()=>switchSelect('last')}>Switch to Last Script</div>
-                    <div className="btn" onClick={executeSelectedScript}>Execute Selected Script</div>
-                    <div className="btn" onClick={()=>switchSelect('next')}>Switch to Next Script</div>
+                    <div className="btn" ref={lastButtonRef} onClick={()=>switchSelect('last')}>
+                        <FaCaretSquareUp style={{ display: 'block', margin: 'auto' }} /> Prev Line
+                    </div>
+                    <div className="btn" ref={executeButtonRef} onClick={executeSelectedScript}>
+                        <TbXboxAFilled style={{ fontSize: '1.0em', display: 'block', margin: 'auto' }} /> Execute Line
+                    </div>
+                    <div className="btn" ref={nextButtonRef} onClick={()=>switchSelect('next')}>
+                        <FaCaretSquareDown style={{ display: 'block', margin: 'auto' }} /> Next Line
+                    </div>
                 </div>
             </FoldableSection>
         )

@@ -232,18 +232,83 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 /* shortcuts */
-section > .foldable > .grid-shortcuts {
+.grid-shortcuts {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
 }
 
-section.full-screen > .foldable > .grid-shortcuts {
+.main-item > .grid-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%; /* Ensure it fills the width of the column */
+}
+
+.full-screen .grid-shortcuts {
     grid-template-columns: repeat(8, 1fr);
     gap: 20px;
 }
 
-section > .foldable > .grid-shortcuts > .shortcut {
+.grid-shortcuts .shortcut {
+    width: auto;
+    min-height: 100px;
+    background-color: dodgerblue;
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    align-content: center;
+    border-radius: 10px;
+    transition-duration: 0.1s;
+}
+
+.grid-shortcuts .shortcut:active,
+.grid-shortcuts .shortcut.active {
+    background-color: rgb(10, 80, 150);
+}
+
+.full-screen .grid-shortcuts .shortcut {
+    font-size: 40px;
+    min-height: 150px;
+}
+
+.grid-shortcuts .shortcut:active {
+    background-color: rgb(10, 80, 150);
+}
+
+.paged-shortcuts-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+}
+
+.paged-shortcuts-column {
+    display: grid;
+    grid-template-rows: 2fr 1fr 2fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.paged-shortcuts-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.paged-shortcuts-item.shortcut {
     width: auto;
     min-height: 100px;
     background-color: dodgerblue;
@@ -254,13 +319,20 @@ section > .foldable > .grid-shortcuts > .shortcut {
     border-radius: 10px;
     transition-duration: 0.2s;
 }
-section.full-screen > .foldable > .grid-shortcuts > .shortcut {
-    font-size: 40px;
-    min-height: 150px;
+
+.paged-shortcuts-item.shortcut:active,
+.paged-shortcuts-item.shortcut.active {
+    background-color: rgb(10, 80, 150);
 }
 
-section > .foldable > .grid-shortcuts > .shortcut:active {
-    background-color: rgb(10, 80, 150);
+.paged-shortcuts-item.main-item {
+    display: grid;
+    grid-template-rows: 1fr 4fr;
+    gap: 5px;
+    width: 100%;
+    height: 100%;
+    justify-items: stretch; /* Ensure it fills the width of the column */
+    align-items: stretch; /* Ensure it fills the height of the column */
 }
 
 /* upload settings */
@@ -497,6 +569,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
 .full-screen-section {
@@ -604,4 +677,69 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     background-color: dodgerblue;
     color: white;
     animation: flash 2s ease;
+}
+
+.paged-shortcuts-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+}
+
+.paged-shortcuts-column {
+    display: grid;
+    grid-template-rows: 2fr 1fr 2fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.paged-shortcuts-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.paged-shortcuts-item.shortcut {
+    width: auto;
+    min-height: 100px;
+    background-color: dodgerblue;
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    align-content: center;
+    border-radius: 10px;
+    transition-duration: 0.2s;
+}
+
+.paged-shortcuts-item.shortcut:active,
+.paged-shortcuts-item.shortcut.active {
+    background-color: rgb(10, 80, 150);
+}
+
+.paged-shortcuts-item.main-item {
+    display: grid;
+    grid-template-rows: 1fr 4fr;
+    gap: 5px;
+    width: 100%;
+    height: 100%;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    width: 100%;
 }

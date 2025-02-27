@@ -1,7 +1,7 @@
 import PreDefinedScripts from "../PreDefinedScripts";
 import ScrollControllers from "../ScrollControllers";
 import MoveController from "./MoveController";
-import ShortCuts from "./ShortCuts";
+import PagedShortCuts from "./PagedShortCuts";
 
 
 export default function Puppeteer() {
@@ -16,12 +16,13 @@ export default function Puppeteer() {
                 <div className={'grid-item'}>
                     <PreDefinedScripts foldable={false} compact={true}/>
                 </div>
-                <div style={{backgroundColor: "yellow"}}></div>
-                <div style={{backgroundColor: "pink"}}></div>
+                <div className={'grid-item'}>
+                    <ScrollControllers foldable={false} compact={true}/>
+                </div>
+                <div className={'grid-item'}>
+                    <PagedShortCuts foldable={false} compact={true}/>
+                </div>
             </div>
         </div>
-            /*{ <ShortCuts />
-            <PreDefinedScripts />
-            <ScrollControllers /> }*/
     )
 }

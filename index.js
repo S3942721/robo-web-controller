@@ -33,6 +33,8 @@ triggers = JSON.parse(readFileSync(join(__dirname, 'settings', 'triggers.json'),
 
 let shortcuts = JSON.parse(readFileSync(join(__dirname, 'settings', 'shortcuts.json'), { encoding: 'utf-8' }))
 
+let paged_shortcuts = JSON.parse(readFileSync(join(__dirname, 'settings', 'paged_shortcuts.json'), { encoding: 'utf-8' }))
+
 let announcements = JSON.parse(readFileSync(join(__dirname, 'settings', 'announcements.json'), { encoding: 'utf-8' }))
 
 const all_possible_files = JSON.parse(readFileSync(join(__dirname, 'settings', 'all_possible_files.json'), { encoding: 'utf-8' }))
@@ -56,7 +58,7 @@ function syncWSWithAll(cmd, value) {
 function getFullSyncItem() {
 	return {
 		profiles, current_profile, 
-		scripts, triggers, shortcuts,
+		scripts, triggers, shortcuts, paged_shortcuts,
 		announcements
 	}
 }
@@ -118,6 +120,8 @@ router.post("/api/file-upload", (req, res)=>{
 				shortcuts = json; break;
 			case 'announcements':
 				announcements = json; break;
+			case 'paged_shortcuts':
+				paged_shortcuts = json; break;
 			default:
 				all_scripts[name] = json;
 				if(current_profile.name === name) { scripts = json; }
