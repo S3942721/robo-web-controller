@@ -1,5 +1,5 @@
 {
-	"ext": "js,mjs,cjs,json,jsx",
+	"ext": "js,mjs,cjs,json,jsx,css",
   	"events": {
 		 "restart": "npm run build"
 	},

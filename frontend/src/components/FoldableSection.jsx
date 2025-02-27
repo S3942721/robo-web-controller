@@ -8,7 +8,7 @@ export default function FoldableSection({ className, children, title, foldable =
     if (!foldable) {
         console.log('FoldableSection.jsx: foldable is false')
         return (
-            <div className={`${className || ''} ${compact ? 'compact' : ''}`}>
+            <div className={`${className || ''} ${compact ? 'compact' : ''}`} style={{padding: '10px'}}>
                 { children }
             </div>
         )

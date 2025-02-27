@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import FoldableSection from "./FoldableSection";
 
-export default function PreDefinedScripts({ controller, resetController }) {
+export default function PreDefinedScripts({ controller, resetController, foldable, compact }) {
     
     const { scripts } = useWebSocket();
     const [arrScripts, setArrScripts] = useState([]);
@@ -46,6 +46,31 @@ export default function PreDefinedScripts({ controller, resetController }) {
         }
     // eslint-disable-next-line
     }, [controller])
+
+    if (compact) {
+        return (
+            <FoldableSection title={"Pre-Defined Scripts"} foldable={foldable} compact={compact}>
+                { arrScripts.map((script_name, i)=>{
+                    const script_value = scripts[script_name];
+                    return (
+                        <div 
+                            key={`script-${i}`} 
+                            className={`script clickable${s === script_name ? ' selected' : ""}`} 
+                            onClick={()=>setScript(script_name)}
+                        >
+                            <div className="script-name">{script_name}</div>
+                            <div className="script-value">{script_value}</div>
+                        </div>
+                    )
+                }) }
+                <div className="inline-btns">
+                    <div className="btn" onClick={()=>switchSelect('last')}>Switch to Last Script</div>
+                    <div className="btn" onClick={executeSelectedScript}>Execute Selected Script</div>
+                    <div className="btn" onClick={()=>switchSelect('next')}>Switch to Next Script</div>
+                </div>
+            </FoldableSection>
+        )
+    }
 
     return (
         <FoldableSection title={"Pre-Defined Scripts"}>

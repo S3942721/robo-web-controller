@@ -12,6 +12,7 @@ export default function Controller() {
         <div>
             <MoveController />
             <ManualDefinedScript />
+            <SelectProfile />
             <ShortCuts />
             <PreDefinedScripts />
             <ScrollControllers />

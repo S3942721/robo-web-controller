@@ -32,7 +32,7 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
     user-select: none;
     align-content: center;
     text-align: center;
-    transition-duration: .3s;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
     margin: auto;
 }
 
@@ -43,6 +43,10 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
 
 .btn:hover {
     background-color: rgb(14, 105, 196);
+}
+
+.btn:active {
+    background-color: rgb(10, 80, 150);
 }
 
 section {
@@ -63,7 +67,7 @@ section > .title-bar > .fold-button {
     position: absolute;
     right: 0;
     top: 10px;
-    transition-duration: .5s;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
     transform-origin: center;
 }
 section > .title-bar > .fold-button.expand {
@@ -71,6 +75,7 @@ section > .title-bar > .fold-button.expand {
 }
 section > .foldable {
     transform-origin: top;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
 }
 section > .foldable.folded {
     transform: scaleY(0);
@@ -224,6 +229,7 @@ section > .foldable > .grid-shortcuts > .shortcut {
     text-align: center;
     align-content: center;
     border-radius: 10px;
+    transition-duration: 0.2s;
 }
 section.full-screen > .foldable > .grid-shortcuts > .shortcut {
     font-size: 40px;
@@ -231,7 +237,7 @@ section.full-screen > .foldable > .grid-shortcuts > .shortcut {
 }
 
 section > .foldable > .grid-shortcuts > .shortcut:active {
-    background-color: rgb(14, 105, 196);
+    background-color: rgb(10, 80, 150);
 }
 
 /* upload settings */
@@ -303,6 +309,12 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     margin-bottom: 10px;
 }
 
+.scroll-bar-container > .number.compact {
+    color: black;
+    font-size: 17px;
+    margin-bottom: 10px;
+}
+
 .scroll-bar-container > input[type='range'] {
     width: 100%;
 }
@@ -370,6 +382,16 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     right: calc(var(--rotation-width) + 10px);
     top: 0;
 }
+
+.movement-controller > .Q.compact {
+    /* Place in the middle of the bounding div */
+    right: calc(var(--rotation-width) + 10px);
+    top: calc(var(--rotation-height) / 2 - 10px);
+    
+    width: 100%;
+    height: 100%;
+}
+
 .movement-controller > .E {
     right: 0;
     top: 0;
@@ -401,6 +423,21 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     width: 20px;
     height: 20px;
 }
+
+.rotation.compact {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid gray;
+    border-radius: 10px;
+}
+
+.rotation.compact.holding {
+    background-color: dodgerblue;
+    color: white;
+}
+
 /* announcements */
 .select-announces {
     width: 100%;
@@ -429,7 +466,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     height: 100vh;
     grid-template-rows: 1fr 1fr;
     grid-template-columns: 1fr 2fr;
-    gap: 10px;
+    gap: 0px;
 }
 
 .grid-item {
@@ -438,6 +475,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    position: relative;
 }
 
 .grid-item {
@@ -449,7 +487,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
 
 .full-screen-section {
     margin: 0;
-    padding: 0;
+    padding: 10px;
     width: 100vw;
     height: 100vh;
     overflow: hidden;
@@ -468,22 +506,22 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     border: 2px solid gray;
     border-radius: 10px;
     margin: auto;
-    background-color: #f0f0f0;
+    background-color: #E4F6F8;
 }
 
 .joystick-point {
     position: absolute;
     width: 10px;
     height: 10px;
-    background-color: red;
+    background-color: dodgerblue;
     border-radius: 50%;
     transform: translate(-50%, -50%);
 }
 
 .joystick-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 5px;
     justify-items: center;
     align-items: center;
 }
@@ -493,4 +531,39 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     height: 100%;
     padding: 0;
     margin: 0;
+}
+
+.compact .script {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 30px;
+    align-content: center;
+    font-size: 14px;
+    padding: 5px;
+    margin: 10px 0px;
+    border: 1px solid lightgray;
+    border-radius: 5px;
+}
+
+.compact .script > .script-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.compact .script > .script-value {
+    color: gray;
+    margin-top: 3px;
+    height: 15px;
+    align-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.compact .inline-btns {
+    bottom: 0;
+    width: 100%;
+    justify-content: space-around;
+    padding: 10px;
+    position: absolute;
 }
