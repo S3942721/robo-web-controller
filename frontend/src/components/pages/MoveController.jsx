@@ -122,7 +122,10 @@ export default function MoveController({foldable, compact=false}) {
         // Return compact version of the component
         return (
             <FoldableSection title={"Movement Controller"} foldable={foldable} compact={true}>
-                <div className="joystick-container">
+                <div className="joystick-container" style={{marginBottom: '10px'}}>
+                    <div className={`rotation compact ${keys.Q ? "holding" : ""}`}>
+                        <Arrow90degLeft />
+                    </div>
                     <div className="joystick-box">
                         <div 
                             className="joystick-point" 
@@ -141,14 +144,13 @@ export default function MoveController({foldable, compact=false}) {
                             }} 
                         />
                     </div>
+                    <div className={`rotation compact ${keys.E ? "holding" : ""}`}>
+                        <Arrow90degRight />
+                    </div>
                 </div>
-                {/* <div>X {x}</div>
-                <div>Y {y}</div>
-                <div>Hx {hx}</div>
-                <div>Hy {hy}</div> */}
-                <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
-                <ScrollBar  name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
-                <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
+                <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} compact={true} />
+                <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} compact={true} />
+                <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} compact={true} />
             </FoldableSection>
         );
     }
