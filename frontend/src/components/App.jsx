@@ -17,7 +17,7 @@ import Tom from "./pages/Tom"
 
 export default function App() {
     function globalBackspaceListener(event) {
-        if( event.shiftKey && event.key === 'Backspace' ) {
+        if( (event.shiftKey && event.key === 'Backspace') || event.key === 'B' ) {
             requestWS('req-execute', {type:'shortcut', message: '$StopAction=None'});
         }
     }

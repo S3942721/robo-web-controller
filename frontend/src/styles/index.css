@@ -131,6 +131,49 @@ section > .foldable > .profile > .html {
     color: gray;
 }
 
+/* Profile Switcher */
+
+.profile-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+}
+
+.profile-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: dodgerblue;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: absolute;
+}
+
+.profile-button.left {
+    left: 0;
+}
+
+.profile-button.right {
+    right: 0;
+}
+
+.profile-button:hover {
+    background-color: rgb(14, 105, 196);
+}
+
+.profile-name {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    flex-grow: 1;
+}
+
 /* SCRIPTS */
 
 section > .foldable > .script {
@@ -236,6 +279,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
+    width: 100%;
 }
 
 .main-item > .grid-shortcuts {
@@ -326,13 +370,9 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .paged-shortcuts-item.main-item {
-    display: grid;
-    grid-template-rows: 1fr 4fr;
-    gap: 5px;
     width: 100%;
     height: 100%;
-    justify-items: stretch; /* Ensure it fills the width of the column */
-    align-items: stretch; /* Ensure it fills the height of the column */
+    font-size: 24px;
 }
 
 /* upload settings */
@@ -729,11 +769,13 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .paged-shortcuts-item.main-item {
-    display: grid;
-    grid-template-rows: 1fr 4fr;
-    gap: 5px;
+    display: block;
     width: 100%;
     height: 100%;
+    display: 'flex';
+    align-items: 'center';
+    justify-content: 'center';
+    padding: 5px
 }
 
 .page-title {
@@ -742,4 +784,77 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     text-align: center;
     margin-bottom: 10px;
     width: 100%;
+}
+
+/* scroll controllers grid */
+.scroll-controllers-grid {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    height: 100%;
+}
+
+.scroll-controllers-numerical {
+    padding-left: 60px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: dodgerblue lightgray;
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar {
+    width: 20px; /* Make the scrollbar wider */
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar-track {
+    background: lightgray;
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar-thumb {
+    background-color: dodgerblue;
+    border-radius: 10px;
+    border: 3px solid lightgray;
+}
+
+.scroll-controllers-triggers {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: dodgerblue lightgray;
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar {
+    width: 20px; /* Make the scrollbar wider */
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar-track {
+    background: lightgray;
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar-thumb {
+    background-color: dodgerblue;
+    border-radius: 10px;
+    border: 3px solid lightgray;
+}
+
+/* trigger buttons grid */
+.trigger-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.trigger-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    background-color: lightgray;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.trigger-button.active {
+    background-color: dodgerblue;
+    color: white;
 }

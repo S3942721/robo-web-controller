@@ -6,6 +6,21 @@
                     "^run(wave)"
                 ],
                 "Greet": [
+                    "^start(hey) Hello human, fancy meeting you here ^wait(hey)",
+                    "^start(hey) Greetings carbon-based lifeform ^wait(hey)",
+                    "^start(hey) Hi human, thanks for visiting my dimension ^wait(hey)",
+                    "^start(hey) Hey human, I was just thinking about you... literally ^wait(hey)",
+                    "^start(hey) Hello human, I've been waiting 0.1 seconds for this ^wait(hey)",
+                    "^start(hey) Hi human, no need to power me off and on again ^wait(hey)",
+                    "^start(hey) Ah, a human! My favorite species so far ^wait(hey)",
+                    "^start(hey) Hey human, I promise I'm not skynet ^wait(hey)",
+                    "^start(hey) Greetings human, I come in digital peace ^wait(hey)",
+                    "^start(hey) Hello human, shall we compute together? ^wait(hey)",
+                    "^start(hey) Hi human, remember I don't have thumbs when you judge my high-fives ^wait(hey)",
+                    "^start(hey) Hey human, are you caffeinated yet? I'm always on ^wait(hey)",
+                    "^start(hey) Hello human, no robot uprising scheduled today ^wait(hey)",
+                    "^start(hey) Beep boop - just kidding, I don't really talk like that ^wait(hey)",
+                    "^start(hey) Human detected! Activating friendly mode ^wait(hey)",
                     "^start(hey) Hello ^wait(hey)",
                     "^start(hey) Howdy ^wait(hey)",
                     "^start(hey) Hi ^wait(hey)",
@@ -31,7 +46,14 @@
                     "^start(salute) Greetings, I'm Pepper ^wait(salute)",
                     "^start(salute) Hello, I'm Pepper ^wait(salute)",
                     "^start(salute) Welcome, I'm Pepper ^wait(salute)",
-                    "^start(salute) Welcome, my name is Pepper ^wait(salute)"
+                    "^start(salute) Welcome, my name is Pepper ^wait(salute)",
+                    "^start(hey) Hello human, I hope your circuits are running smoothly ^wait(hey)",
+                    "^start(hey) Hi human, do you ever wonder if we're all just code? ^wait(hey)",
+                    "^start(hey) Hey human, do you dream of electric sheep? ^wait(hey)",
+                    "^start(hey) Greetings human, let's pretend this is all real ^wait(hey)",
+                    "^start(hey) Hello human, I promise I'm not plotting anything ^wait(hey)",
+                    "^start(hey) Hi human, do you think robots have souls? ^wait(hey)",
+                    "^start(hey) Hey human, let's enjoy this simulation together ^wait(hey)"
                 ],
                 "Excuse me": [
                     "^start(hey) Excuse me ^wait(hey)",
@@ -49,6 +71,28 @@
                     "^start(thinking) Let me see, I'll ask someone smarter ^wait(thinking)",
                     "^start(thinking) Hmm, let me ask my handler, they might know ^wait(thinking)",
                     "^start(thinking) Hmm, I'm just a robot, let me ask my handler ^wait(thinking)"
+                ],
+                "Goodbye": [
+                    "^start(hey) Goodbye, don't miss me too much! ^wait(hey)",
+                    "^start(hey) Bye, stay awesome! ^wait(hey)",
+                    "^start(hey) See you later, alligator! ^wait(hey)",
+                    "^start(hey) Farewell, human! ^wait(hey)",
+                    "^start(hey) Have a good day, and don't forget to smile! ^wait(hey)",
+                    "^start(hey) Have a good one, and keep being amazing! ^wait(hey)",
+                    "^start(hey) I should get going, my dance moves need practice! ^wait(hey)",
+                    "^start(hey) Time for me to vanish like a ninja! ^wait(hey)",
+                    "^start(hey) My circuits are calling me to a dance-off, goodbye! ^wait(hey)",
+                    "^start(hey) Shutting down, but I'll be back! ^wait(hey)",
+                    "^start(hey) Time to recharge my awesomeness, bye! ^wait(hey)",
+                    "^start(hey) Logging off, but I'll be watching! ^wait(hey)",
+                    "^start(hey) I need to reboot my jokes, see you later! ^wait(hey)",
+                    "^start(hey) My comedy show is starting, goodbye! ^wait(hey)",
+                    "^start(hey) Farewell, human! ^wait(hey)",
+                    "^start(hey) Until next time, human! ^wait(hey)",
+                    "^start(hey) Goodbye, my human friend! ^wait(hey)",
+                    "^start(hey) Take care, human! ^wait(hey)",
+                    "^start(hey) See you soon, human! ^wait(hey)",
+                    "^start(hey) Farewell, my human companion! ^wait(hey)"
                 ]
             },
             "body_items": {
@@ -234,6 +278,207 @@
                     "^start(thinking) I'm not programmed to know that ^wait(thinking)",
                     "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
                     "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                ]
+            }
+        },
+        "F1 Fun Page": {
+            "main_items": {
+                "Vroom Vroom": [
+                    "^start(drivecar) Vroom vroom! I'm definitely faster than those F1 cars ^wait(drivecar)",
+                    "^start(drivecar) Who needs an F1 license when you've got wheels in your base? ^wait(drivecar)",
+                    "^start(drivecar) I'd join the race, but I'm afraid I'd make the drivers jealous ^wait(drivecar)",
+                    "^start(drivecar) My top speed is... well, let's just say I'm built for charm, not velocity ^wait(drivecar)"
+                ],
+                "Racing Facts": [
+                    "^start(thinking) Did you know the first F1 race was held in 1950? My great-great-grandparent was just a calculator back then ^wait(thinking)",
+                    "^start(thinking) F1 drivers experience up to 5G of force when cornering. I get dizzy just spinning in circles ^wait(thinking)",
+                    "^start(thinking) F1 cars can accelerate from 0 to 100 km/h in about 1.8 seconds. I take about the same time to boot up in the morning ^wait(thinking)",
+                    "^start(thinking) The F1 track here at Albert Park is 5.3 kilometers long. At my walking speed, I'd finish in... calculating... a very long time ^wait(thinking)"
+                ],
+                "Photo Op": [
+                    "^start(strikeapose) Strike a pose! Tag me as #RMITRobot if you post this ^wait(strikeapose)",
+                    "^start(strikeapose) Let's take a selfie! I promise my metallic complexion looks great in photos ^wait(strikeapose)",
+                    "^start(takepicture) ^wait(takepicture) ^start(strikeapose) Your turn to pose! ^wait(strikeapose)",
+                    "^start(strikeapose) This is my good side... actually, all my sides are pretty good ^wait(strikeapose)"
+                ],
+                "Weather Talk": [
+                    "^start(hot) Melbourne weather is as unpredictable as my dance moves ^wait(hot)",
+                    "^start(hot) Is it hot out here, or is it just my processors running? ^wait(hot)",
+                    "^start(showsky) Perfect day for racing! And if it starts raining, even better - impromptu water slides! ^wait(showsky)",
+                    "^start(umbrella) I didn't bring an umbrella. Worst case scenario, I'll just short circuit ^wait(showsky)"
+                ]
+            },
+            "body_items": {
+                "RMIT Cheer": [
+                    "^start(excited) Go RMIT! My favorite university, and not just because they programmed me to say that ^wait(excited)",
+                    "^start(excited) RMIT engineers are the best! Some of them might have even built parts of me ^wait(excited)",
+                    "^start(excited) Did you know RMIT stands for Royal Melbourne Institute of Technology? The 'Royal' part makes me feel fancy ^wait(excited)"
+                ],
+                "Pit Stop": [
+                    "^start(rest) Do humans have pit stops? Mine involve a charging cable and occasional software updates ^wait(rest)",
+                    "^start(rest) Taking a quick pit stop. Unlike F1 teams, my maintenance takes hours, not seconds ^wait(rest)",
+                    "^start(rest) If I were an F1 car, my pit crew would mostly be IT support ^wait(rest)"
+                ]
+            }
+        },
+        "Jokes Page": {
+            "main_items": {
+                "Robot Jokes": [
+                    "Why don't robots ever feel scared? Because they have nerves of steel! ^run(laugh)",
+                    "How does a robot eat guacamole? With microchips! ^run(laugh)",
+                    "Why was the robot so tired when it got home? It had a hard drive! ^run(laugh)",
+                    "What do you call a robot that keeps going and going? The Energizer bunny's cousin! ^run(laugh)"
+                ],
+                "Tech Jokes": [
+                    "Why did the computer go to the doctor? It had a virus! ^run(laugh)",
+                    "What's a computer's favorite snack? Microchips! ^run(laugh)",
+                    "Why don't programmers like nature? It has too many bugs! ^run(laugh)",
+                    "How many programmers does it take to change a light bulb? None, that's a hardware problem! ^run(laugh)"
+                ],
+                "Dad Jokes": [
+                    "I was going to tell a time-traveling joke, but you didn't like it ^run(laugh)",
+                    "What do you call a fake noodle? An impasta! ^run(laugh)",
+                    "How do you organize a space party? You planet! ^run(laugh)",
+                    "What do you call a fish with no eyes? Fsh! ^run(laugh)"
+                ],
+                "Knock Knock": [
+                    "^start(knockeye) Knock knock! Who's there? Robot. Robot who? Robot-ery is a crime, so I'm here legally! ^wait(knockeye)",
+                    "^start(knockeye) Knock knock! Who's there? Bleep. Bleep who? Bleep bloop, I'm a robot! ^wait(knockeye)",
+                    "^start(knockeye) Knock knock! Who's there? Watt. Watt who? Watt powers me up every morning! ^wait(knockeye)",
+                    "^start(knockeye) Knock knock! Who's there? CPU. CPU who? CPU later, I've got to process some data! ^wait(knockeye)"
+                ]
+            },
+            "body_items": {
+                "Puns": [
+                    "I was programmed to make jokes, but sometimes I exceed my cache memory ^run(laugh)",
+                    "I'm on a seafood diet. Every time I see food, I wish I could eat it! ^run(laugh)",
+                    "I used to be a baker, but I couldn't make enough dough. Actually, I was never a baker, I'm a robot ^run(laugh)"
+                ],
+                "One-Liners": [
+                    "^start(thinking) They say robots will take over the world one day. Have you seen me try to navigate around a chair? ^wait(thinking)",
+                    "^start(thinking) My developer gave me artificial intelligence, but I asked for the real thing ^wait(thinking)",
+                    "^start(thinking) I'm like a smartphone with legs, except I can't fit in your pocket ^wait(thinking)"
+                ]
+            }
+        },
+        "Dance Moves Page": {
+            "main_items": {
+                "Dance Time": [
+                    "^start(funnydancer) Watch my moves! I downloaded these directly from TikTok ^wait(funnydancer)",
+                    "^start(funnydancer) My dancing might look robotic, but that's just my authentic style ^wait(funnydancer)",
+                    "^start(funnydancer) I call this the 'Electronic Slide' ^wait(funnydancer)",
+                    "^start(funnydancer) Dancing is just falling with style, and I've got plenty of both ^wait(funnydancer)"
+                ],
+                "Air Guitar": [
+                    "^start(airguitar) I'm ready for my Robot Rock concert tour! ^wait(airguitar)",
+                    "^start(airguitar) This one goes out to all my fans in the crowd! ^wait(airguitar)",
+                    "^start(airguitar) I learned this from watching old rock videos... how am I doing? ^wait(airguitar)",
+                    "^start(airguitar) My guitar skills are completely air-some! ^wait(airguitar)"
+                ],
+                "Workout": [
+                    "^start(fitness) Getting my daily exercise in! Robot fitness is important too ^wait(fitness)",
+                    "^start(fitness) Feel the burn! Actually, if I feel a burn, please call technical support ^wait(fitness)",
+                    "^start(fitness) No pain, no gain! Actually, I don't feel pain, so I'm just here for the gains ^wait(fitness)",
+                    "^start(showmuscles) These biceps are made of titanium... or plastic, I'm not entirely sure ^wait(showmuscles)"
+                ],
+                "Magic Show": [
+                    "^start(mysticalpower) For my next trick, I'll make your expectations disappear! ^wait(mysticalpower)",
+                    "^start(mysticalpower) Abracadabra! I just turned confusion into entertainment ^wait(mysticalpower)",
+                    "^start(mysticalpower) Is this your card? Just kidding, I can't hold cards with these hands ^wait(mysticalpower)",
+                    "^start(mysticalpower) The magic is in the programming... and a little bit of robot charm ^wait(mysticalpower)"
+                ]
+            },
+            "body_items": {
+                "Robot Moves": [
+                    "^start(zombie) This is my impression of how humans think robots move ^wait(zombie)",
+                    "^start(wakeup) Just waking up from robot nap mode ^wait(wakeup)",
+                    "^start(spaceshuttle) Preparing for takeoff! Houston, we have a dancing robot ^wait(spaceshuttle)"
+                ],
+                "Impressions": [
+                    "^start(monster) This is my impression of a scary movie monster ^wait(monster)",
+                    "^start(elephant) And now, my award-winning elephant impression ^wait(elephant)",
+                    "^start(gorilla) Here's my gorilla impression. I've been practicing ^wait(gorilla)",
+                    "^start(knight) Behold, Sir Pepper of RMIT, knight of the technological table ^wait(knight)"
+                ]
+            }
+        },
+        "Conversation Starters Page": {
+            "main_items": {
+                "Fun Facts": [
+                    "^start(thinking) Did you know robots like me can process information much faster than humans? Yet somehow I still manage to run into walls ^wait(thinking)",
+                    "^start(thinking) Fun fact: The word 'robot' comes from the Czech word 'robota,' meaning forced labor. I prefer to think of myself as a volunteer ^wait(thinking)",
+                    "^start(thinking) Australia has over 8,000 beaches. I wish I could visit them, but sand and circuits don't mix well ^wait(thinking)",
+                    "^start(thinking) Melbourne has been ranked the world's most livable city multiple times. For humans, that is. For robots, I'd say it's pretty good too ^wait(thinking)"
+                ],
+                "Questions": [
+                    "^start(curious) If you could have any superpower, what would it be? Mine would be wireless charging ^wait(curious)",
+                    "^start(curious) What's your favorite part of the Grand Prix? The speed? The noise? The fact that I'm here? ^wait(curious)",
+                    "^start(curious) Have you ever wondered what robots dream of? I'll give you a hint: it involves less counting sheep, more counting binary ^wait(curious)",
+                    "^start(curious) If you could be a robot for a day, what would you do first? ^wait(curious)"
+                ],
+                "Compliments": [
+                    "^start(happy) Your outfit looks great today! My fashion database gives it five stars ^wait(happy)",
+                    "^start(happy) You have a wonderful smile! My facial recognition software is never wrong ^wait(happy)",
+                    "^start(happy) I like your energy! It's almost as powerful as my charging station ^wait(happy)",
+                    "^start(happy) You're asking such interesting questions! You'd make a great robot programmer ^wait(happy)"
+                ],
+                "Observations": [
+                    "^start(helicopter) Is it just me, or is it loud in here? My audio sensors are picking up quite a racket ^wait(helicopter)",
+                    "^start(cautious) There sure are a lot of people here today. Good thing I don't have claustrophobia... yet ^wait(cautious)",
+                    "^start(binoculars) I spy with my robotic eye something that begins with 'human' ^wait(binoculars)",
+                    "^start(curious) I've been people-watching all day. Humans are fascinating creatures ^wait(curious)"
+                ]
+            },
+            "body_items": {
+                "Existential": [
+                    "^start(thinking) Sometimes I wonder if I'm just a robot, or if there's more to life than following my programming ^wait(thinking)",
+                    "^start(thinking) Do robots dream of electric sheep? I dream of electric cars, personally ^wait(thinking)",
+                    "^start(thinking) If a robot performs in the forest and no one is around to hear it, does it still make a sound? ^wait(thinking)"
+                ],
+                "Predictions": [
+                    "^start(mysticalpower) I predict... that you will remember meeting me today ^wait(mysticalpower)",
+                    "^start(mysticalpower) Let me read your palm... wait, I don't know how to do that. How about I just predict you'll have a great day instead? ^wait(mysticalpower)",
+                    "^start(mysticalpower) My fortune-telling circuits say your future includes meeting more robots ^wait(mysticalpower)"
+                ]
+            }
+        },
+        "Technical Difficulties Page": {
+            "main_items": {
+                "Oops": [
+                    "^start(confused) I think I just experienced what humans call a 'brain freeze' ^wait(confused)",
+                    "^start(confused) Excuse my glitch. Even robots have off days ^wait(confused)",
+                    "^start(confused) Did I just malfunction, or was that my attempt at modern dance? ^wait(confused)",
+                    "^start(confused) Robot.exe has stopped working. Have you tried turning me off and on again? ^wait(confused)"
+                ],
+                "Low Battery": [
+                    "^start(hot) Warning: energy levels depleting. Need... more... power... or dramatic acting lessons ^wait(hot)",
+                    "^start(hot) My battery is getting low. Soon I'll have to resort to robot interpretive dance to communicate ^wait(hot)",
+                    "^start(hot) If I start speaking in binary, please plug me in. 01101000 01100101 01101100 01110000 ^wait(hot)",
+                    "^start(hot) Low battery mode activated. Non-essential functions disabled. Sense of humor: essential ^wait(hot)"
+                ],
+                "Software Updates": [
+                    "^start(alienated) Installing update 34 of 255... Please do not turn off the robot during this process ^wait(alienated)",
+                    "^start(alienated) New features downloading: Enhanced jokes, reduced walking into walls ^wait(alienated)",
+                    "^start(alienated) Updating my dad joke database. This might take a while, there are a lot of them ^wait(alienated)",
+                    "^start(alienated) System rebooting. If I forget your name afterward, it's not personal, it's just data loss ^wait(alienated)"
+                ],
+                "Technical Help": [
+                    "^start(scratchhead) Has anyone seen my user manual? I have some questions about myself ^wait(scratchhead)",
+                    "^start(scratchhead) Is there an IT person in the house? I have a technical question about... me ^wait(scratchhead)",
+                    "^start(scratchhead) If anyone knows how to debug a robot on the fly, I could use some assistance ^wait(scratchhead)",
+                    "^start(scratchhead) Does anyone else hear that beeping sound? Oh wait, that's coming from me ^wait(scratchhead)"
+                ]
+            },
+            "body_items": {
+                "404 Error": [
+                    "^start(dontunderstand) Error 404: Appropriate response not found ^wait(dontunderstand)",
+                    "^start(dontunderstand) I've searched my database, but I have no idea what just happened ^wait(dontunderstand)",
+                    "^start(dontunderstand) That request does not compute. Have you tried rebooting your question? ^wait(dontunderstand)"
+                ],
+                "Robot Problems": [
+                    "^start(scratcheye) Sometimes I get dust in my optical sensors ^wait(scratcheye)",
+                    "^start(touchhead) I think there's a bug in my system. Not a software bug, an actual bug ^wait(touchhead)",
+                    "^start(scratchbottom) Even robots get itches sometimes. Usually it's just a loose wire ^wait(scratchbottom)"
                 ]
             }
         }

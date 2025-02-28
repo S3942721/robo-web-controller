@@ -3,8 +3,9 @@ import { requestWS } from "../../utils/useWebSocket";
 import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, CaretUp } from "./../icons";
 import ScrollBar from "./../sub-components/ScrollBar";
 import FoldableSection from "./../FoldableSection";
+import SelectProfile from "../SelectProfile";
 
-export default function MoveController({foldable, compact=false}) {
+export default function MoveController({ foldable, compact = false, profile_switcher = false }) {
 
     const [keys, setKeys] = useState({
         W: false,
@@ -25,9 +26,10 @@ export default function MoveController({foldable, compact=false}) {
     const [hy, setheadY] = useState(0);
 
     const debounceTimeouts = useRef({});
+    const zeroCounter = useRef(0);
 
     function debounceKeyUpdate(key, holding) {
-        if(debounceTimeouts.current[key]) {
+        if (debounceTimeouts.current[key]) {
             clearTimeout(debounceTimeouts.current[key])
         }
 
@@ -93,14 +95,14 @@ export default function MoveController({foldable, compact=false}) {
     }
 
     function lostFocus() {
-        for(const i in keys) {
+        for (const i in keys) {
             setKey(i, false);
             updateDisplayValues(i, false);
         }
     }
 
     function visibilityChange() {
-        if(document.visibilityState === 'hidden') {
+        if (document.visibilityState === 'hidden') {
             lostFocus();
         }
     }
@@ -115,49 +117,55 @@ export default function MoveController({foldable, compact=false}) {
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
-            const newX = Math.abs(controller.axes[0]) < 0.1 ? 0.00 : controller.axes[0].toFixed(2);
-            const newY = Math.abs(controller.axes[1]) < 0.1 ? 0.00 : controller.axes[1].toFixed(2);
-            const headX = Math.abs(controller.axes[2]) < 0.1 ? 0.00 : controller.axes[2].toFixed(2);
-            const headY = Math.abs(controller.axes[3]) < 0.1 ? 0.00 : controller.axes[3].toFixed(2);
-            setX(newX);
-            setY(newY);
-            setheadX(headX);
-            setheadY(headY);
+                const newX = Math.abs(controller.axes[0]) < 0.1 ? 0.00 : controller.axes[0].toFixed(2);
+                const newY = Math.abs(controller.axes[1]) < 0.1 ? 0.00 : controller.axes[1].toFixed(2);
+                const headX = Math.abs(controller.axes[2]) < 0.1 ? 0.00 : controller.axes[2].toFixed(2);
+                const headY = Math.abs(controller.axes[3]) < 0.1 ? 0.00 : controller.axes[3].toFixed(2);
+                setX(newX);
+                setY(newY);
+                setheadX(headX);
+                setheadY(headY);
 
-            const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
+                const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
-            if (!allZero || (allZero && !wasZero)) {
-                requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY} });
-                wasZero = allZero;
-            }
+                if (!allZero || (allZero && zeroCounter.current < 5)) {
+                    requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY } });
+                    if (allZero) {
+                        zeroCounter.current += 1;
+                    } else {
+                        zeroCounter.current = 0;
+                    }
+                    wasZero = allZero;
+                }
 
-            if (!allZero) {
-                try {
-                controller.vibrationActuator.playEffect("dual-rumble", {
-                    startDelay: 0,
-                    duration: 200,
-                    weakMagnitude: 1.0,
-                    strongMagnitude: 1.0,
-                });
-                } catch (error) {
-                console.error("Vibration effect failed:", error);
+                if (!allZero) {
+                    try {
+                        controller.vibrationActuator.playEffect("dual-rumble", {
+                            startDelay: 0,
+                            duration: 200,
+                            weakMagnitude: 1.0,
+                            strongMagnitude: 1.0,
+                        });
+                    } catch (error) {
+                        console.error("Vibration effect failed:", error);
+                    }
                 }
             }
-            }
-        }, 3);
+        }, 10);
 
         return () => {
             document.removeEventListener("keydown", handleKeyDown);
             document.removeEventListener("keyup", handleKeyUp);
             window.removeEventListener('blur', lostFocus);
             document.removeEventListener('visibilitychange', visibilityChange);
+            clearInterval(interval);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     function updateCallback(Signal) {
-        return function(Value) {
-            requestWS('req-execute', { type: 'trigger', message: {Signal, Value} })
+        return function (Value) {
+            requestWS('req-execute', { type: 'trigger', message: { Signal, Value } })
         }
     }
 
@@ -165,26 +173,26 @@ export default function MoveController({foldable, compact=false}) {
         // Return compact version of the component
         return (
             <FoldableSection title={"Movement Controller"} foldable={foldable} compact={true}>
-                <div className="joystick-container" style={{marginBottom: '10px'}}>
+                <div className="joystick-container" style={{ marginBottom: '10px' }}>
                     <div className={`rotation compact ${keys.Q ? "holding" : ""}`}>
                         <Arrow90degLeft />
                     </div>
                     <div className="joystick-box">
-                        <div 
-                            className="joystick-point" 
-                            style={{ 
-                                left: `${(x * 50) + 50}%`, 
-                                top: `${(y * 50) + 50}%` 
-                            }} 
+                        <div
+                            className="joystick-point"
+                            style={{
+                                left: `${(x * 50) + 50}%`,
+                                top: `${(y * 50) + 50}%`
+                            }}
                         />
                     </div>
                     <div className="joystick-box">
-                        <div 
-                            className="joystick-point" 
-                            style={{ 
-                                left: `${(hx * 50) + 50}%`, 
-                                top: `${(hy * 50) + 50}%` 
-                            }} 
+                        <div
+                            className="joystick-point"
+                            style={{
+                                left: `${(hx * 50) + 50}%`,
+                                top: `${(hy * 50) + 50}%`
+                            }}
                         />
                     </div>
                     <div className={`rotation compact ${keys.E ? "holding" : ""}`}>
@@ -194,30 +202,35 @@ export default function MoveController({foldable, compact=false}) {
                 <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} compact={true} />
                 <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} compact={true} />
                 <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} compact={true} />
+                {profile_switcher && (
+                    <div className="scroll-controllers-triggers">
+                        <SelectProfile foldable={false} compact={true} />
+                    </div>
+                )}
             </FoldableSection>
         );
     }
     return (
-        
+
         <FoldableSection title={"Movement Controller"} foldable={foldable}>
             <div>X {x}</div>
             <div>Y {y}</div>
             <div>Hx {hx}</div>
             <div>Hy {hy}</div>
             <div className="movement-controller">
-                <div className={`direction W     ${keys.W?"holding":""}`}><CaretUp /></div>
-                <div className={`direction A     ${keys.A?"holding":""}`}><CaretLeft /></div>
-                <div className={`direction S     ${keys.S?"holding":""}`}><CaretDown /></div>
-                <div className={`direction D     ${keys.D?"holding":""}`}><CaretRight /></div>
-                <div className={`rotation  E     ${keys.E?"holding":""}`}><Arrow90degRight /></div>
-                <div className={`rotation  Q     ${keys.Q?"holding":""}`}><Arrow90degLeft /></div>
-                <div className={`head-pos  UP    ${keys.ARROWUP?"holding":""}`}><CaretUp /></div>
-                <div className={`head-pos  DOWN  ${keys.ARROWDOWN?"holding":""}`}><CaretDown /></div>
-                <div className={`head-pos  LEFT  ${keys.ARROWLEFT?"holding":""}`}><CaretLeft /></div>
-                <div className={`head-pos  RIGHT ${keys.ARROWRIGHT?"holding":""}`}><CaretRight /></div>
+                <div className={`direction W     ${keys.W ? "holding" : ""}`}><CaretUp /></div>
+                <div className={`direction A     ${keys.A ? "holding" : ""}`}><CaretLeft /></div>
+                <div className={`direction S     ${keys.S ? "holding" : ""}`}><CaretDown /></div>
+                <div className={`direction D     ${keys.D ? "holding" : ""}`}><CaretRight /></div>
+                <div className={`rotation  E     ${keys.E ? "holding" : ""}`}><Arrow90degRight /></div>
+                <div className={`rotation  Q     ${keys.Q ? "holding" : ""}`}><Arrow90degLeft /></div>
+                <div className={`head-pos  UP    ${keys.ARROWUP ? "holding" : ""}`}><CaretUp /></div>
+                <div className={`head-pos  DOWN  ${keys.ARROWDOWN ? "holding" : ""}`}><CaretDown /></div>
+                <div className={`head-pos  LEFT  ${keys.ARROWLEFT ? "holding" : ""}`}><CaretLeft /></div>
+                <div className={`head-pos  RIGHT ${keys.ARROWRIGHT ? "holding" : ""}`}><CaretRight /></div>
             </div>
             <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
-            <ScrollBar  name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
+            <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
             <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
         </FoldableSection>
     );
