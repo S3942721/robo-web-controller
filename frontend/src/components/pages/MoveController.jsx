@@ -111,30 +111,38 @@ export default function MoveController({foldable, compact=false}) {
         window.addEventListener('blur', lostFocus);
         document.addEventListener('visibilitychange', visibilityChange);
 
+        let wasZero = false;
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
-                const newX = Math.abs(controller.axes[0]) < 0.1 ? 0.00 : controller.axes[0].toFixed(2);
-                const newY = Math.abs(controller.axes[1]) < 0.1 ? 0.00 : controller.axes[1].toFixed(2);
-                const headX = Math.abs(controller.axes[2]) < 0.1 ? 0.00 : controller.axes[2].toFixed(2);
-                const headY = Math.abs(controller.axes[3]) < 0.1 ? 0.00 : controller.axes[3].toFixed(2);
-                setX(newX);
-                setY(newY);
-                setheadX(headX);
-                setheadY(headY);
-                if (newX !== 0 || newY !== 0 || headX !== 0 || headY !== 0){
-                    try {
-                        controller.vibrationActuator.playEffect("dual-rumble", {
-                            startDelay: 0,
-                            duration: 200,
-                            weakMagnitude: 1.0,
-                            strongMagnitude: 1.0,
-                        });
-                    } catch (error) {
-                        console.error("Vibration effect failed:", error);
-                    }
-                }
+            const newX = Math.abs(controller.axes[0]) < 0.1 ? 0.00 : controller.axes[0].toFixed(2);
+            const newY = Math.abs(controller.axes[1]) < 0.1 ? 0.00 : controller.axes[1].toFixed(2);
+            const headX = Math.abs(controller.axes[2]) < 0.1 ? 0.00 : controller.axes[2].toFixed(2);
+            const headY = Math.abs(controller.axes[3]) < 0.1 ? 0.00 : controller.axes[3].toFixed(2);
+            setX(newX);
+            setY(newY);
+            setheadX(headX);
+            setheadY(headY);
+
+            const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
+
+            if (!allZero || (allZero && !wasZero)) {
                 requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY} });
+                wasZero = allZero;
+            }
+
+            if (!allZero) {
+                try {
+                controller.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: 200,
+                    weakMagnitude: 1.0,
+                    strongMagnitude: 1.0,
+                });
+                } catch (error) {
+                console.error("Vibration effect failed:", error);
+                }
+            }
             }
         }, 3);
 
