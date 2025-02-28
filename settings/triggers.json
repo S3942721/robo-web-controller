@@ -7,7 +7,7 @@
         "Signal": "ControlMovement",
         "Value": true
     },
-    "Greetings/Announcements": {
+    "Greetings": {
         "Signal": "ControlGreetings",
         "Value": false
     },

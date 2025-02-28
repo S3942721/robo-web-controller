@@ -28,7 +28,10 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     }, [scripts])
 
     function switchSelect(way) {
-        let idx = arrScripts.indexOf(s)
+        let idx = arrScripts.indexOf(s);
+        if (executed) {
+            setExecuted(false);
+        }
         if(way === 'next') {
             if(++idx >= arrScripts.length) {
                 idx = 0;
@@ -38,7 +41,7 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                 idx = arrScripts.length - 1;
             }
         }
-        setScript(arrScripts[idx])
+        setScript(arrScripts[idx]);
     }
 
     useEffect(()=>{

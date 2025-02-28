@@ -114,8 +114,7 @@ export default function PagedShortCuts({ full_screen = false, foldable = true , 
                         return null;
                     })}
                     <div 
-                        className="paged-shortcuts-item" 
-                        style={{backgroundColor: 'green'}} 
+                        className="paged-shortcuts-item btn"  
                         onClick={() => switchPage('prev')}
                         ref={prevPageButtonRef}
                     >
@@ -170,8 +169,7 @@ export default function PagedShortCuts({ full_screen = false, foldable = true , 
                         return null;
                     })}
                     <div 
-                        className="paged-shortcuts-item" 
-                        style={{backgroundColor: 'orange'}} 
+                        className="paged-shortcuts-item btn"
                         onClick={() => switchPage('next')}
                         ref={nextPageButtonRef}
                     >
