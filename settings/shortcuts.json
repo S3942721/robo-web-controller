@@ -1,7 +1,6 @@
 {
     "🛎️": [
-        "**audio=quickbells**",
-        "**audio=quickbells** ^run(hey)"
+        "**audio=quickbells**"
     ],
     "🔔": [
         "**audio=singlebell**",
