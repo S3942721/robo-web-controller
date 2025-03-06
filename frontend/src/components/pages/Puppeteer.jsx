@@ -35,7 +35,7 @@ export default function Puppeteer() {
                 <div className={'grid-item'}>
                     <div className={'grid-container robot-target-scripts'}>
                         <div className={'grid-item'}>
-                            <PreDefinedScripts foldable={false} compact={true} />
+                            <PreDefinedScripts foldable={false} compact={true} activeRobot={activeButton} />
                         </div>
                         <div className={'grid-item'}>
                             <div className={'button-container'}>

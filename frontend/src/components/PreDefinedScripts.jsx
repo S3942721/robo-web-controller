@@ -4,7 +4,7 @@ import FoldableSection from "./FoldableSection";
 import { TbXboxAFilled } from "react-icons/tb";
 import { FaCaretSquareDown, FaCaretSquareUp } from "react-icons/fa";
 
-export default function PreDefinedScripts({ controller, resetController, foldable, compact }) {
+export default function PreDefinedScripts({ controller, resetController, foldable, compact, activeRobot }) {
     
     const { scripts } = useWebSocket();
     const [arrScripts, setArrScripts] = useState([]);
@@ -16,7 +16,16 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     const executeButtonRef = useRef(null);
 
     function executeSelectedScript() {
-        requestWS("req-execute", {type: "script", message:scripts[s]});
+        const script = scripts[s];
+        let robot, text;
+        if (typeof script === 'string') {
+            robot = activeRobot;
+            text = script;
+        } else {
+            robot = script.robot || activeRobot;
+            text = script.text;
+        }
+        requestWS("req-execute", { type: "script", message: { robot, text } });
         setExecuted(true);
         setTimeout(() => setExecuted(false), 2000);
     }
