@@ -42,7 +42,7 @@ export default function PagedShortCuts({ full_screen = false, foldable = true , 
                 button.classList.add('active');
                 button.click();
             } else {
-                console.log(`No button found for key ${event.key}`);
+                // console.log(`No button found for key ${event.key}`);
             }
         };
 

@@ -2,7 +2,7 @@
     "(Opt) Welcome Message": "^start(happy) Good morning, welcome to the STEM Learning and Teaching Showcase! ^start(me) I'm Pepper, your friendly neighborhood robot, here to make sure everything runs smoothly. ^start(enthusiastic) I'm so excited to be here today, I've been practicing my best robot dance moves all week! ^run(enthusiastic)",
     "(Opt) Tall Joke": "Wow. You're so tall, you must get great reception up \\emph=0\\there. I wish my legs were that long. ^start(lookhand). \\emph=1\\Oh wait... I don't even have legs... just wheels... \\pau=500\\ ^stop(lookhand) ^start(innocent) I guess I'll just have \\emph=0\\to... \\pau=200\\ \\emph=1\\roll with it. ^start(mischevious)\\pau=1000\\ $Sound=crickets ^wait(mischevious)",
     "(Opt) Music Joke": "Hey. What is a \\emph=1\\row bot's favorite type of music?",
-    "(Opt) Punchline": "Heavy metal. $Sound=badoom_tss ^run(airguitar)",
+    "(Opt) Punchline": "Heavy metal. $Sound=badoom_tss ^start(airguitar) \\pau=3000\\ ^stop(airguitar)",
     "(Opt) We should address the elephant...": "^start(lookhand) We should address the elephant in the room. \\pau=500\\ Oh wait, \\pau=300\\ that's just me! ^stop(lookhand) ^run(elephant)",
     "(Opt) Disco Joke": "You know, I once went to a disco. ^start(headbang) I was the life of the party with my electric boogie! \\pau=500\\ And trust me, it was shocking! \\pau=2000\\ ^stop(headbang)",
     "(Opt) Elephant Joke": "I tried to teach an elephant to use a computer once. \\pau=500\\ It didn't go well \\pau=500\\ turns out they're terrified of the mouse! ^run(elephant)",

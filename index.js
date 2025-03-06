@@ -17,27 +17,52 @@ let current_profile = {};
 let all_scripts = {}, scripts = {}
 let triggers = {};
 
-// read json files from settings
-const dir = readdirSync(join(__dirname, 'settings'))
-const script_files = dir.filter(e=>/^.*Script\.json$/.test(e));
-script_files.forEach(e=>{
-	const profile_name = e.split('_').slice(0, -1).join(' ');
-	all_scripts[profile_name] = JSON.parse(readFileSync(join(__dirname, 'settings', e), { encoding: 'utf-8' }))
-})
-scripts = all_scripts[Object.keys(all_scripts)[0]]
+let profiles = [];
+let shortcuts = [];
+let paged_shortcuts = [];
+let announcements = [];
+let all_possible_files = [];
 
-const profiles = JSON.parse(readFileSync(join(__dirname, 'settings', 'profiles.json'), { encoding: 'utf-8' }))
-current_profile = profiles[0];
+// Function to read settings files
+function readSettings() {
+	const dir = readdirSync(join(__dirname, 'settings'));
+	const script_files = dir.filter(e => /^.*Script\.json$/.test(e));
+	script_files.forEach(e => {
+		const profile_name = e.split('_').slice(0, -1).join(' ');
+		const file_path = join(__dirname, 'settings', e);
+		all_scripts[profile_name] = JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }));
+		console.log(`Loaded script file: ${file_path}`);
+	});
+	scripts = all_scripts[Object.keys(all_scripts)[0]];
 
-triggers = JSON.parse(readFileSync(join(__dirname, 'settings', 'triggers.json'), { encoding: 'utf-8' }))
+	const profiles_path = join(__dirname, 'settings', 'profiles.json');
+	profiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }));
+	console.log(`Loaded profiles file: ${profiles_path}`);
+	current_profile = profiles[0];
 
-let shortcuts = JSON.parse(readFileSync(join(__dirname, 'settings', 'shortcuts.json'), { encoding: 'utf-8' }))
+	const triggers_path = join(__dirname, 'settings', 'triggers.json');
+	triggers = JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' }));
+	console.log(`Loaded triggers file: ${triggers_path}`);
 
-let paged_shortcuts = JSON.parse(readFileSync(join(__dirname, 'settings', 'paged_shortcuts.json'), { encoding: 'utf-8' }))
+	const shortcuts_path = join(__dirname, 'settings', 'shortcuts.json');
+	shortcuts = JSON.parse(readFileSync(shortcuts_path, { encoding: 'utf-8' }));
+	console.log(`Loaded shortcuts file: ${shortcuts_path}`);
 
-let announcements = JSON.parse(readFileSync(join(__dirname, 'settings', 'announcements.json'), { encoding: 'utf-8' }))
+	const paged_shortcuts_path = join(__dirname, 'settings', 'paged_shortcuts.json');
+	paged_shortcuts = JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' }));
+	console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
 
-const all_possible_files = JSON.parse(readFileSync(join(__dirname, 'settings', 'all_possible_files.json'), { encoding: 'utf-8' }))
+	const announcements_path = join(__dirname, 'settings', 'announcements.json');
+	announcements = JSON.parse(readFileSync(announcements_path, { encoding: 'utf-8' }));
+	console.log(`Loaded announcements file: ${announcements_path}`);
+
+	const all_possible_files_path = join(__dirname, 'settings', 'all_possible_files.json');
+	all_possible_files = JSON.parse(readFileSync(all_possible_files_path, { encoding: 'utf-8' }));
+	console.log(`Loaded all possible files: ${all_possible_files_path}`);
+}
+
+// Initial read of settings files
+readSettings();
 
 function writeToJSON(filename, json) {
 	const file_path = join(__dirname, 'settings', filename+'.json');
@@ -73,6 +98,7 @@ app.ws('/api/sync', (ws, req)=>{
 		const { cmd, value } = JSON.parse(msg);
 		switch(cmd) {
 			case 'req-sync':
+				readSettings(); // Read settings files before syncing
 				syncWSWithOne(ws, 'res-sync', getFullSyncItem())
 				break;
 			case 'req-update-profile':
@@ -129,6 +155,7 @@ router.post("/api/file-upload", (req, res)=>{
 				break;
 		}
 		writeToJSON(write_file_name, json);
+		readSettings(); // Read settings files after upload
 		syncWSWithAll('res-sync', getFullSyncItem())
 		res.status(200).send("done")
 	} catch(error) {

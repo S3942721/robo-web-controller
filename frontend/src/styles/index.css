@@ -22,12 +22,18 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
     /* margin: auto; */
 }
 
+:root {
+    --primary-color: dodgerblue;
+    --hover-color: rgb(14, 105, 196);
+    --active-color: rgb(10, 80, 150);
+}
+
 .btn {
     width: 230px;
     height: 40px;
     font-size: 16px;
     color: white;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     border-radius: 7px;
     user-select: none;
     align-content: center;
@@ -42,11 +48,11 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
 }
 
 .btn:hover {
-    background-color: rgb(14, 105, 196);
+    background-color: var(--hover-color);
 }
 
 .btn:active {
-    background-color: rgb(10, 80, 150);
+    background-color: var(--active-color);
 }
 
 section {
@@ -87,7 +93,7 @@ section > .foldable > .btn {
 }
 
 section > .foldable > div.selected {
-    border-color: dodgerblue;
+    border-color: var(--primary-color);
 }
 
 section.folded {
@@ -139,6 +145,7 @@ section > .foldable > .profile > .html {
     justify-content: center;
     gap: 10px;
     position: relative;
+    height: 40px; /* Ensure the height is fixed */
 }
 
 .profile-button {
@@ -147,7 +154,7 @@ section > .foldable > .profile > .html {
     justify-content: center;
     width: 40px;
     height: 40px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     border-radius: 5px;
     cursor: pointer;
@@ -164,7 +171,7 @@ section > .foldable > .profile > .html {
 }
 
 .profile-button:hover {
-    background-color: rgb(14, 105, 196);
+    background-color: var(--hover-color);
 }
 
 .profile-name {
@@ -172,6 +179,9 @@ section > .foldable > .profile > .html {
     font-weight: bold;
     text-align: center;
     flex-grow: 1;
+    white-space: nowrap; /* Prevent text from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* SCRIPTS */
@@ -202,20 +212,20 @@ section > .foldable > .script > .script-value {
 }
 
 section > .foldable > .script.selected {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     transition: background-color 0.5s ease;
 }
 
 section > .foldable > .script.executed {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     animation: flash 2s ease;
 }
 
 @keyframes flash {
     0% {
-        background-color: dodgerblue;
+        background-color: var(--primary-color);
         color: black
     }
     100% {
@@ -269,9 +279,9 @@ section > .foldable > .trigger > .trigger-checkbox:hover {
 }
 
 section > .foldable > .trigger:has(.trigger-checkbox:checked) {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
-    border-color: blue;
+    border-color: var(--primary-color);
 }
 
 /* shortcuts */
@@ -297,7 +307,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 .grid-shortcuts .shortcut {
     width: auto;
     min-height: 100px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     font-size: 20px;
     text-align: center;
@@ -308,7 +318,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .grid-shortcuts .shortcut:active,
 .grid-shortcuts .shortcut.active {
-    background-color: rgb(10, 80, 150);
+    background-color: var(--active-color);
 }
 
 .full-screen .grid-shortcuts .shortcut {
@@ -317,7 +327,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .grid-shortcuts .shortcut:active {
-    background-color: rgb(10, 80, 150);
+    background-color: var(--active-color);
 }
 
 .paged-shortcuts-container {
@@ -355,7 +365,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 .paged-shortcuts-item.shortcut {
     width: auto;
     min-height: 100px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     font-size: 20px;
     text-align: center;
@@ -366,13 +376,25 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .paged-shortcuts-item.shortcut:active,
 .paged-shortcuts-item.shortcut.active {
-    background-color: rgb(10, 80, 150);
+    background-color: var(--active-color);
 }
 
 .paged-shortcuts-item.main-item {
+    display: block;
     width: 100%;
     height: 100%;
+    display: 'flex';
+    align-items: 'center';
+    justify-content: 'center';
+    padding: 5px
+}
+
+.page-title {
     font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    width: 100%;
 }
 
 /* upload settings */
@@ -388,7 +410,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     margin: auto;
     width: var(--elem-width);
     height: 300px;
-    border: 5px dashed dodgerblue;
+    border: 5px dashed var(--primary-color);
     border-radius: 20px;
     margin-top: 30px;
 }
@@ -452,6 +474,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .scroll-bar-container > input[type='range'] {
     width: 100%;
+    accent-color: var(--primary-color);
 }
 
 .scroll-bar-container.compact {
@@ -541,7 +564,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     align-items: center;
 }
 .movement-controller > div.holding {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
 }
 .movement-controller > div > * {
@@ -560,7 +583,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .rotation.compact.holding {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
 }
 
@@ -592,6 +615,15 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     height: 100vh;
     grid-template-rows: 1fr 1fr;
     grid-template-columns: 1fr 2fr;
+    gap: 0px;
+}
+
+.grid-container .robot-target-scripts {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: 1fr;
+    grid-template-columns: 4fr 1fr;
     gap: 0px;
 }
 
@@ -633,14 +665,14 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     border: 2px solid gray;
     border-radius: 10px;
     margin: auto;
-    background-color: #E4F6F8;
+    background-color: var(--primary-color-light);
 }
 
 .joystick-point {
     position: absolute;
     width: 10px;
     height: 10px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     border-radius: 50%;
     transform: translate(-50%, -50%);
 }
@@ -692,11 +724,11 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     width: 100%;
     justify-content: space-around;
     padding: 10px;
-    position: absolute;
+    position: relative;
 }
 
 .compact .script-container {
-    height: calc(100% - 60px); /* Adjust this value as needed to fit within the padding */
+    height: calc(100% - 60px);
     overflow-y: auto;
     border: 1px solid lightgray;
     border-radius: 5px;
@@ -707,14 +739,14 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .compact .script.selected {
     background-color: rgb(213, 213, 213);
-    border: 4px dashed dodgerblue;
+    border: 4px dashed var(--primary-color);
     border-width: 4px;
     /* color: white; */
     transition: background-color 0.5s ease;
 }
 
 .compact .script.executed {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     animation: flash 2s ease;
 }
@@ -754,7 +786,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 .paged-shortcuts-item.shortcut {
     width: auto;
     min-height: 100px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     font-size: 20px;
     text-align: center;
@@ -765,7 +797,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .paged-shortcuts-item.shortcut:active,
 .paged-shortcuts-item.shortcut.active {
-    background-color: rgb(10, 80, 150);
+    background-color: var(--active-color);
 }
 
 .paged-shortcuts-item.main-item {
@@ -798,7 +830,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     padding-left: 60px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: dodgerblue lightgray;
+    scrollbar-color: var(--primary-color) lightgray;
 }
 
 .scroll-controllers-numerical::-webkit-scrollbar {
@@ -810,7 +842,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .scroll-controllers-numerical::-webkit-scrollbar-thumb {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     border-radius: 10px;
     border: 3px solid lightgray;
 }
@@ -818,7 +850,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 .scroll-controllers-triggers {
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: dodgerblue lightgray;
+    scrollbar-color: var(--primary-color) lightgray;
 }
 
 .scroll-controllers-triggers::-webkit-scrollbar {
@@ -830,7 +862,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .scroll-controllers-triggers::-webkit-scrollbar-thumb {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     border-radius: 10px;
     border: 3px solid lightgray;
 }
@@ -855,6 +887,39 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 }
 
 .trigger-button.active {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
+}
+
+/* button container */
+.button-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    width: 100%;
+}
+
+.button-container .full-width {
+    width: calc(100% - 20px); /* 10px buffer on left and right */
+    height: calc(50% - 20px); /* 10px buffer on top and bottom */
+    font-size: 36px;
+    margin: 10px;
+    color: white;
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+}
+
+.button-container .full-width:hover {
+    background-color: var(--hover-color);
+}
+
+.button-container .full-width:active,
+.button-container .full-width.active {
+    background-color: var(--active-color);
+    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
 }

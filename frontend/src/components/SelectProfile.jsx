@@ -31,7 +31,7 @@ export default function SelectProfile({ foldable = true, compact = false }) {
                         <FaCaretLeft />
                     </div>
                     <div className="profile-name">
-                        {profiles[profileIndex]?.name}
+                        {profiles[profileIndex]?.name || "No Profile Selected"}
                     </div>
                     <div className="profile-button right" onClick={() => switchProfile('next')}>
                         <FaCaretRight />
@@ -49,7 +49,7 @@ export default function SelectProfile({ foldable = true, compact = false }) {
                     <FaCaretLeft />
                 </div>
                 <div className="profile-name">
-                    {profiles[profileIndex]?.name}
+                    {profiles[profileIndex]?.name || "No Profile Selected"}
                 </div>
                 <div className="profile-button right" onClick={() => switchProfile('next')}>
                     <FaCaretRight />
