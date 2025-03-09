@@ -32,6 +32,12 @@ export default function MoveController({ foldable, compact = false, profile_swit
     const [sliderValues, setSliderValues] = useState({});
     const [robotSliders, setRobotSliders] = useState({});
 
+    // Add a ref to always have the current activeRobot
+    const activeRobotRef = useRef(activeRobot);
+    useEffect(() => {
+        activeRobotRef.current = activeRobot;
+    }, [activeRobot]);
+
     // Fetch config once on mount
     useEffect(() => {
         fetch('/api/move-config')
@@ -78,6 +84,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
         });
     };
 
+    // Update debounceKeyUpdate to use activeRobotRef.current
     function debounceKeyUpdate(key, holding) {
         if (debounceTimeouts.current[key]) {
             clearTimeout(debounceTimeouts.current[key])
@@ -87,7 +94,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
             requestWS("req-execute", {
                 type: "Move",
                 message: { key, holding },
-                robot: activeRobot
+                robot: activeRobotRef.current
             });
         }, 10);
     }
@@ -181,7 +188,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
                 const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
-                if (activeRobot === "Haku") {
+                if (activeRobotRef.current === "Haku") {
                     // Send WASD and arrow keys for Haku
                     if (newY < -0.1) setKey('W', true); else setKey('W', false);
                     if (newY > 0.1) setKey('S', true); else setKey('S', false);
@@ -197,7 +204,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
                     requestWS("req-execute", {
                         type: "ConMove",
                         message: { x: newX, y: newY, hx: headX, hy: headY },
-                        robot: activeRobot
+                        robot: activeRobotRef.current
                     });
                     if (allZero) {
                         zeroCounter.current += 1;
@@ -228,7 +235,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
             document.removeEventListener('visibilitychange', visibilityChange);
             clearInterval(interval);
         };
-    }, [activeRobot]);
+    }, []);
 
     if (compact) {
         // Return compact version of the component
