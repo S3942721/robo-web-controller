@@ -221,6 +221,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
                     }
                 }
             }
+        }
         }, 10);
 
         return () => {
