@@ -23,6 +23,24 @@ let paged_shortcuts = [];
 let announcements = [];
 let all_possible_files = [];
 
+// Function to parse script object
+function parseScriptObject(obj) {
+    const newObj = {};
+    for (const key in obj) {
+        const val = obj[key];
+        // Ensure each script is an object with both "robot" and "text" defined
+        if (typeof val === 'string') {
+            newObj[key] = { robot: "", text: val };
+        } else {
+            newObj[key] = { 
+                robot: (typeof val.robot === 'string' ? val.robot : ""), 
+                text: (typeof val.text === 'string' ? val.text : "")
+            };
+        }
+    }
+    return newObj;
+}
+
 // Function to read settings files
 function readSettings() {
 	const dir = readdirSync(join(__dirname, 'settings'));
@@ -30,8 +48,11 @@ function readSettings() {
 	script_files.forEach(e => {
 		const profile_name = e.split('_').slice(0, -1).join(' ');
 		const file_path = join(__dirname, 'settings', e);
-		all_scripts[profile_name] = JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }));
+		all_scripts[profile_name] = parseScriptObject(
+            JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }))
+        );
 		console.log(`Loaded script file: ${file_path}`);
+		console.log('For profile:', profile_name);
 	});
 	scripts = all_scripts[Object.keys(all_scripts)[0]];
 
@@ -39,6 +60,7 @@ function readSettings() {
 	profiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }));
 	console.log(`Loaded profiles file: ${profiles_path}`);
 	current_profile = profiles[0];
+	console.log('Current profile:', current_profile);
 
 	const triggers_path = join(__dirname, 'settings', 'triggers.json');
 	triggers = JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' }));

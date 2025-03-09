@@ -31,10 +31,15 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     }
 
     useEffect(()=>{
-        const script_keys = Object.keys(scripts);
-        setScript(script_keys[0] ?? "")
-        setArrScripts(script_keys)
-    }, [scripts])
+        const keys = Object.keys(scripts);
+        if(keys.length > 0) {
+            setScript(keys[0]);
+            setArrScripts(keys);
+        } else {
+            setScript("");
+            setArrScripts([]);
+        }
+    }, [scripts]);
 
     function switchSelect(way) {
         let idx = arrScripts.indexOf(s);
@@ -110,15 +115,17 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
             <FoldableSection title={"Pre-Defined Scripts"} foldable={foldable} compact={compact}>
                 <div className="script-container" ref={scriptContainerRef}>
                     { arrScripts.map((script_name, i)=>{
-                        const script_value = scripts[script_name];
+                        const scriptObj = scripts[script_name];
+                        const robot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
+                        const text = typeof scriptObj === "string" ? scriptObj : scriptObj.text;
                         return (
                             <div 
                                 key={`script-${i}`} 
                                 className={`script clickable${s === script_name ? ' selected' : ""}${executed && s === script_name ? ' executed' : ""}`} 
                                 onClick={()=>setScript(script_name)}
                             >
-                                <div className="script-name">{script_name}</div>
-                                <div className="script-value">{script_value}</div>
+                                <div className="script-name">{script_name} {robot && <small>({robot})</small>}</div>
+                                <div className="script-value">{text}</div>
                             </div>
                         )
                     }) }
@@ -141,15 +148,17 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     return (
         <FoldableSection title={"Pre-Defined Scripts"}>
             { arrScripts.map((script_name, i)=>{
-                const script_value = scripts[script_name];
+                const scriptObj = scripts[script_name];
+                const robot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
+                const text = typeof scriptObj === "string" ? scriptObj : scriptObj.text;
                 return (
                     <div 
                         key={`script-${i}`} 
                         className={`script clickable${s === script_name ? ' selected' : ""}${executed && s === script_name ? ' executed' : ""}`} 
                         onClick={()=>setScript(script_name)}
                     >
-                        <div className="script-name">{script_name}</div>
-                        <div className="script-value">{script_value}</div>
+                        <div className="script-name">{script_name} {robot && <small>({robot})</small>}</div>
+                        <div className="script-value">{text}</div>
                     </div>
                 )
             }) }
