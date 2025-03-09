@@ -230,8 +230,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
             document.removeEventListener('visibilitychange', visibilityChange);
             clearInterval(interval);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [activeRobot]);
 
     if (compact) {
         // Return compact version of the component
