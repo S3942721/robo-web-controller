@@ -233,12 +233,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    function updateCallback(Signal) {
-        return function (Value) {
-            requestWS('req-execute', { type: 'trigger', message: { Signal, Value } })
-        }
-    }
-
     if (compact) {
         // Return compact version of the component
         return (
