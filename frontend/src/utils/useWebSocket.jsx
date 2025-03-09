@@ -72,7 +72,6 @@ socket.onopen = () => {
  * @param {*} payload 
  */
 export function requestWS(cmd, payload) {
-    console.log("Received WS request (cmd,payload):", cmd, payload);
     if (payload.robot === undefined || payload.robot === null) {
         payload.robot = window.g_active_robot || "";
     }

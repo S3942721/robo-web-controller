@@ -106,7 +106,6 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
         const scriptObj = scripts[script_name];
         // If script obj undefined or null, set to empty string
         if (!scriptObj) { return null; }
-        console.log("scriptObj", scriptObj);
         const assignedRobot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
         const text = typeof scriptObj === "string" ? scriptObj : (scriptObj.text || "");
         const activeRobotOrDefault = activeRobot || "Default";
