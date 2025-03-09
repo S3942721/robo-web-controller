@@ -182,6 +182,18 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
                 const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
+                if (activeRobot === "Haku") {
+                    // Send WASD and arrow keys for Haku
+                    if (newY < -0.1) setKey('W', true); else setKey('W', false);
+                    if (newY > 0.1) setKey('S', true); else setKey('S', false);
+                    if (newX < -0.1) setKey('A', true); else setKey('A', false);
+                    if (newX > 0.1) setKey('D', true); else setKey('D', false);
+                    if (headY < -0.1) setKey('ARROWUP', true); else setKey('ARROWUP', false);
+                    if (headY > 0.1) setKey('ARROWDOWN', true); else setKey('ARROWDOWN', false);
+                    if (headX < -0.1) setKey('ARROWLEFT', true); else setKey('ARROWLEFT', false);
+                    if (headX > 0.1) setKey('ARROWRIGHT', true); else setKey('ARROWRIGHT', false);
+                } else {
+                    // Send joystick input for Bandit
                 if (!allZero || (allZero && zeroCounter.current < 5)) {
                     requestWS("req-execute", {
                         type: "ConMove",
