@@ -167,7 +167,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
         window.addEventListener('blur', lostFocus);
         document.addEventListener('visibilitychange', visibilityChange);
 
-        let wasZero = false;
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
@@ -205,9 +204,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
                     } else {
                         zeroCounter.current = 0;
                     }
-                    wasZero = allZero;
                 }
-
                 if (!allZero) {
                     try {
                         controller.vibrationActuator.playEffect("dual-rumble", {
