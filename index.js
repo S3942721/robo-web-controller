@@ -41,6 +41,25 @@ function parseScriptObject(obj) {
     return newObj;
 }
 
+// Function to parse triggers object
+function parseTriggers(obj) {
+    const result = {};
+    // Each top-level property is a robot, including "Default".
+    for (const robot in obj) {
+        result[robot] = { ...obj[robot] };
+    }
+    return result;
+}
+
+// Function to parse paged shortcuts object
+function parsePagedShortcuts(obj) {
+    const result = {};
+    for (const robot in obj) {
+        result[robot] = { ...obj[robot] };
+    }
+    return result;
+}
+
 // Function to read settings files
 function readSettings() {
 	const dir = readdirSync(join(__dirname, 'settings'));
@@ -63,7 +82,7 @@ function readSettings() {
 	console.log('Current profile:', current_profile);
 
 	const triggers_path = join(__dirname, 'settings', 'triggers.json');
-	triggers = JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' }));
+	triggers = parseTriggers(JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' })));
 	console.log(`Loaded triggers file: ${triggers_path}`);
 
 	const shortcuts_path = join(__dirname, 'settings', 'shortcuts.json');
@@ -71,7 +90,7 @@ function readSettings() {
 	console.log(`Loaded shortcuts file: ${shortcuts_path}`);
 
 	const paged_shortcuts_path = join(__dirname, 'settings', 'paged_shortcuts.json');
-	paged_shortcuts = JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' }));
+	paged_shortcuts = parsePagedShortcuts(JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' })));
 	console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
 
 	const announcements_path = join(__dirname, 'settings', 'announcements.json');
@@ -85,6 +104,25 @@ function readSettings() {
 
 // Initial read of settings files
 readSettings();
+
+const moveConfigPath = join(__dirname, 'settings', 'move_config.json');
+let move_config = {};
+console.log(`Loading move config: ${moveConfigPath}`);
+try {
+    move_config = JSON.parse(readFileSync(moveConfigPath, { encoding: 'utf-8' }));
+    console.log(`Loaded move config: ${moveConfigPath}`);
+} catch(err) {
+    console.error("Error loading move_config.json:", err);
+}
+
+const scrollControllersConfigPath = join(__dirname, 'settings', 'scroll_controllers_config.json');
+let scroll_controllers_config = {};
+try {
+    scroll_controllers_config = JSON.parse(readFileSync(scrollControllersConfigPath, { encoding: 'utf-8' }));
+    console.log(`Loaded scroll controllers config: ${scrollControllersConfigPath}`);
+} catch(err) {
+    console.error("Error loading scroll_controllers_config.json:", err);
+}
 
 function writeToJSON(filename, json) {
 	const file_path = join(__dirname, 'settings', filename+'.json');
@@ -117,21 +155,29 @@ app.ws('/api/sync', (ws, req)=>{
 
 	// execute different commands
 	ws.on('message', msg=>{
-		const { cmd, value } = JSON.parse(msg);
+		const { cmd, message, robot, type } = JSON.parse(msg);
 		switch(cmd) {
 			case 'req-sync':
 				readSettings(); // Read settings files before syncing
 				syncWSWithOne(ws, 'res-sync', getFullSyncItem())
 				break;
 			case 'req-update-profile':
-				current_profile = value;
-				scripts = all_scripts[current_profile.name] || {}
-				syncWSWithAll('res-update-profile', current_profile)
-				syncWSWithAll('res-update-scripts', scripts)
+				current_profile = message;
+				// If profile name is not null
+				if (current_profile && current_profile.name) {
+					scripts = all_scripts[current_profile.name] || {};
+					syncWSWithAll('res-update-scripts', scripts);
+					syncWSWithAll('res-update-profile', current_profile)
+					console.log("Update profile:", current_profile);
+					console.log("Profile name:", current_profile.name);
+				}
 				break;
 			case 'req-execute':
-				sendSockets.forEach(s=>{
-					s(JSON.stringify(value))
+				sendSockets.forEach(s => {
+					// Send the full JSON object to the socket instead of just message.
+					const payload = JSON.stringify({ cmd, type, message, robot });
+					s(payload);
+					console.log("Sent to socket:", payload);
 				});
 				break;
 		}
@@ -155,6 +201,23 @@ const router = express.Router();
 router.get("/api/get-possible-files", (req, res)=>{
 	res.status(200).send(all_possible_files)
 })
+
+router.get("/api/move-config", (req, res) => {
+    res.status(200).json(move_config);
+});
+
+router.get("/api/scrollcontrollers-config", (req, res) => {
+    res.status(200).json(scroll_controllers_config);
+});
+
+router.get("/api/triggers-config", (req, res) => {
+    // Make sure we're returning the parsed triggers object
+    res.status(200).json(triggers);
+});
+
+router.get("/api/paged-shortcuts-config", (req, res)=>{
+    res.status(200).json(paged_shortcuts);
+});
 
 router.post("/api/file-upload", (req, res)=>{
 	try {

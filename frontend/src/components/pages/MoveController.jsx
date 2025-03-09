@@ -5,8 +5,8 @@ import ScrollBar from "./../sub-components/ScrollBar";
 import FoldableSection from "./../FoldableSection";
 import SelectProfile from "../SelectProfile";
 
-export default function MoveController({ foldable, compact = false, profile_switcher = false }) {
-
+// New slider config and persistence code:
+export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot }) {
     const [keys, setKeys] = useState({
         W: false,
         A: false,
@@ -28,13 +28,67 @@ export default function MoveController({ foldable, compact = false, profile_swit
     const debounceTimeouts = useRef({});
     const zeroCounter = useRef(0);
 
+    const [sliderConfig, setSliderConfig] = useState({});
+    const [sliderValues, setSliderValues] = useState({});
+    const [robotSliders, setRobotSliders] = useState({});
+
+    // Fetch config once on mount
+    useEffect(() => {
+        fetch('/api/move-config')
+          .then(res => res.json())
+          .then(data => {
+                console.log("Fetched move config:", data);
+                setSliderConfig(data);
+          })
+          .catch(err => console.error("Error loading move config:", err));
+    }, []);
+
+    // When activeRobot or sliderConfig changes, load slider values.
+    useEffect(() => {
+        if (Object.keys(sliderConfig).length > 0) {
+            const configForRobot = sliderConfig[activeRobot] || sliderConfig["Default"];
+            if (robotSliders[activeRobot]) {
+                console.log(`Loading stored slider values for ${activeRobot}:`, robotSliders[activeRobot]);
+                setSliderValues(robotSliders[activeRobot]);
+            } else {
+                const initialValues = {
+                    MovementSpeed: Number(configForRobot.MovementSpeed.initial),
+                    TurnSpeed: Number(configForRobot.TurnSpeed.initial),
+                    MoveTimeout: Number(configForRobot.MoveTimeout.initial)
+                };
+                console.log(`Initializing slider values for ${activeRobot} from config:`, initialValues);
+                setSliderValues(initialValues);
+                setRobotSliders(prev => ({ ...prev, [activeRobot]: initialValues }));
+            }
+        }
+    }, [activeRobot, sliderConfig]);
+
+    // Update sliderValues and persist when a slider changes.
+    const handleSliderChange = (key, value) => {
+        setSliderValues(prev => {
+            const updated = { ...prev, [key]: Number(value) };
+            setRobotSliders(rs => ({ ...rs, [activeRobot]: updated }));
+            console.log(`Updated ${activeRobot} slider ${key}:`, updated);
+            requestWS("req-execute", {
+                type: "config",
+                message: { key, value: Number(value) },
+                robot: activeRobot
+            });
+            return updated;
+        });
+    };
+
     function debounceKeyUpdate(key, holding) {
         if (debounceTimeouts.current[key]) {
             clearTimeout(debounceTimeouts.current[key])
         }
 
         debounceTimeouts.current[key] = setTimeout(() => {
-            requestWS("req-execute", { type: "Move", message: { key, holding } })
+            requestWS("req-execute", {
+                type: "Move",
+                message: { key, holding },
+                robot: activeRobot
+            });
         }, 10);
     }
 
@@ -66,28 +120,28 @@ export default function MoveController({ foldable, compact = false, profile_swit
         const delta = holding ? 1 : -1;
         switch (key) {
             case 'W':
-                setY(prevY => prevY - delta);
+                setY(prevY => Math.max(-1, prevY - delta));
                 break;
             case 'A':
-                setX(prevX => prevX - delta);
+                setX(prevX => Math.max(-1, prevX - delta));
                 break;
             case 'S':
-                setY(prevY => prevY + delta);
+                setY(prevY => Math.min(1, prevY + delta));
                 break;
             case 'D':
-                setX(prevX => prevX + delta);
+                setX(prevX => Math.min(1, prevX + delta));
                 break;
             case 'ARROWUP':
-                setheadY(prevHy => prevHy - delta);
+                setheadY(prevHy => Math.max(-1, prevHy - delta));
                 break;
             case 'ARROWDOWN':
-                setheadY(prevHy => prevHy + delta);
+                setheadY(prevHy => Math.min(1, prevHy + delta));
                 break;
             case 'ARROWLEFT':
-                setheadX(prevHx => prevHx - delta);
+                setheadX(prevHx => Math.max(-1, prevHx - delta));
                 break;
             case 'ARROWRIGHT':
-                setheadX(prevHx => prevHx + delta);
+                setheadX(prevHx => Math.min(1, prevHx + delta));
                 break;
             default:
                 break;
@@ -129,7 +183,11 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
                 if (!allZero || (allZero && zeroCounter.current < 5)) {
-                    requestWS("req-execute", { type: "ConMove", message: { x: newX, y: newY, hx: headX, hy: headY } });
+                    requestWS("req-execute", {
+                        type: "ConMove",
+                        message: { x: newX, y: newY, hx: headX, hy: headY },
+                        robot: activeRobot
+                    });
                     if (allZero) {
                         zeroCounter.current += 1;
                     } else {
@@ -199,9 +257,33 @@ export default function MoveController({ foldable, compact = false, profile_swit
                         <Arrow90degRight />
                     </div>
                 </div>
-                <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} compact={true} />
-                <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} compact={true} />
-                <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} compact={true} />
+                <ScrollBar 
+                    name='Movement speed (m/s)' 
+                    value={sliderValues.MovementSpeed} 
+                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.max}
+                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.min}
+                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.step}
+                    onChange={(val) => handleSliderChange("MovementSpeed", val)}
+                    compact={true}
+                />
+                <ScrollBar 
+                    name='Turn speed (rad/s)' 
+                    value={sliderValues.TurnSpeed}
+                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.max}
+                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.min}
+                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.step}
+                    onChange={(val) => handleSliderChange("TurnSpeed", val)}
+                    compact={true}
+                />
+                <ScrollBar 
+                    name='Move Timeout (s)' 
+                    value={sliderValues.MoveTimeout}
+                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.max}
+                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.min}
+                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.step}
+                    onChange={(val) => handleSliderChange("MoveTimeout", val)}
+                    compact={true}
+                />
                 {profile_switcher && (
                     <div className="scroll-controllers-triggers">
                         <SelectProfile foldable={false} compact={true} />
@@ -229,9 +311,30 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 <div className={`head-pos  LEFT  ${keys.ARROWLEFT ? "holding" : ""}`}><CaretLeft /></div>
                 <div className={`head-pos  RIGHT ${keys.ARROWRIGHT ? "holding" : ""}`}><CaretRight /></div>
             </div>
-            <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} />
-            <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} />
-            <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} />
+            <ScrollBar 
+                name='Movement speed (m/s)' 
+                value={sliderValues.MovementSpeed} 
+                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.max}
+                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.min}
+                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.step}
+                onChange={(val) => handleSliderChange("MovementSpeed", val)}
+            />
+            <ScrollBar 
+                name='Turn speed (rad/s)' 
+                value={sliderValues.TurnSpeed}
+                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.max}
+                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.min}
+                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.step}
+                onChange={(val) => handleSliderChange("TurnSpeed", val)}
+            />
+            <ScrollBar 
+                name='Move Timeout (s)' 
+                value={sliderValues.MoveTimeout}
+                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.max}
+                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.min}
+                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.step}
+                onChange={(val) => handleSliderChange("MoveTimeout", val)}
+            />
         </FoldableSection>
     );
 }

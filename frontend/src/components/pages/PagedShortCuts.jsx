@@ -3,12 +3,30 @@ import FoldableSection from "../FoldableSection";
 import { useState, useEffect, useRef } from "react";
 import { FaCaretSquareLeft, FaCaretSquareRight } from "react-icons/fa";
 
-export default function PagedShortCuts({ full_screen = false, foldable = true , compact = false}) {
+export default function PagedShortCuts({ full_screen = false, foldable = true, compact = false, activeRobot }) {
     const { paged_shortcuts } = useWebSocket();
-    const [selectedPage, setSelectedPage] = useState("Day to Day");
+    const [robotSelectedPage, setRobotSelectedPage] = useState({});
+    const [selectedPage, setSelectedPage] = useState("");
     const prevPageButtonRef = useRef(null);
     const nextPageButtonRef = useRef(null);
     const activeKeys = useRef({});
+
+    // On change of robot or config, load per-robot page
+    useEffect(() => {
+        console.log("PagedShortCuts: Received paged_shortcuts:", paged_shortcuts);
+        console.log("PagedShortCuts: activeRobot:", activeRobot);
+        if (!paged_shortcuts) return;
+        const configForRobot = paged_shortcuts[activeRobot] || paged_shortcuts["Default"];
+        if (!configForRobot?.pages) return;
+        const stored = robotSelectedPage[activeRobot];
+        if (stored) {
+            setSelectedPage(stored);
+        } else {
+            const firstPage = Object.keys(configForRobot.pages)[0] || "";
+            setSelectedPage(firstPage);
+            setRobotSelectedPage(prev => ({ ...prev, [activeRobot]: firstPage }));
+        }
+    }, [activeRobot, paged_shortcuts]);
 
     function sendShortCut(name, items) {
         let command_to_pick;
@@ -21,14 +39,14 @@ export default function PagedShortCuts({ full_screen = false, foldable = true , 
     }
 
     function switchPage(direction) {
-        const pages = Object.keys(paged_shortcuts.pages);
-        let currentIndex = pages.indexOf(selectedPage);
-        if (direction === 'next') {
-            currentIndex = (currentIndex + 1) % pages.length;
-        } else if (direction === 'prev') {
-            currentIndex = (currentIndex - 1 + pages.length) % pages.length;
-        }
-        setSelectedPage(pages[currentIndex]);
+        const configForRobot = paged_shortcuts[activeRobot] || paged_shortcuts["Default"];
+        const pages = Object.keys(configForRobot.pages);
+        let idx = pages.indexOf(selectedPage);
+        if (direction === 'next') idx = (idx + 1) % pages.length;
+        else if (direction === 'prev') idx = (idx - 1 + pages.length) % pages.length;
+        const newPage = pages[idx];
+        setSelectedPage(newPage);
+        setRobotSelectedPage(prev => ({ ...prev, [activeRobot]: newPage }));
     }
 
     useEffect(() => {
@@ -86,12 +104,13 @@ export default function PagedShortCuts({ full_screen = false, foldable = true , 
         return () => clearInterval(interval);
     }, []);
 
-    if (!paged_shortcuts || !paged_shortcuts.pages) {
+    if (!paged_shortcuts || !(paged_shortcuts[activeRobot] || paged_shortcuts["Default"])) {
         return <div>Loading...</div>;
     }
 
-    const mainItems = paged_shortcuts.pages[selectedPage].main_items;
-    const bodyItems = paged_shortcuts.pages[selectedPage].body_items;
+    const robotConfig = paged_shortcuts[activeRobot] || paged_shortcuts["Default"];
+    const mainItems = robotConfig.pages[selectedPage]?.main_items || {};
+    const bodyItems = robotConfig.pages[selectedPage]?.body_items || {};
 
     return (
         <FoldableSection className={full_screen ? 'full-screen' : ''} title={'Shortcuts'} foldable={foldable} compact={compact}>
