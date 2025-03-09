@@ -8,10 +8,9 @@ export default function SelectProfile({ foldable = true, compact = false }) {
     const [profileIndex, setProfileIndex] = useState(profiles.findIndex(profile => profile.name === current_profile.name));
 
     function sendUpdateProfile() {
-        console.log("Sending update profile request");
-        console.log(current_profile);
-        requestWS("req-update-profile", current_profile);
-        requestWS("req-execute", { type: "profile", message: current_profile });
+        console.log("Sending update profile request", current_profile);
+        requestWS("req-update-profile", { type: "profile", message: current_profile, robot: "" } );
+        requestWS("req-execute", { type: "profile", message: current_profile, robot: "" });
     }
 
     function switchProfile(direction) {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const ws_url = (import.meta.env.PROD ? '' : 'ws://10.234.7.248:3000')+'/api/sync'
 
-let g_profiles = [], g_current_profile = {}, g_scripts = {}, g_triggers = {}, g_shortcuts = {},  g_paged_shortcuts = {}, g_announcements = {};
+let g_profiles = [], g_current_profile = {}, g_scripts = {}, g_triggers = {}, g_shortcuts = {},  g_paged_shortcuts = {}, g_announcements = {}, g_active_robot = "";
 
 const subscribers = {
     profiles: [],
@@ -64,11 +64,26 @@ socket.onopen = () => {
 }
 
 /**
- * @param {"req-update-profile"|"req-update-announce"|"req-execute"} cmd 
- * @param {*} value 
+ * Sends a message via websocket.
+ * Expects a payload object containing type and message.
+ * The final payload sends { cmd, type, message, robot } at the top level.
+ * If payload.robot is undefined or null, it is set to window.g_active_robot, or g_current_profile.name, or "".
+ * @param {string} cmd 
+ * @param {*} payload 
  */
-export function requestWS(cmd, value) {
-    socket.send(JSON.stringify({cmd, value}));
+export function requestWS(cmd, payload) {
+    console.log("Received WS request (cmd,payload):", cmd, payload);
+    if (payload.robot === undefined || payload.robot === null) {
+        payload.robot = window.g_active_robot || "";
+    }
+    const finalPayload = {
+        cmd,
+        type: payload.type,
+        message: payload.message,
+        robot: payload.robot,
+    };
+    console.log("Sending WS request:", finalPayload);
+    socket.send(JSON.stringify(finalPayload));
 }
 
 export default function useWebSocket() {

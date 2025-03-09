@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
+import { robotColors } from "../utils/robotColors";
 import FoldableSection from "./FoldableSection";
 import { TbXboxAFilled } from "react-icons/tb";
 import { FaCaretSquareDown, FaCaretSquareUp } from "react-icons/fa";
@@ -25,7 +26,7 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
             robot = script.robot || activeRobot;
             text = script.text;
         }
-        requestWS("req-execute", { type: "script", message: { robot, text } });
+        requestWS("req-execute", { type: "script", message: text, robot });
         setExecuted(true);
         setTimeout(() => setExecuted(false), 2000);
     }
@@ -47,13 +48,9 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
             setExecuted(false);
         }
         if(way === 'next') {
-            if(++idx >= arrScripts.length) {
-                idx = 0;
-            }
+            if(++idx >= arrScripts.length) { idx = 0; }
         } else if(way === 'last') {
-            if(--idx < 0) {
-                idx = arrScripts.length - 1;
-            }
+            if(--idx < 0) { idx = arrScripts.length - 1; }
         }
         setScript(arrScripts[idx]);
     }
@@ -76,7 +73,7 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
             resetController();
         }
     // eslint-disable-next-line
-    }, [controller])
+    }, [controller]);
 
     useEffect(() => {
         if (compact && scriptContainerRef.current) {
@@ -96,39 +93,50 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
             if (controller) {
                 const dpadUp = controller.buttons[12].pressed;
                 const dpadDown = controller.buttons[13].pressed;
-                const execute = controller.buttons[0].pressed; // A button on Xbox controller
-                if (dpadUp) {
-                    lastButtonRef.current.click();
-                } else if (dpadDown) {
-                    nextButtonRef.current.click();
-                } else if (execute) {
-                    executeButtonRef.current.click();
-                }
+                const execute = controller.buttons[0].pressed;
+                if (dpadUp) { lastButtonRef.current.click(); }
+                else if (dpadDown) { nextButtonRef.current.click(); }
+                else if (execute) { executeButtonRef.current.click(); }
             }
         }, 100);
-
         return () => clearInterval(interval);
     }, []);
+
+    const renderScriptItem = (script_name, i) => {
+        const scriptObj = scripts[script_name];
+        // If script obj undefined or null, set to empty string
+        if (!scriptObj) { return null; }
+        console.log("scriptObj", scriptObj);
+        const assignedRobot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
+        const text = typeof scriptObj === "string" ? scriptObj : (scriptObj.text || "");
+        const activeRobotOrDefault = activeRobot || "Default";
+        const baseStyle = assignedRobot && robotColors[assignedRobot] 
+            ? { backgroundColor: robotColors[assignedRobot].light } 
+            : { backgroundColor: robotColors[activeRobotOrDefault].light };
+        const selectedStyle = s === script_name && assignedRobot && robotColors[assignedRobot]
+            ? { border: `5px dashed ${robotColors[assignedRobot].border}` }
+            : s === script_name
+            ? { border: `5px dashed ${robotColors[activeRobotOrDefault].border}` }
+            : {};
+        const combinedStyle = { ...baseStyle, ...selectedStyle };
+        return (
+            <div 
+                key={`script-${i}`} 
+                className={`script clickable${s === script_name ? ' selected' : ""}${executed && s === script_name ? ' executed' : ""}`} 
+                onClick={() => setScript(script_name)}
+                style={combinedStyle}
+            >
+                <div className="script-name">{script_name} {assignedRobot && <small>({assignedRobot})</small>}</div>
+                <div className="script-value">{text}</div>
+            </div>
+        );
+    };
 
     if (compact) {
         return (
             <FoldableSection title={"Pre-Defined Scripts"} foldable={foldable} compact={compact}>
                 <div className="script-container" ref={scriptContainerRef}>
-                    { arrScripts.map((script_name, i)=>{
-                        const scriptObj = scripts[script_name];
-                        const robot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
-                        const text = typeof scriptObj === "string" ? scriptObj : scriptObj.text;
-                        return (
-                            <div 
-                                key={`script-${i}`} 
-                                className={`script clickable${s === script_name ? ' selected' : ""}${executed && s === script_name ? ' executed' : ""}`} 
-                                onClick={()=>setScript(script_name)}
-                            >
-                                <div className="script-name">{script_name} {robot && <small>({robot})</small>}</div>
-                                <div className="script-value">{text}</div>
-                            </div>
-                        )
-                    }) }
+                    { arrScripts.map((script_name, i) => renderScriptItem(script_name, i)) }
                 </div>
                 <div className="inline-btns">
                     <div className="btn" ref={lastButtonRef} onClick={()=>switchSelect('last')}>
@@ -142,31 +150,17 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                     </div>
                 </div>
             </FoldableSection>
-        )
+        );
     }
 
     return (
         <FoldableSection title={"Pre-Defined Scripts"}>
-            { arrScripts.map((script_name, i)=>{
-                const scriptObj = scripts[script_name];
-                const robot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
-                const text = typeof scriptObj === "string" ? scriptObj : scriptObj.text;
-                return (
-                    <div 
-                        key={`script-${i}`} 
-                        className={`script clickable${s === script_name ? ' selected' : ""}${executed && s === script_name ? ' executed' : ""}`} 
-                        onClick={()=>setScript(script_name)}
-                    >
-                        <div className="script-name">{script_name} {robot && <small>({robot})</small>}</div>
-                        <div className="script-value">{text}</div>
-                    </div>
-                )
-            }) }
+            { arrScripts.map((script_name, i) => renderScriptItem(script_name, i)) }
             <div className="inline-btns">
                 <div className="btn" onClick={()=>switchSelect('last')}>Switch to Last Script</div>
                 <div className="btn" onClick={executeSelectedScript}>Execute Selected Script</div>
                 <div className="btn" onClick={()=>switchSelect('next')}>Switch to Next Script</div>
             </div>
         </FoldableSection>
-    )
+    );
 }

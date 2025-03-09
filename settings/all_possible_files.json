@@ -9,5 +9,7 @@
     "triggers",
     "shortcuts",
     "announcements",
-    "paged_shortcuts"
+    "paged_shortcuts",
+    "move_config",
+    "scroll_controllers_config"
 ]
