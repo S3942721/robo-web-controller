@@ -39,7 +39,6 @@ export default function TriggerBehaviour( { foldable=true, compact=false } ) {
                     )
                 }) }
             </div>
-            <div className="btn" onClick={sendAllUpdates}>Update All Triggers</div>
         </FoldableSection>
     )
 }

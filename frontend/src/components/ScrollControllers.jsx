@@ -16,10 +16,6 @@ export default function ScrollControllers({ foldable, compact = false, triggers 
             <div className="scroll-controllers-grid">
                 <div className="scroll-controllers-numerical">
                     <ScrollBar compact={compact} name='Adjust Volume' initial={80} callback={updateCallback("Volume")} />
-                    <ScrollBar compact={compact} name='Response Speed' initial={90} max={120} min={40} callback={updateCallback("ChangeResponseSpeed")} />
-                    <ScrollBar compact={compact} name='Sentence Pause (x200ms)' initial={4} max={10} min={1} callback={updateCallback("ChangeSentencePause")} />
-                    <ScrollBar compact={compact} name='Greet Face Lost Timeout' initial={1} max={5} min={0.5} step={0.5} callback={updateCallback("ChangeGreetFaceLostTimeout")} />
-                    <ScrollBar compact={compact} name='Greet Timeout' initial={3} max={10} min={1} step={0.5} callback={updateCallback("ChangeGreetTimeout")} />
                 </div>
                 {triggers && (
                     <div className="scroll-controllers-triggers">

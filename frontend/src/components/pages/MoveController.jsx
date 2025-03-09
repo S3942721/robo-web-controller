@@ -199,9 +199,8 @@ export default function MoveController({ foldable, compact = false, profile_swit
                         <Arrow90degRight />
                     </div>
                 </div>
-                <ScrollBar name='Movement speed (m/s)' initial={0.3} max={0.55} min={0.1} step={0.05} callback={updateCallback("ControlMovementSpeed")} compact={true} />
-                <ScrollBar name='Turn speed (rad/s)' initial={0.6} max={2} min={0.2} step={0.05} callback={updateCallback("ControlTurnSpeed")} compact={true} />
-                <ScrollBar name='Move Timeout (s)' initial={4} max={20} min={0.5} step={0.5} callback={updateCallback("ControlMovementTimeout")} compact={true} />
+                <ScrollBar name='Movement speed (m/s)' initial={0.5} max={0.5} min={0.01} step={0.01} callback={updateCallback("ControlMovementSpeed")} compact={true} />
+                <ScrollBar name='Turn speed (rad/s)' initial={0.5} max={1.0} min={0.05} step={0.10} callback={updateCallback("ControlTurnSpeed")} compact={true} />
                 {profile_switcher && (
                     <div className="scroll-controllers-triggers">
                         <SelectProfile foldable={false} compact={true} />

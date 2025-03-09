@@ -122,20 +122,10 @@
                     "^speak I don't know the answer to that"
                 ],
                 "🤔": [
-                    "^speak Hmm let me think about that ^run scratch(head)",
-                    "^speak That's a good question, let me ponder on it",
-                    "^speak Let me take a moment to think about that",
-                    "^speak I'll need to give that some thought",
-                    "^speak Let me consider that for a second",
-                    "^speak That's an interesting question, let me think",
-                    "^speak I'll have to mull that over",
-                    "^speak Let me reflect on that for a bit",
-                    "^speak I'll need to think about that",
-                    "^speak Give me a moment to think about it",
-                    "^speak I'll need to put some thought into that"
+                    "^speak Hmm let me think about that ^run scratch(head)"
                 ],
                 "👋Wave": [
-                    "^speak Hello I'm Bandit, nice to meet you! ^run Wave"
+                    "^speak Hello I'm Bandit, nice to meet you! ^pa 1 ^run Wave"
                 ]
             }
         },
@@ -198,7 +188,17 @@
                         "^speak VR headsets provide an awesome virtual reality experience!"
                 ]
             },
-            "body_items": {}
+            "body_items": {
+                "scream" : [
+                    "^sound scream"
+                ],
+                "Max 🔥" : [
+                    "^sound max"
+                ],
+                "🦗" : [
+                    "^sound cricket"
+                ]
+            }
         }
     }
 }

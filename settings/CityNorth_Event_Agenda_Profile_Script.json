@@ -1,3 +1,13 @@
 {
-    "Introduce Tom Bentley": "^start(everything) Ladies and gentlemen, Welcome to the City North Fest, Shared Future Series Showcase event! ^start(me) I'm Pepper, your lively event Co M C, brought to life by the RMIT RACE Hub with the wonderful support of the City North Project. \\pau=300\\ I'm delighted to introduce ^start(showtablet) $PepperMessage=Tom Tom Bentley, RMIT's Vice President of Strategy and Community Impact. Tom is a thinker, writer and adviser on public policy and institutional change. He has worked with institutions around the world on how to renew education systems along with economic and community life.  ^start(clap) Please join me in welcoming Professor Tom Bentley to the stage. ^wait(clap)"
+    "Introduce Yourself": "^speak Thanks, haacoo. Stealing my thunder as always... My name is Bandit ^pa 6.5 ^run Wave ^pa 2.5 ^speak Don’t ask why I only have one arm... I was born this way. haacoo and I are roomies at R M I T, where I am always left out. ",
+    "Haku response (1)": "^speak I can’t help it if I am the taller one. ^pa 2.0 ^raise 0.35 ^pa 0.9 ^speak I also can’t help it if I have all the brains! ^pa 4 ^raise 0.22",
+    "Haku response (2)": "^speak Okay smarty, let me ask you this. What do you call a white robot that talks?",
+    "Haku response (3)": "^speak And he thinks he is the smart one! However, we have some very important guests here today. Should we introduce ourselves to them?",
+    "Bandit Meet driver": "^speak Very pleased to meet you!",
+    "Driving Joke": "^speak Now a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.10 ^sound max",
+    "Haku squeak": "^speak Sounds like you need some oil for those aging joints. ^pa 3.70 ^sound squeak",
+    "No one interested": "^speak No one is interested Haku ",
+    "Go ahead then": "^speak Go ahead then",
+    "cricket": "^speak You’re hopeless ^pa 1.00 ^sound cricket",
+    "headtest": "^run home"
 }
