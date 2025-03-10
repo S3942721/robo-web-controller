@@ -71,6 +71,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
     // Update sliderValues and persist when a slider changes.
     const handleSliderChange = (key, value) => {
+        lostFocus();
         setSliderValues(prev => {
             const updated = { ...prev, [key]: Number(value) };
             setRobotSliders(rs => ({ ...rs, [activeRobot]: updated }));
@@ -160,6 +161,11 @@ export default function MoveController({ foldable, compact = false, profile_swit
             setKey(i, false);
             updateDisplayValues(i, false);
         }
+        requestWS("req-execute", {
+            type: "ConMove",
+            message: { x: 0, y: 0, hx: 0, hy: 0 },
+            robot: ""
+        });
     }
 
     function visibilityChange() {
