@@ -194,42 +194,55 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
                 const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
-                if (!allZero || (allZero && zeroCounter.current < 5)) {
-                    requestWS("req-execute", {
-                        type: "ConMove",
-                        message: { x: newX, y: newY, hx: headX, hy: headY },
-                        robot: activeRobotRef.current
-                    });
-                    if (allZero) {
-                        zeroCounter.current += 1;
-                    } else {
-                        zeroCounter.current = 0;
-                    }
-                    wasZero = allZero;
-                }
-
-                if (!allZero) {
-                    try {
-                        controller.vibrationActuator.playEffect("dual-rumble", {
-                            startDelay: 0,
-                            duration: 200,
-                            weakMagnitude: 1.0,
-                            strongMagnitude: 1.0,
+                if (activeRobotRef.current === "Haku") {
+                    // Send WASD and arrow keys for Haku
+                    if (newY < -0.5) setKey('W', true); else setKey('W', false);
+                    if (newY > 0.5) setKey('S', true); else setKey('S', false);
+                    if (newX < -0.5) setKey('A', true); else setKey('A', false);
+                    if (newX > 0.5) setKey('D', true); else setKey('D', false);
+                    if (headY < -0.5) setKey('ARROWUP', true); else setKey('ARROWUP', false);
+                    if (headY > 0.5) setKey('ARROWDOWN', true); else setKey('ARROWDOWN', false);
+                    if (headX < -0.5) setKey('ARROWLEFT', true); else setKey('ARROWLEFT', false);
+                    if (headX > 0.5) setKey('ARROWRIGHT', true); else setKey('ARROWRIGHT', false);
+                } else {
+                    // Send joystick input for Bandit
+                    if (!allZero || (allZero && zeroCounter.current < 5)) {
+                        requestWS("req-execute", {
+                            type: "ConMove",
+                            message: { x: newX, y: newY, hx: headX, hy: headY },
+                            robot: activeRobotRef.current
                         });
-                    } catch (error) {
-                        console.error("Vibration effect failed:", error);
+                        if (allZero) {
+                            zeroCounter.current += 1;
+                        } else {
+                            zeroCounter.current = 0;
+                        }
+                        wasZero = allZero;
                     }
-                }
 
-                // Debounce for A, X, B buttons and D-pad inputs
-                const buttons = controller.buttons;
-                if (buttons[0].pressed) debounceKeyUpdate('A', true, () => { /* A button action */ }, 125);
-                if (buttons[1].pressed) debounceKeyUpdate('B', true, () => { /* B button action */ }, 125);
-                if (buttons[2].pressed) debounceKeyUpdate('X', true, () => { /* X button action */ }, 125);
-                if (buttons[12].pressed) debounceKeyUpdate('DPAD_UP', true, () => { /* D-pad up action */ }, 125);
-                if (buttons[13].pressed) debounceKeyUpdate('DPAD_DOWN', true, () => { /* D-pad down action */ }, 125);
-                if (buttons[14].pressed) debounceKeyUpdate('DPAD_LEFT', true, () => { /* D-pad left action */ }, 125);
-                if (buttons[15].pressed) debounceKeyUpdate('DPAD_RIGHT', true, () => { /* D-pad right action */ }, 125);
+                    if (!allZero) {
+                        try {
+                            controller.vibrationActuator.playEffect("dual-rumble", {
+                                startDelay: 0,
+                                duration: 200,
+                                weakMagnitude: 1.0,
+                                strongMagnitude: 1.0,
+                            });
+                        } catch (error) {
+                            console.error("Vibration effect failed:", error);
+                        }
+                    }
+
+                    // Debounce for A, X, B buttons and D-pad inputs
+                    const buttons = controller.buttons;
+                    if (buttons[0].pressed) debounceKeyUpdate('A', true, () => { /* A button action */ }, 125);
+                    if (buttons[1].pressed) debounceKeyUpdate('B', true, () => { /* B button action */ }, 125);
+                    if (buttons[2].pressed) debounceKeyUpdate('X', true, () => { /* X button action */ }, 125);
+                    if (buttons[12].pressed) debounceKeyUpdate('DPAD_UP', true, () => { /* D-pad up action */ }, 125);
+                    if (buttons[13].pressed) debounceKeyUpdate('DPAD_DOWN', true, () => { /* D-pad down action */ }, 125);
+                    if (buttons[14].pressed) debounceKeyUpdate('DPAD_LEFT', true, () => { /* D-pad left action */ }, 125);
+                    if (buttons[15].pressed) debounceKeyUpdate('DPAD_RIGHT', true, () => { /* D-pad right action */ }, 125);
+                }
             }
         }, 10);
 
