@@ -32,12 +32,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
     const [sliderValues, setSliderValues] = useState({});
     const [robotSliders, setRobotSliders] = useState({});
 
-    // Add a ref to always have the current activeRobot
-    const activeRobotRef = useRef(activeRobot);
-    useEffect(() => {
-        activeRobotRef.current = activeRobot;
-    }, [activeRobot]);
-
     // Fetch config once on mount
     useEffect(() => {
         fetch('/api/move-config')
@@ -84,25 +78,27 @@ export default function MoveController({ foldable, compact = false, profile_swit
         });
     };
 
-    // Update debounceKeyUpdate to use activeRobotRef.current
-    function debounceKeyUpdate(key, holding) {
+    // Debounce function to handle key updates
+    function debounceKeyUpdate(key, holding, callback, debounceTime = 10) {
         if (debounceTimeouts.current[key]) {
-            clearTimeout(debounceTimeouts.current[key])
+            clearTimeout(debounceTimeouts.current[key]);
         }
 
         debounceTimeouts.current[key] = setTimeout(() => {
-            requestWS("req-execute", {
-                type: "Move",
-                message: { key, holding },
-                robot: activeRobotRef.current
-            });
-        }, 10);
+            callback();
+        }, debounceTime);
     }
 
     const setKey = useCallback((key, holding) => {
         setKeys((prevKeys) => {
             if (prevKeys[key] === holding) return prevKeys;
-            debounceKeyUpdate(key, holding);
+            debounceKeyUpdate(key, holding, () => {
+                requestWS("req-execute", {
+                    type: "Move",
+                    message: { key, holding },
+                    robot: activeRobot
+                });
+            });
             return { ...prevKeys, [key]: holding };
         });
     }, []);
@@ -162,11 +158,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
         }
     }
 
-    // Call lostFocus whenever activeRobot changes
-    useEffect(() => {
-        lostFocus();
-    }, [activeRobot]);
-
     function visibilityChange() {
         if (document.visibilityState === 'hidden') {
             lostFocus();
@@ -179,6 +170,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
         window.addEventListener('blur', lostFocus);
         document.addEventListener('visibilitychange', visibilityChange);
 
+        let wasZero = false;
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
             if (controller) {
@@ -193,30 +185,20 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
                 const allZero = newX == 0 && newY == 0 && headX == 0 && headY == 0;
 
-                if (activeRobotRef.current === "Haku") {
-                    // Send WASD and arrow keys for Haku
-                    if (newY < -0.5) setKey('W', true); else setKey('W', false);
-                    if (newY > 0.5) setKey('S', true); else setKey('S', false);
-                    if (newX < -0.5) setKey('A', true); else setKey('A', false);
-                    if (newX > 0.5) setKey('D', true); else setKey('D', false);
-                    if (headY < -0.5) setKey('ARROWUP', true); else setKey('ARROWUP', false);
-                    if (headY > 0.5) setKey('ARROWDOWN', true); else setKey('ARROWDOWN', false);
-                    if (headX < -0.5) setKey('ARROWLEFT', true); else setKey('ARROWLEFT', false);
-                    if (headX > 0.5) setKey('ARROWRIGHT', true); else setKey('ARROWRIGHT', false);
-                } else {
-                    // Send joystick input for Bandit
                 if (!allZero || (allZero && zeroCounter.current < 5)) {
                     requestWS("req-execute", {
                         type: "ConMove",
                         message: { x: newX, y: newY, hx: headX, hy: headY },
-                        robot: activeRobotRef.current
+                        robot: activeRobot
                     });
                     if (allZero) {
                         zeroCounter.current += 1;
                     } else {
                         zeroCounter.current = 0;
                     }
+                    wasZero = allZero;
                 }
+
                 if (!allZero) {
                     try {
                         controller.vibrationActuator.playEffect("dual-rumble", {
@@ -229,8 +211,17 @@ export default function MoveController({ foldable, compact = false, profile_swit
                         console.error("Vibration effect failed:", error);
                     }
                 }
+
+                // Debounce for A, X, B buttons and D-pad inputs
+                const buttons = controller.buttons;
+                if (buttons[0].pressed) debounceKeyUpdate('A', true, () => { /* A button action */ }, 125);
+                if (buttons[1].pressed) debounceKeyUpdate('B', true, () => { /* B button action */ }, 125);
+                if (buttons[2].pressed) debounceKeyUpdate('X', true, () => { /* X button action */ }, 125);
+                if (buttons[12].pressed) debounceKeyUpdate('DPAD_UP', true, () => { /* D-pad up action */ }, 125);
+                if (buttons[13].pressed) debounceKeyUpdate('DPAD_DOWN', true, () => { /* D-pad down action */ }, 125);
+                if (buttons[14].pressed) debounceKeyUpdate('DPAD_LEFT', true, () => { /* D-pad left action */ }, 125);
+                if (buttons[15].pressed) debounceKeyUpdate('DPAD_RIGHT', true, () => { /* D-pad right action */ }, 125);
             }
-        }
         }, 10);
 
         return () => {
@@ -240,7 +231,14 @@ export default function MoveController({ foldable, compact = false, profile_swit
             document.removeEventListener('visibilitychange', visibilityChange);
             clearInterval(interval);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    function updateCallback(Signal) {
+        return function (Value) {
+            requestWS('req-execute', { type: 'trigger', message: { Signal, Value } })
+        }
+    }
 
     if (compact) {
         // Return compact version of the component
