@@ -20,7 +20,7 @@
     },
     "Haku Insult!": {
         "robot": "Haku",
-        "text": "Really? All the brains? I have two arms \\emph=1\\and \\pau=100\\ a bigger brain! "
+        "text": "Really? All the brains? I have two arms \\pau=100\\ \\emph=1\\and \\pau=100\\ a bigger brain! "
     },
     "Bandit Insult": {
         "robot": "Bandit",
@@ -36,7 +36,7 @@
     },
     "Haku intro best idea ever": {
         "robot": "Haku",
-        "text": "Best and only idea you've ever had!"
+        "text": "That's the best \\pau=100\\ and only idea you've ever had!"
     },
     "Greeting Drivers": {
         "robot": "section"
@@ -55,7 +55,7 @@
     },
     "Bandit pleased to meet you!": {
         "robot": "Bandit",
-        "text": "^speak Very pleased to meet you! ^pa 0.5 ^headtrack False ^run bow ^pa 4 ^headtrack True"
+        "text": "^headtrack False ^speak Very pleased to meet you! ^pa 0.5 ^run bow ^pa 4 ^headtrack True"
     },
     "Small Talk": {
         "robot": "section"
@@ -78,7 +78,7 @@
     },
     "Bandit Tease": {
         "robot": "Bandit",
-        "text": "^speak Yeah, better not ^run disagree"
+        "text": "^headtrack False ^speak Yeah, better not ^run disagree ^pa 3.0 ^headtrack True"
     },
     "Better as a Vacuum Joke": {
         "robot": "section"
@@ -89,7 +89,7 @@
     },
     "Haku Vacuuum": {
         "robot": "Haku",
-        "text": "Hey Bandit, you'd make a better robot vaccum than a racecar ^start(vacuum) driver \\pau=4000\\"
+        "text": "Hey Bandit, you'd make a better robot vaccum than a racecar ^start(vacuum) driver \\pau=2500\\"
     },
     "Bandit Insult Again?!?!?": {
         "robot": "Bandit",
@@ -97,7 +97,7 @@
     },
     "At least my wrist works!": {
         "robot": "Haku",
-        "text": "At least my wrist works!"
+        "text": "At least my wrist works! ^run(lookhand)"
     },
     "Milindi": {
         "robot": "nonspoken",
@@ -105,7 +105,7 @@
     },
     "Bandit Scream": {
         "robot": "Bandit",
-        "text": "^run lowheadshake ^pa 1.5 ^sound scream"
+        "text": "^headtrack False ^run lowheadshake ^pa 1.5 ^sound scream ^pa 2.0 ^headtrack True"
     },
     "Driver Dance Lesson": {
         "robot": "section"
