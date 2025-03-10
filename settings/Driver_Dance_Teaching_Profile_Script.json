@@ -5,7 +5,7 @@
     },
     "Bandit Introduction": {
         "robot": "Bandit",
-        "text": "^speak Thanks, Hacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don’t ask why I only have one arm... I was born this way. Haku and I are roomies at RMIT, where I am always left out."
+        "text": "^speak Thanks, haacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don’t ask why I only have one arm... I was born this way. haacoo and I are roomies at R M I T, where I am always left out."
     },
     "Haku Popular!": {
         "robot": "Haku",
@@ -13,7 +13,7 @@
     },
     "Raise Bandit": {
         "robot": "Bandit",
-        "text": "^speak I can’t help it if I am the taller one ^pa 2.5 ^raise 0.35. ^speak I also can’t help it if I have all the brains! ^pa 4.0 ^raise 0.22"
+        "text": "^speak I can’t help it if I am the taller one ^pa 2.5 ^raise 0.35 ^speak I also can’t help it if I have all the brains! ^pa 2.0 ^raise 0.22"
     },
     "Haku Insult!": {
         "robot": "Haku",

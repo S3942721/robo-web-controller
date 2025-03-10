@@ -10,6 +10,7 @@ export default function PagedShortCuts({ full_screen = false, foldable = true, c
     const prevPageButtonRef = useRef(null);
     const nextPageButtonRef = useRef(null);
     const activeKeys = useRef({});
+    const debounceTimeouts = useRef({});
 
     // On change of robot or config, load per-robot page
     useEffect(() => {
@@ -47,6 +48,17 @@ export default function PagedShortCuts({ full_screen = false, foldable = true, c
         const newPage = pages[idx];
         setSelectedPage(newPage);
         setRobotSelectedPage(prev => ({ ...prev, [activeRobot]: newPage }));
+    }
+
+    // Debounce function to handle key updates
+    function debounceKeyUpdate(key, holding, callback, debounceTime = 250) {
+        if (debounceTimeouts.current[key]) {
+            clearTimeout(debounceTimeouts.current[key]);
+        }
+
+        debounceTimeouts.current[key] = setTimeout(() => {
+            callback();
+        }, debounceTime);
     }
 
     useEffect(() => {
@@ -94,9 +106,13 @@ export default function PagedShortCuts({ full_screen = false, foldable = true, c
                 const dpadLeft = controller.buttons[14].pressed;
                 const dpadRight = controller.buttons[15].pressed;
                 if (dpadLeft) {
-                    prevPageButtonRef.current.click();
+                    debounceKeyUpdate('dpadLeft', true, () => {
+                        prevPageButtonRef.current.click();
+                    }, 125);
                 } else if (dpadRight) {
-                    nextPageButtonRef.current.click();
+                    debounceKeyUpdate('dpadRight', true, () => {
+                        nextPageButtonRef.current.click();
+                    }, 125);
                 }
             }
         }, 100);

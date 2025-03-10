@@ -15,6 +15,7 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
     const lastButtonRef = useRef(null);
     const nextButtonRef = useRef(null);
     const executeButtonRef = useRef(null);
+    const debounceTimeouts = useRef({});
 
     function executeSelectedScript() {
         const script = scripts[s];
@@ -87,6 +88,17 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
         }
     }, [s, compact]);
 
+    // Debounce function to handle key updates
+    function debounceKeyUpdate(key, holding, callback, debounceTime = 500) {
+        if (debounceTimeouts.current[key]) {
+            clearTimeout(debounceTimeouts.current[key]);
+        }
+
+        debounceTimeouts.current[key] = setTimeout(() => {
+            callback();
+        }, debounceTime);
+    }
+
     useEffect(() => {
         const interval = setInterval(() => {
             const controller = navigator.getGamepads()[0];
@@ -94,9 +106,19 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                 const dpadUp = controller.buttons[12].pressed;
                 const dpadDown = controller.buttons[13].pressed;
                 const execute = controller.buttons[0].pressed;
-                if (dpadUp) { lastButtonRef.current.click(); }
-                else if (dpadDown) { nextButtonRef.current.click(); }
-                else if (execute) { executeButtonRef.current.click(); }
+                if (dpadUp) {
+                    debounceKeyUpdate('dpadUp', true, () => {
+                        lastButtonRef.current.click();
+                    }, 125);
+                } else if (dpadDown) {
+                    debounceKeyUpdate('dpadDown', true, () => {
+                        nextButtonRef.current.click();
+                    }, 125);
+                } else if (execute) {
+                    debounceKeyUpdate('execute', true, () => {
+                        executeButtonRef.current.click();
+                    }, 125);
+                }
             }
         }, 100);
         return () => clearInterval(interval);
