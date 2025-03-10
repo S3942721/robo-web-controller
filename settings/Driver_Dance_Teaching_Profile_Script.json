@@ -1,19 +1,22 @@
 {
+    "Introductions": {
+        "robot": "section"
+    },
     "Haku Introduction": {
         "robot": "Haku",
         "text": "Hello everyone! My name is Haku and I live in the Virtual Experiences Laboratory at RMIT with my friends, including my companion Bandit.  "
     },
     "Bandit Introduction": {
         "robot": "Bandit",
-        "text": "^speak Thanks, haacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don’t ask why I only have one arm... I was born this way. haacoo and I are roomies at R M I T, where I am always left out."
+        "text": "^speak Thanks, haacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don't ask why I only have one arm... I was born this way. haacoo and I are roomies at R M I T, where I am always left out."
     },
     "Haku Popular!": {
         "robot": "Haku",
-        "text": "I can’t help it if I am the attractive and popular one! (performs some action)"
+        "text": "I can't help it if I am the attractive and popular one! (performs some action)"
     },
     "Raise Bandit": {
         "robot": "Bandit",
-        "text": "^speak I can’t help it if I am the taller one ^pa 2.5 ^raise 0.35 ^speak I also can’t help it if I have all the brains! ^pa 2.0 ^raise 0.22"
+        "text": "^speak I can't help it if I am the taller one ^pa 2.5 ^raise 0.35 ^speak I also can't help it if I have all the brains! ^pa 2.0 ^raise 0.22"
     },
     "Haku Insult!": {
         "robot": "Haku",
@@ -25,15 +28,22 @@
     },
     "Haku Dummy!": {
         "robot": "Haku",
-        "text": "Hmm… a white robot that talks … err, I don’t know."
+        "text": "Hmm… a white robot that talks … err, I don't know."
     },
     "Bandit Smart boi": {
         "robot": "Bandit",
         "text": "^speak And he thinks he is the smart one! ^pa 2.0 ^sound windows-10-error-sound ^pa 1 ^speak However, we have some very important guests here today. Should we introduce ourselves to them?"
     },
-    "Haku Driver First interaction": {
+    "Haku intro best idea ever": {
         "robot": "Haku",
-        "text": "Best and only idea you’ve ever had! (turns to Driver 1). Hello! Please excuse my friend. What is your name?"
+        "text": "Best and only idea you've ever had! (turns to Driver 1)."
+    },
+    "Greeting Drivers": {
+        "robot": "section"
+    },
+    "Haku driver intro": {
+        "robot": "Haku",
+        "text": "Hello! Please excuse my friend. What is your name?"
     },
     "Haku pleased to meet you!": {
         "robot": "Haku",
@@ -47,13 +57,16 @@
         "robot": "Bandit",
         "text": "^speak Very pleased to meet you! ^pa 0.5 ^run bow"
     },
+    "Driving Fast Jokes": {
+        "robot": "section"
+    },
     "Bandit MAXY IS BEST!!!": {
         "robot": "Bandit",
         "text": "^speak Now a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0 ^sound max"
     },
     "Haku Vacuuum": {
         "robot": "Haku",
-        "text": "Hey Bandit, you’d make a better robot vaccum than a racecar ^start(vacuum) driver \\pau=4000\\"
+        "text": "Hey Bandit, you'd make a better robot vaccum than a racecar ^start(vacuum) driver \\pau=4000\\"
     },
     "Bandit Insult Again?!?!?": {
         "robot": "Bandit",
@@ -63,6 +76,10 @@
         "robot": "Haku",
         "text": "At least my wrist works!"
     },
+    "Milindi": {
+        "robot": "nonspoken",
+        "text": "Calm down!"
+    },
     "Bandit Scream": {
         "robot": "Bandit",
         "text": "^run lowheadshake ^pa 1.5 ^sound scream"
@@ -70,5 +87,8 @@
     "Bandit Toggle Headbop": {
         "robot": "Bandit",
         "text": "^run BounceHeadRepeat"
+    },
+    "Dance Teaching": {
+        "robot": "section"
     }
 }

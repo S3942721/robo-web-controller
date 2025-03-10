@@ -45,14 +45,19 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
 
     function switchSelect(way) {
         let idx = arrScripts.indexOf(s);
-        if (executed) {
-            setExecuted(false);
-        }
-        if(way === 'next') {
-            if(++idx >= arrScripts.length) { idx = 0; }
-        } else if(way === 'last') {
-            if(--idx < 0) { idx = arrScripts.length - 1; }
-        }
+        if (executed) setExecuted(false);
+
+        do {
+            if (way === "next") {
+                if (++idx >= arrScripts.length) idx = 0;
+            } else {
+                if (--idx < 0) idx = arrScripts.length - 1;
+            }
+        } while (
+            scripts[arrScripts[idx]] &&
+            (scripts[arrScripts[idx]].robot === "section" ||
+             scripts[arrScripts[idx]].robot === "nonspoken")
+        );
         setScript(arrScripts[idx]);
     }
 
@@ -126,10 +131,44 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
 
     const renderScriptItem = (script_name, i) => {
         const scriptObj = scripts[script_name];
-        // If script obj undefined or null, set to empty string
-        if (!scriptObj) { return null; }
-        const assignedRobot = typeof scriptObj === "string" ? "" : (scriptObj.robot || "");
-        const text = typeof scriptObj === "string" ? scriptObj : (scriptObj.text || "");
+        if (!scriptObj) return null;
+
+        // Convert string scripts to objects for uniform checks
+        let assignedRobot, text;
+        if (typeof scriptObj === "string") {
+            assignedRobot = activeRobot;
+            text = scriptObj;
+        } else {
+            assignedRobot = scriptObj.robot || activeRobot;
+            text = scriptObj.text || "";
+        }
+
+        // Section or nonspoken (unselectable)
+        if (assignedRobot === "section") {
+            return (
+                <div
+                    key={`script-${i}`}
+                    className="script section unselectable"
+                    style={{ pointerEvents: "none" }}
+                >
+                    <div className="script-name">{script_name}</div>
+                    {/* No preview text for sections */}
+                </div>
+            );
+        }
+        if (assignedRobot === "nonspoken") {
+            return (
+                <div
+                    key={`script-${i}`}
+                    className="script nonspoken unselectable"
+                    style={{ pointerEvents: "none" }}
+                >
+                    <div className="script-name">{script_name}</div>
+                    <div className="script-value">{text}</div>
+                </div>
+            );
+        }
+
         const activeRobotOrDefault = activeRobot || "Default";
         const baseStyle = assignedRobot && robotColors[assignedRobot] 
             ? { backgroundColor: robotColors[assignedRobot].light } 
