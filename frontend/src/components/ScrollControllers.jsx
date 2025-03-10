@@ -24,7 +24,6 @@ export default function ScrollControllers({ foldable, compact = false, triggers 
     useEffect(() => {
         if (Object.keys(scrollConfig).length > 0) {
             const configForRobot = scrollConfig[activeRobot] || scrollConfig["Default"];
-            // If config is null or undefined, return
             if (!configForRobot) return;
             if (robotScrolls[activeRobot]) {
                 console.log(`Loading stored scroll values for ${activeRobot}:`, robotScrolls[activeRobot]);
@@ -47,7 +46,14 @@ export default function ScrollControllers({ foldable, compact = false, triggers 
             const updated = { ...prev, [key]: Number(value) };
             setRobotScrolls(rs => ({ ...rs, [activeRobot]: updated }));
             // Persist the new value if needed:
-            requestWS("req-execute", { type: "config", message: { key, value: Number(value) }, robot: activeRobot });
+            const signal = scrollConfig[activeRobot]?.[key]?.signal || scrollConfig["Default"]?.[key]?.signal;
+            if (signal) {
+                requestWS("req-execute", {
+                    type: "trigger",
+                    message: { Signal: signal, Value: Number(value) },
+                    robot: activeRobot
+                });
+            }
             return updated;
         });
     }
@@ -65,14 +71,14 @@ export default function ScrollControllers({ foldable, compact = false, triggers 
                             console.warn(`No config found for slider "${sliderKey}". Skipping.`);
                             return null;
                         }
+                        const { signal, ...restConfig } = conf;
                         return (
                             <ScrollBar
                                 key={sliderKey}
                                 name={sliderKey}
+                                signal={signal}
                                 value={scrollValues[sliderKey]}
-                                min={conf.min}
-                                max={conf.max}
-                                step={conf.step}
+                                {...restConfig} // includes min, max, step, etc.
                                 onChange={(val) => handleScrollChange(sliderKey, val)}
                                 compact={compact}
                             />
