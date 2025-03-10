@@ -43,38 +43,44 @@ export default function MoveController({ foldable, compact = false, profile_swit
           .catch(err => console.error("Error loading move config:", err));
     }, []);
 
+    // Add a ref to always have the current activeRobot
+    const activeRobotRef = useRef(activeRobot);
+    useEffect(() => {
+        activeRobotRef.current = activeRobot;
+    }, [activeRobot]);
+
     // When activeRobot or sliderConfig changes, load slider values.
     useEffect(() => {
         if (Object.keys(sliderConfig).length > 0) {
-            const configForRobot = sliderConfig[activeRobot] || sliderConfig["Default"];
-            if (robotSliders[activeRobot]) {
-                console.log(`Loading stored slider values for ${activeRobot}:`, robotSliders[activeRobot]);
-                setSliderValues(robotSliders[activeRobot]);
+            const configForRobot = sliderConfig[activeRobotRef.current] || sliderConfig["Default"];
+            if (robotSliders[activeRobotRef.current]) {
+                console.log(`Loading stored slider values for ${activeRobotRef.current}:`, robotSliders[activeRobotRef.current]);
+                setSliderValues(robotSliders[activeRobotRef.current]);
             } else {
                 const initialValues = {
                     MovementSpeed: Number(configForRobot.MovementSpeed.initial),
                     TurnSpeed: Number(configForRobot.TurnSpeed.initial),
                     MoveTimeout: Number(configForRobot.MoveTimeout.initial)
                 };
-                console.log(`Initializing slider values for ${activeRobot} from config:`, initialValues);
+                console.log(`Initializing slider values for ${activeRobotRef.current} from config:`, initialValues);
                 setSliderValues(initialValues);
-                setRobotSliders(prev => ({ ...prev, [activeRobot]: initialValues }));
+                setRobotSliders(prev => ({ ...prev, [activeRobotRef.current]: initialValues }));
             }
         }
-    }, [activeRobot, sliderConfig]);
+    }, [activeRobotRef, sliderConfig]);
 
     // Update sliderValues and persist when a slider changes.
     const handleSliderChange = (key, value) => {
         setSliderValues(prev => {
             const updated = { ...prev, [key]: Number(value) };
-            setRobotSliders(rs => ({ ...rs, [activeRobot]: updated }));
-            console.log(`Updated ${activeRobot} slider ${key}:`, updated);
-            const signal = sliderConfig[activeRobot]?.[key]?.signal || sliderConfig["Default"]?.[key]?.signal;
+            setRobotSliders(rs => ({ ...rs, [activeRobotRef.current]: updated }));
+            console.log(`Updated ${activeRobotRef.current} slider ${key}:`, updated);
+            const signal = sliderConfig[activeRobotRef.current]?.[key]?.signal || sliderConfig["Default"]?.[key]?.signal;
             if (signal) {
                 requestWS("req-execute", {
                     type: "trigger",
                     message: { Signal: signal, Value: Number(value) },
-                    robot: activeRobot
+                    robot: activeRobotRef.current
                 });
             }
             return updated;
@@ -99,12 +105,12 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 requestWS("req-execute", {
                     type: "Move",
                     message: { key, holding },
-                    robot: activeRobot
+                    robot: activeRobotRef.current
                 });
             });
             return { ...prevKeys, [key]: holding };
         });
-    }, []);
+    }, [activeRobotRef]);
 
     const handleKeyDown = (event) => {
         const key = event.key.toUpperCase();
@@ -192,7 +198,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
                     requestWS("req-execute", {
                         type: "ConMove",
                         message: { x: newX, y: newY, hx: headX, hy: headY },
-                        robot: activeRobot
+                        robot: activeRobotRef.current
                     });
                     if (allZero) {
                         zeroCounter.current += 1;
@@ -276,27 +282,27 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 <ScrollBar 
                     name='Movement speed (m/s)' 
                     value={sliderValues.MovementSpeed} 
-                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.max}
-                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.min}
-                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.step}
+                    max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.max}
+                    min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.min}
+                    step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.step}
                     onChange={(val) => handleSliderChange("MovementSpeed", val)}
                     compact={true}
                 />
                 <ScrollBar 
                     name='Turn speed (rad/s)' 
                     value={sliderValues.TurnSpeed}
-                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.max}
-                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.min}
-                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.step}
+                    max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.max}
+                    min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.min}
+                    step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.step}
                     onChange={(val) => handleSliderChange("TurnSpeed", val)}
                     compact={true}
                 />
                 <ScrollBar 
                     name='Move Timeout (s)' 
                     value={sliderValues.MoveTimeout}
-                    max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.max}
-                    min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.min}
-                    step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.step}
+                    max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.max}
+                    min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.min}
+                    step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.step}
                     onChange={(val) => handleSliderChange("MoveTimeout", val)}
                     compact={true}
                 />
@@ -330,25 +336,25 @@ export default function MoveController({ foldable, compact = false, profile_swit
             <ScrollBar 
                 name='Movement speed (m/s)' 
                 value={sliderValues.MovementSpeed} 
-                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.max}
-                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.min}
-                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MovementSpeed.step}
+                max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.max}
+                min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.min}
+                step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MovementSpeed.step}
                 onChange={(val) => handleSliderChange("MovementSpeed", val)}
             />
             <ScrollBar 
                 name='Turn speed (rad/s)' 
                 value={sliderValues.TurnSpeed}
-                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.max}
-                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.min}
-                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.TurnSpeed.step}
+                max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.max}
+                min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.min}
+                step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.TurnSpeed.step}
                 onChange={(val) => handleSliderChange("TurnSpeed", val)}
             />
             <ScrollBar 
                 name='Move Timeout (s)' 
                 value={sliderValues.MoveTimeout}
-                max={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.max}
-                min={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.min}
-                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.step}
+                max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.max}
+                min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.min}
+                step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.step}
                 onChange={(val) => handleSliderChange("MoveTimeout", val)}
             />
         </FoldableSection>
