@@ -1,6 +1,70 @@
 {
-    "Driver dance teaching": {
+    "Haku Introduction": {
+        "robot": "Haku",
+        "text": "Hello everyone! My name is Haku and I live in the Virtual Experiences Laboratory at RMIT with my friends, including my companion Bandit.  "
+    },
+    "Bandit Introduction": {
         "robot": "Bandit",
-        "text": "^start(everything) Ladies and gentlemen, Welcome to the City North Fest, Shared Future Series Showcase event! ^start(me) I'm Pepper, your lively event Co M C, brought to life by the RMIT RACE Hub with the wonderful support of the City North Project. \\pau=300\\ I'm delighted to introduce ^start(showtablet) $PepperMessage=Tom Tom Bentley, RMIT's Vice President of Strategy and Community Impact. Tom is a thinker, writer and adviser on public policy and institutional change. He has worked with institutions around the world on how to renew education systems along with economic and community life.  ^start(clap) Please join me in welcoming Professor Tom Bentley to the stage. ^wait(clap)"
+        "text": "^speak Thanks, Hacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don’t ask why I only have one arm... I was born this way. Haku and I are roomies at RMIT, where I am always left out."
+    },
+    "Haku Popular!": {
+        "robot": "Haku",
+        "text": "I can’t help it if I am the attractive and popular one! (performs some action)"
+    },
+    "Raise Bandit": {
+        "robot": "Bandit",
+        "text": "^speak I can’t help it if I am the taller one ^pa 2.5 ^raise 0.35. ^speak I also can’t help it if I have all the brains! ^pa 4.0 ^raise 0.22"
+    },
+    "Haku Insult!": {
+        "robot": "Haku",
+        "text": "Really? All the brains? I have two arms AND a bigger brain! "
+    },
+    "Bandit Insult": {
+        "robot": "Bandit",
+        "text": "^speak Okay smarty, let me ask you this. What do you call a white robot that talks?"
+    },
+    "Haku Dummy!": {
+        "robot": "Haku",
+        "text": "Hmm… a white robot that talks … err, I don’t know."
+    },
+    "Bandit Smart boi": {
+        "robot": "Bandit",
+        "text": "^speak And he thinks he is the smart one! ^pa 2.0 ^sound windows-10-error-sound ^pa 1 ^speak However, we have some very important guests here today. Should we introduce ourselves to them?"
+    },
+    "Haku Driver First interaction": {
+        "robot": "Haku",
+        "text": "Best and only idea you’ve ever had! (turns to Driver 1). Hello! Please excuse my friend. What is your name?"
+    },
+    "Haku pleased to meet you!": {
+        "robot": "Haku",
+        "text": "Very pleased to meet you! (Bows)"
+    },
+    "Bandit Driver First interaction": {
+        "robot": "Bandit",
+        "text": "^speak Hello! What would your name be?"
+    },
+    "Bandit pleased to meet you!": {
+        "robot": "Bandit",
+        "text": "^speak Very pleased to meet you! ^pa 0.5 ^run bow"
+    },
+    "Bandit MAXY IS BEST!!!": {
+        "robot": "Bandit",
+        "text": "^speak Now a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0 ^sound max"
+    },
+    "Haku Vacuuum": {
+        "robot": "Haku",
+        "text": "Hey Bandit, you’d make a better robot vaccum than a racecar ^start(vacuum) driver \\pau=4000\\"
+    },
+    "Bandit Insult Again?!?!?": {
+        "robot": "Bandit",
+        "text": "^speak Sounds like you need some oil for those aging joints. ^pa 3.5 ^sound squeak"
+    },
+    "At least my wrist works!": {
+        "robot": "Haku",
+        "text": "At least my wrist works!"
+    },
+    "Bandit Scream": {
+        "robot": "Bandit",
+        "text": "^run lowheadshake ^pa 1.5 ^sound scream"
     }
 }
