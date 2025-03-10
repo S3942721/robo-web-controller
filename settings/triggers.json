@@ -53,6 +53,14 @@
         "Head Tracking": {
             "Signal": "HeadTrack",
             "Value": false
+        },
+        "Arm": {
+            "Signal": "ArmEnabled",
+            "Value": true
+        },
+        "Stop Animation repeat": {
+            "Signal": "AnimationRepeat",
+            "Value": false
         }
     },
     "Haku": {

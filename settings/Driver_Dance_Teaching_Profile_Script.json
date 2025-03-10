@@ -66,5 +66,9 @@
     "Bandit Scream": {
         "robot": "Bandit",
         "text": "^run lowheadshake ^pa 1.5 ^sound scream"
+    },
+    "Bandit Toggle Headbop": {
+        "robot": "Bandit",
+        "text": "^run BounceHeadRepeat"
     }
 }
