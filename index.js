@@ -174,10 +174,14 @@ app.ws('/api/sync', (ws, req)=>{
 				break;
 			case 'req-execute':
 				sendSockets.forEach(s => {
-					// Send the full JSON object to the socket instead of just message.
-					const payload = JSON.stringify({ cmd, type, message, robot });
-					s(payload);
-					console.log("Sent to socket:", payload);
+					const replaced = JSON.stringify({ cmd, type, message, robot })
+						.normalize('NFKC')
+						.replace(/[“”]/g, '"')
+						.replace(/[‘’]/g, "'")
+						.replace(/…/g, '...')
+						.replace(/[^\x00-\x7F]/g, "");
+					s(replaced);
+					console.log("Sent to socket:", replaced);
 				});
 				break;
 		}
