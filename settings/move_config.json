@@ -6,7 +6,7 @@
             "max": 0.5,
             "min": 0.01,
             "step": 0.01,
-            "callback": "updateCallback('ControlMovementSpeed')",
+            "signal": "ControlMovementSpeed",
             "compact": true
         },
         "TurnSpeed": {
@@ -15,7 +15,7 @@
             "max": 1.0,
             "min": 0.05,
             "step": 0.10,
-            "callback": "updateCallback('ControlTurnSpeed')",
+            "signal": "ControlTurnSpeed",
             "compact": true
         },
         "MoveTimeout": {
@@ -24,7 +24,7 @@
             "max": 20,
             "min": 0.5,
             "step": 0.5,
-            "callback": "updateCallback('ControlMovementTimeout')",
+            "signal": "ControlMovementTimeout",
             "compact": true
         }
     },
@@ -35,7 +35,7 @@
             "max": 0.55,
             "min": 0.1,
             "step": 0.05,
-            "callback": "updateCallback('ControlMovementSpeed')",
+            "signal": "ControlMovementSpeed",
             "compact": true
         },
         "TurnSpeed": {
@@ -44,7 +44,7 @@
             "max": 2,
             "min": 0.2,
             "step": 0.05,
-            "callback": "updateCallback('ControlTurnSpeed')",
+            "signal": "ControlTurnSpeed",
             "compact": true
         },
         "MoveTimeout": {
@@ -53,7 +53,7 @@
             "max": 20,
             "min": 0.5,
             "step": 0.5,
-            "callback": "updateCallback('ControlMovementTimeout')",
+            "signal": "ControlMovementTimeout",
             "compact": true
         }
     },
@@ -64,7 +64,7 @@
             "max": 0.55,
             "min": 0.1,
             "step": 0.05,
-            "callback": "updateCallback('ControlMovementSpeed')",
+            "signal": "ControlMovementSpeed",
             "compact": true
         },
         "TurnSpeed": {
@@ -73,7 +73,7 @@
             "max": 2,
             "min": 0.2,
             "step": 0.05,
-            "callback": "updateCallback('ControlTurnSpeed')",
+            "signal": "ControlTurnSpeed",
             "compact": true
         },
         "MoveTimeout": {
@@ -82,7 +82,7 @@
             "max": 20,
             "min": 0.5,
             "step": 0.5,
-            "callback": "updateCallback('ControlMovementTimeout')",
+            "signal": "ControlMovementTimeout",
             "compact": true
         }
     }

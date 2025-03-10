@@ -69,11 +69,14 @@ export default function MoveController({ foldable, compact = false, profile_swit
             const updated = { ...prev, [key]: Number(value) };
             setRobotSliders(rs => ({ ...rs, [activeRobot]: updated }));
             console.log(`Updated ${activeRobot} slider ${key}:`, updated);
-            requestWS("req-execute", {
-                type: "config",
-                message: { key, value: Number(value) },
-                robot: activeRobot
-            });
+            const signal = sliderConfig[activeRobot]?.[key]?.signal || sliderConfig["Default"]?.[key]?.signal;
+            if (signal) {
+                requestWS("req-execute", {
+                    type: "trigger",
+                    message: { Signal: signal, Value: Number(value) },
+                    robot: activeRobot
+                });
+            }
             return updated;
         });
     };
