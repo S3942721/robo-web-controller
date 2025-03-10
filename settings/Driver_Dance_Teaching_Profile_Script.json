@@ -12,7 +12,7 @@
     },
     "Haku Popular!": {
         "robot": "Haku",
-        "text": "I can't help it if I am the attractive and popular one! (performs some action)"
+        "text": "I can't help it if I am the attractive \\pau=100\\ \\emph=1\\and \\pau=100\\ ^start(happy) popular one! ^wait(happy)"
     },
     "Raise Bandit": {
         "robot": "Bandit",
@@ -20,7 +20,7 @@
     },
     "Haku Insult!": {
         "robot": "Haku",
-        "text": "Really? All the brains? I have two arms AND a bigger brain! "
+        "text": "Really? All the brains? I have two arms \\emph=1\\and \\pau=100\\ a bigger brain! "
     },
     "Bandit Insult": {
         "robot": "Bandit",
@@ -28,15 +28,15 @@
     },
     "Haku Dummy!": {
         "robot": "Haku",
-        "text": "Hmm… a white robot that talks … err, I don't know."
+        "text": "Hmm… a white robot that talks ... uhhhhh, I don't know."
     },
     "Bandit Smart boi": {
         "robot": "Bandit",
-        "text": "^speak And he thinks he is the smart one! ^pa 2.0 ^sound windows-10-error-sound ^pa 1 ^speak However, we have some very important guests here today. Should we introduce ourselves to them?"
+        "text": "^speak And you think you're the smart one! ^pa 2.0 ^sound windows-10-error-sound ^pa 1 ^speak However, we have some very important guests here today. Should we introduce ourselves to them?"
     },
     "Haku intro best idea ever": {
         "robot": "Haku",
-        "text": "Best and only idea you've ever had! (turns to Driver 1)."
+        "text": "Best and only idea you've ever had!"
     },
     "Greeting Drivers": {
         "robot": "section"
@@ -47,7 +47,7 @@
     },
     "Haku pleased to meet you!": {
         "robot": "Haku",
-        "text": "Very pleased to meet you! (Bows)"
+        "text": "Very pleased to meet you! ^run(bowshort)"
     },
     "Bandit Driver First interaction": {
         "robot": "Bandit",
@@ -55,7 +55,10 @@
     },
     "Bandit pleased to meet you!": {
         "robot": "Bandit",
-        "text": "^speak Very pleased to meet you! ^pa 0.5 ^run bow"
+        "text": "^speak Very pleased to meet you! ^pa 0.5 ^headtrack False ^run bow ^pa 4 ^headtrack True"
+    },
+    "Small Talk": {
+        "robot": "section"
     },
     "Bandit Driver Joke": {
         "robot": "Bandit",
@@ -75,11 +78,14 @@
     },
     "Bandit Tease": {
         "robot": "Bandit",
-        "text": "^speak Yea, better not ^run disagree"
+        "text": "^speak Yeah, better not ^run disagree"
+    },
+    "Better as a Vacuum Joke": {
+        "robot": "section"
     },
     "Bandit MAXY IS BEST!!!": {
         "robot": "Bandit",
-        "text": "^speak Now a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0 ^sound max"
+        "text": "^speak Now ^pa 0.5 ^speak a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0 ^sound max"
     },
     "Haku Vacuuum": {
         "robot": "Haku",
@@ -101,10 +107,6 @@
         "robot": "Bandit",
         "text": "^run lowheadshake ^pa 1.5 ^sound scream"
     },
-    "Bandit Toggle Headbop": {
-        "robot": "Bandit",
-        "text": "^run BounceHeadRepeat"
-    },
     "Driver Dance Lesson": {
         "robot": "section"
     },
@@ -114,11 +116,11 @@
     },
     "Bandit declines dance invitation": {
         "robot": "Bandit",
-        "text": "^speak I definitly don't. I can't even touch my toes."
+        "text": "^speak I definetly don't. I can't even touch my toes. Oh wait. Those are wheels."
     },
     "Haku clarifies target audience": {
         "robot": "Haku",
-        "text": "Not you Bandit. \\pau=300\\ not everything is about you. I was talking about our special guests. Isack and Yuki, would you like to learn a dance?"
+        "text": "Not \\emph=1\\ you Bandit. \\pau=300\\ not everything is about you. I was talking about our special guests. Isack and Yuki, would you like to learn a dance?"
     },
     "Guests accept dance invitation": {
         "robot": "nonspoken",
@@ -262,7 +264,7 @@
     },
     "Haku expresses admiration for reaching": {
         "robot": "Haku",
-        "text": "^start(impressed) Absolutely magnificent! F1 champions \\pau=100\\ \\emph=1\\AND \\pau=100\\ dance champions! ^wait(impressed)"
+        "text": "^start(impressed) Absolutely magnificent! F1 champions \\pau=100\\ \\emph=1\\and \\pau=100\\ dance champions! ^wait(impressed)"
     },
     "Haku demonstrates the freestyle move": {
         "robot": "Haku",
@@ -300,6 +302,10 @@
         "robot": "Bandit",
         "text": "^stopmusic"
     },
+    "Bandit Toggle Headbop": {
+        "robot": "Bandit",
+        "text": "^run BounceHeadRepeat"
+    },
     "Haku playfully debates best dancer": {
         "robot": "Haku",
         "text": "Now... who's the best dancer? Will it be Milindi? Will it be Isack? Will it be Evelyn? or... Will it be Yuki? Who knows."
@@ -310,7 +316,7 @@
     },
     "Haku performs full dance routine": {
         "robot": "Haku",
-        "text": "^start(dance_hungarian_full) Follow me if you can! \\pau=3000\\ Pretend you are conducting a choir! \\pau=3000\\ Get into the groove! \\pau=3000\\ Play it like you mean it! \\pau=3000\\ Let your arms run with the beat! \\pau=3000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! ^wait(dance_hungarian_full)"
+        "text": "^start(dance_hungarian_full) Follow me if you can! \\pau=3000\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=3400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! ^wait(dance_hungarian_full)"
     },
     "Bandit remains the critic": {
         "robot": "Bandit",
