@@ -316,7 +316,7 @@
     },
     "Haku performs full dance routine": {
         "robot": "Haku",
-        "text": "^start(dance_hungarian_full) Follow me if you can! \\pau=3000\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=3400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! ^wait(dance_hungarian_full)"
+        "text": "^start(dance_hungarian_full) Follow me if you can! \\pau=3000\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=1400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! \\pau=2000\\ Give me some energy ^wait(dance_hungarian_full)"
     },
     "Bandit remains the critic": {
         "robot": "Bandit",
