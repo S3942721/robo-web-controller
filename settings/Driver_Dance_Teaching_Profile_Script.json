@@ -57,8 +57,25 @@
         "robot": "Bandit",
         "text": "^speak Very pleased to meet you! ^pa 0.5 ^run bow"
     },
-    "Driving Fast Jokes": {
-        "robot": "section"
+    "Bandit Driver Joke": {
+        "robot": "Bandit",
+        "text": "^speak So, do you think you can drive faster than I can compute?"
+    },
+    "Haku Driver Compliment": {
+        "robot": "Haku",
+        "text": "I bet you're an amazing driver! Maybe you can teach Bandit a thing or two."
+    },
+    "Bandit Challenge": {
+        "robot": "Bandit",
+        "text": "^speak Oh really? How about a race then? ^pa 1.5 ^run Point"
+    },
+    "Haku Encouragement": {
+        "robot": "Haku",
+        "text": "Bandit you'll fry your circuits. And you'll crush someone's foot!"
+    },
+    "Bandit Tease": {
+        "robot": "Bandit",
+        "text": "^speak Yea, better not ^run disagree"
     },
     "Bandit MAXY IS BEST!!!": {
         "robot": "Bandit",
