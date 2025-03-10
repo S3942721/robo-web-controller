@@ -51,7 +51,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
     // When activeRobot or sliderConfig changes, load slider values.
     useEffect(() => {
-        lostFocus();
         if (Object.keys(sliderConfig).length > 0) {
             const configForRobot = sliderConfig[activeRobot] || sliderConfig["Default"];
             if (robotSliders[activeRobot]) {
@@ -161,11 +160,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
             setKey(i, false);
             updateDisplayValues(i, false);
         }
-        requestWS("req-execute", {
-            type: "ConMove",
-            message: { x: 0, y: 0, hx: 0, hy: 0 },
-            robot: ""
-        });
     }
 
     function visibilityChange() {
