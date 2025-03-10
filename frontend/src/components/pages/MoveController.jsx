@@ -162,6 +162,11 @@ export default function MoveController({ foldable, compact = false, profile_swit
         }
     }
 
+    // Call lostFocus whenever activeRobot changes
+    useEffect(() => {
+        lostFocus();
+    }, [activeRobot]);
+
     function visibilityChange() {
         if (document.visibilityState === 'hidden') {
             lostFocus();
