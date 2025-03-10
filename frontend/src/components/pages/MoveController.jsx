@@ -51,6 +51,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
     // When activeRobot or sliderConfig changes, load slider values.
     useEffect(() => {
+        lostFocus();
         if (Object.keys(sliderConfig).length > 0) {
             const configForRobot = sliderConfig[activeRobot] || sliderConfig["Default"];
             if (robotSliders[activeRobot]) {
@@ -71,7 +72,6 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
     // Update sliderValues and persist when a slider changes.
     const handleSliderChange = (key, value) => {
-        lostFocus();
         setSliderValues(prev => {
             const updated = { ...prev, [key]: Number(value) };
             setRobotSliders(rs => ({ ...rs, [activeRobot]: updated }));
