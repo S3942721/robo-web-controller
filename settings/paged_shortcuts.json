@@ -1107,6 +1107,14 @@
                         "^start(hey) I'm Haku, nice to meet you ^wait(hey)",
                         "^start(hey) I'm Haku, nice to see you ^wait(hey)"
                     ],
+                    "Intro Crowd": [
+                        "^speak Hello everyone, I'm Bandit",
+                        "^speak Hi everyone, I'm Bandit",
+                        "^speak Hey everyone, I'm Bandit",
+                        "^speak Hello! I'm Bandit",
+                        "^speak I'm Bandit, nice to meet you all",
+                        "^speak I'm Bandit, nice to see you all"
+                    ],
                     "IDK": [
                         "^start(thinking) I'm not sure about that ^wait(thinking)",
                         "^start(thinking) I don't know ^wait(thinking)",
@@ -1132,6 +1140,32 @@
                         "^start(thinking) Let me think ^wait(thinking)",
                         "^start(thinking) Let me see ^wait(thinking)",
                         "^start(thinking) Let me see, just a sec ^wait(thinking)"
+                    ],
+                    "Vroom Vroom": [
+                        "^start(drivecar) Vroom vroom! I'm definitely faster than those F1 cars ^wait(drivecar)",
+                        "^start(drivecar) Who needs an F1 license when you've got wheels in your base? ^wait(drivecar)",
+                        "^start(drivecar) I'd join the race, but I'm afraid I'd make the drivers jealous ^wait(drivecar)",
+                        "^start(drivecar) My top speed is... well, let's just say I'm built for charm, not velocity ^wait(drivecar)"
+                    ],
+                    "Excited": [
+                        "^run(excited)"
+                    ],
+                    "Racing Facts": [
+                        "^start(thinking) Did you know the first F1 race was held in 1950? My great-great-grandparent was just a calculator back then ^wait(thinking)",
+                        "^start(thinking) F1 drivers experience up to 5G of force when cornering. I get dizzy just spinning in circles ^wait(thinking)",
+                        "^start(thinking) F1 cars can accelerate from 0 to 100 km/h in about 1.8 seconds. I take about the same time to boot up in the morning ^wait(thinking)",
+                        "^start(thinking) The F1 track here at Albert Park is 5.3 kilometers long. At my walking speed, I'd finish in... calculating... a very long time ^wait(thinking)"
+                    ],
+                    "Photo Op": [
+                        "^start(strikeapose) Strike a pose! Tag me ^wait(strikeapose)",
+                        "^start(strikeapose) Let's take a selfie! I promise my metallic complexion looks great in photos ^wait(strikeapose)",
+                        "^start(strikeapose) This is my good side... actually, all my sides are pretty good ^wait(strikeapose)"
+                    ],
+                    "Weather Talk": [
+                        "^start(hot) Melbourne weather is as unpredictable as my dance moves ^wait(hot)",
+                        "^start(hot) Is it hot out here, or is it just my processors running? ^wait(hot)",
+                        "^start(showsky) Perfect day for racing! And if it starts raining, even better - impromptu water slides! ^wait(showsky)",
+                        "^start(umbrella) I didn't bring an umbrella. Worst case scenario, I'll just short circuit ^wait(showsky)"
                     ]
                 }
             },
@@ -1241,6 +1275,22 @@
                         "^start(thinking) I'm not programmed to know that ^wait(thinking)",
                         "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
                         "^start(thinking) My creators didn't teach me that ^wait(thinking)"
+                    ],
+                    "🦗": [
+                        "$Sound=crickets ^run(thinking)"
+                    ],
+                    "🐘": [
+                        "^run(elephant)"
+                    ],
+                    "RMIT Cheer": [
+                        "^start(excited) Go RMIT! My favorite university, and not just because they programmed me to say that ^wait(excited)",
+                        "^start(excited) RMIT engineers are the best! Some of them might have even built parts of me ^wait(excited)",
+                        "^start(excited) Did you know RMIT stands for Royal Melbourne Institute of Technology? The 'Royal' part makes me feel fancy ^wait(excited)"
+                    ],
+                    "Pit Stop": [
+                        "^start(rest) Do humans have pit stops? Mine involve a charging cable and occasional software updates ^wait(rest)",
+                        "^start(rest) Taking a quick pit stop. Unlike F1 teams, my maintenance takes hours, not seconds ^wait(rest)",
+                        "^start(rest) If I were an F1 car, my pit crew would mostly be IT support ^wait(rest)"
                     ]
                 }
             },
@@ -1327,34 +1377,31 @@
             "Jokes Page": {
                 "main_items": {
                     "Robot Jokes": [
-                        "Why don't robots ever feel scared? Because they have nerves of steel! ^run(laugh)",
-                        "How does a robot eat guacamole? With microchips! ^run(laugh)",
-                        "Why was the robot so tired when it got home? It had a hard drive! ^run(laugh)",
-                        "What do you call a robot that keeps going and going? The Energizer bunny's cousin! ^run(laugh)"
+                        "Why don't robots ever feel scared? \\pau=500\\ Because they have nerves of steel! ^run(laugh)",
+                        "How does a robot eat guacamole? \\pau=500\\ With microchips! ^run(laugh)",
+                        "Why was the robot so tired when it got home? \\pau=500\\ It had a hard drive! ^run(laugh)"
                     ],
                     "Tech Jokes": [
-                        "Why did the computer go to the doctor? It had a virus! ^run(laugh)",
-                        "What's a computer's favorite snack? Microchips! ^run(laugh)",
-                        "Why don't programmers like nature? It has too many bugs! ^run(laugh)",
-                        "How many programmers does it take to change a light bulb? None, that's a hardware problem! ^run(laugh)"
+                        "Why did the computer go to the doctor? \\pau=500\\ It had a virus! ^run(laugh)",
+                        "What's a computer's favorite snack? \\pau=500\\ Microchips! ^run(laugh)",
+                        "Why don't programmers like nature? \\pau=500\\ It has too many bugs! ^run(laugh)",
+                        "How many programmers does it take to change a light bulb? \\pau=500\\ None, that's a hardware problem! ^run(laugh)"
                     ],
                     "Dad Jokes": [
-                        "I was going to tell a time-traveling joke, but you didn't like it ^run(laugh)",
-                        "What do you call a fake noodle? An impasta! ^run(laugh)",
-                        "How do you organize a space party? You planet! ^run(laugh)",
-                        "What do you call a fish with no eyes? Fsh! ^run(laugh)"
+                        "I was going to tell a time-traveling joke, \\pau=500\\ but you didn't like it ^run(laugh)",
+                        "What do you call a fake noodle? \\pau=500\\ An impasta! ^run(laugh)",
+                        "How do you organize a space party? \\pau=500\\ You planet! ^run(laugh)"
                     ],
                     "Knock Knock": [
-                        "^start(knockeye) Knock knock! Who's there? Robot. Robot who? Robot-ery is a crime, so I'm here legally! ^wait(knockeye)",
-                        "^start(knockeye) Knock knock! Who's there? Bleep. Bleep who? Bleep bloop, I'm a robot! ^wait(knockeye)",
-                        "^start(knockeye) Knock knock! Who's there? Watt. Watt who? Watt powers me up every morning! ^wait(knockeye)",
-                        "^start(knockeye) Knock knock! Who's there? CPU. CPU who? CPU later, I've got to process some data! ^wait(knockeye)"
+                        "^start(knockeye) Knock knock! Who's there? \\pau=500\\ Robot. \\pau=500\\ Robot who? Robot-ery is a crime, so I'm here legally! ^wait(knockeye)",
+                        "^start(knockeye) Knock knock! Who's there? \\pau=500\\ Bleep. \\pau=500\\ Bleep who? Bleep bloop, I'm a robot! ^wait(knockeye)",
+                        "^start(knockeye) Knock knock! Who's there? \\pau=500\\ Watt. \\pau=500\\ Watt who? Watt powers me up every morning! ^wait(knockeye)",
+                        "^start(knockeye) Knock knock! Who's there? \\pau=500\\ CPU. \\pau=500\\ CPU who? CPU later, I've got to process some data! ^wait(knockeye)"
                     ]
                 },
                 "body_items": {
                     "Puns": [
                         "I was programmed to make jokes, but sometimes I exceed my cache memory ^run(laugh)",
-                        "I'm on a seafood diet. Every time I see food, I wish I could eat it! ^run(laugh)",
                         "I used to be a baker, but I couldn't make enough dough. Actually, I was never a baker, I'm a robot ^run(laugh)"
                     ],
                     "One-Liners": [
