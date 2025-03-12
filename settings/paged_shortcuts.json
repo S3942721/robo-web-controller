@@ -489,9 +489,6 @@
         "pages": {
             "Day to Day": {
                 "main_items": {
-                    "👋Wave !!": [
-                        "^run Point ^speak hey you! ^pa 2.5 ^run disagree ^speak naughty boy"
-                    ],
                     "Greet": [
                         "^speak Hello human, fancy meeting you here",
                         "^speak Greetings carbon-based lifeform",
@@ -616,6 +613,9 @@
                         "^speak Let me think",
                         "^speak Let me see",
                         "^speak Let me see, just a sec"
+                    ],
+                    "👋Wave !!": [
+                        "^run Wave ^speak Hey, I'm Bandit!"
                     ]
                 }
             },
