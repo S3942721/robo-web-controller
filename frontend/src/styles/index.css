@@ -294,7 +294,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .main-item > .grid-shortcuts {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     width: 100%; /* Ensure it fills the width of the column */
 }
