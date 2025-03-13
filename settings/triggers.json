@@ -52,7 +52,7 @@
     "Bandit": {
         "Head Tracking": {
             "Signal": "HeadTrack",
-            "Value": false
+            "Value": true
         },
         "Arm": {
             "Signal": "ArmEnabled",
