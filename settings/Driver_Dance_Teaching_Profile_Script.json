@@ -20,7 +20,7 @@
     },
     "Raise Bandit": {
         "robot": "Bandit",
-        "text": "^speak I can't help it if I am the taller one ^pa 2.5 ^raise 0.35 ^speak I also can't help it if I have all the brains! ^pa 2.0 ^raise 0.22"
+        "text": "^speak I can't help it if I am the taller one ^pa 1.5 ^raise 0.35 ^pa 2.5 ^speak I also can't help it if I have all the brains! ^pa 3.0 ^raise 0.22"
     },
     "Greeting Drivers": {
         "robot": "section"
@@ -48,7 +48,7 @@
         "robot": "Bandit",
         "text": "^speak Now ^pa 0.5 ^speak a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0"
     },
-    "Haku Vacuuum": {
+    "You'd fry your circuts!": {
         "robot": "Haku",
         "text": "Bandit, you'd fry your circuts if you tried to race"
     },
@@ -103,15 +103,15 @@
         "robot": "Haku",
         "text": "As an added challenge. I will only play the music at the very end to see if we can tie it all together."
     },
-    "Haku demonstrates the conductor move": {
+    "(MOVE 1 DEMO) Haku demonstrates the conductor move": {
         "robot": "Haku",
         "text": "Great! First move, ^start(dance_hungarian_pt1_mute) I like to call it the conductor, pretend you are conducting a choir. ^wait(dance_hungarian_pt1_mute)"
     },
-    "(Repeat) Conductor move": {
+    "(Repeat) (MOVE 1) Conductor move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt1_mute) ^wait(dance_hungarian_pt1_mute)"
     },
-    "Haku prompts conductor repetition": {
+    "(MOVE 1 YOU TRY) Haku prompts conductor repetition": {
         "robot": "Haku",
         "text": "Okay, now you try."
     },
@@ -119,23 +119,23 @@
         "robot": "nonspoken",
         "text": "Drivers et al attempt dance pt1."
     },
-    "Haku encourages improved conductor": {
+    "(MOVE 1 BAD) Haku encourages improved conductor": {
         "robot": "Haku",
         "text": "^start(comeon) I think you can do better than that. Give me more energy. ^wait(comeon)"
     },
-    "Haku praises conductor move": {
+    "(MOVE 1 GOOD) Haku praises conductor move": {
         "robot": "Haku",
         "text": "^start(excited) That's it... good! ^wait(excited)"
     },
-    "Haku demonstrates the DJ move": {
+    "(MOVE 2 DEMO) Haku demonstrates the DJ move": {
         "robot": "Haku",
         "text": "Okay, now onto the second dance move. This one is the DJ. ^start(dance_hungarian_pt2_mute) Repeat after me. \\pau=1000\\ Oh yeah. Work it. ^wait(dance_hungarian_pt2_mute)"
     },
-    "(Repeat) DJ move": {
+    "(Repeat) (MOVE 2) DJ move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt2_mute) ^wait(dance_hungarian_pt2_mute)"
     },
-    "Give it a go": {
+    "(MOVE 2 YOU TRY) Give it a go": {
         "robot": "Haku",
         "text": "Give it a go!"
     },
@@ -143,19 +143,19 @@
         "robot": "nonspoken",
         "text": "Drivers et all attempt dance pt2."
     },
-    "Haku criticizes DJ move": {
+    "(MOVE 2 BAD) Haku criticizes DJ move": {
         "robot": "Haku",
         "text": "^start(thinking) Hmmm... that's good enough... if you want to \\emph=1\\lose. Try Again. ^wait(thinking)"
     },
-    "Haku claps for DJ move": {
+    "(MOVE 2 GOOD) Haku claps for DJ move": {
         "robot": "Haku",
         "text": "^start(clap) That's more like it. ^wait(clap)"
     },
-    "Haku demonstrates the air violin move": {
+    "(MOVE 3 DEMO) Haku demonstrates the air violin move": {
         "robot": "Haku",
         "text": "Move number three. The air violin! ^start(dance_hungarian_pt3_mute) Play it like you mean it. ^wait(dance_hungarian_pt3_mute)."
     },
-    "(Repeat) Air violin move": {
+    "(Repeat) (MOVE 3) Air violin move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt3_mute) ^wait(dance_hungarian_pt3_mute)"
     },
@@ -163,19 +163,19 @@
         "robot": "nonspoken",
         "text": "Drivers et all attempt dance pt2."
     },
-    "Haku expresses mild disappointment": {
+    "(MOVE 3 BAD) Haku expresses mild disappointment": {
         "robot": "Haku",
         "text": "^start(disappointed) Solid effort, not as good as me, but that's okay. One more time. ^wait(disappointed)"
     },
-    "Haku compliments air violin move": {
+    "(MOVE 3 GOOD) Haku compliments air violin move": {
         "robot": "Haku",
         "text": "^start(happy) Well done. ^wait(happy)"
     },
-    "Haku demonstrates the running man move": {
+    "(MOVE 4 DEMO) Haku demonstrates the running man move": {
         "robot": "Haku",
         "text": "Move number four. The running man! ^start(dance_hungarian_pt4_mute) Feel the rhythm in your hands, let them run with the beat! ^wait(dance_hungarian_pt4_mute)"
     },
-    "(Repeat) Running man move": {
+    "(Repeat) (MOVE 4) Running man move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt4_mute) ^wait(dance_hungarian_pt4_mute)"
     },
@@ -183,19 +183,19 @@
         "robot": "nonspoken",
         "text": "Drivers et al attempt dance pt4."
     },
-    "Haku teases about running move": {
+    "(MOVE 4 BAD) Haku teases about running move": {
         "robot": "Haku",
         "text": "^start(scratchhead) I'm not sure what I just witnessed. Was that running or crawling? Give the running another go. ^wait(scratchhead)"
     },
-    "Haku expresses enthusiasm": {
+    "(MOVE 4 GOOD) Haku expresses enthusiasm": {
         "robot": "Haku",
         "text": "^start(enthusiastic) Now we're talking! You're getting the hang of it! ^wait(enthusiastic)"
     },
-    "Haku demonstrates the reaching move": {
+    "(MOVE 5 DEMO) Haku demonstrates the reaching move": {
         "robot": "Haku",
         "text": "Move number five! Reaching for the stars! ^start(dance_hungarian_pt5_mute) Stretch those arms up high and grab the universe! ^wait(dance_hungarian_pt5_mute)"
     },
-    "(Repeat) Reaching move": {
+    "(Repeat) (MOVE 5) Reaching move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt5_mute) ^wait(dance_hungarian_pt5_mute)"
     },
@@ -203,19 +203,19 @@
         "robot": "nonspoken",
         "text": "Drivers et al attempt dance pt5."
     },
-    "Haku humorously critiques reaching": {
+    "(MOVE 5 BAD) Haku humorously critiques reaching": {
         "robot": "Haku",
         "text": "Oh my... that was... something. Maybe stick to driving? Reach up again for me. ^run(quicklaugh)"
     },
-    "Haku expresses admiration for reaching": {
+    "(MOVE 5 GOOD) Haku expresses admiration for reaching": {
         "robot": "Haku",
         "text": "^start(impressed) Absolutely magnificent! F1 stars \\pau=100\\ \\emph=1\\and \\pau=100\\ dance stars! ^wait(impressed)"
     },
-    "Haku demonstrates the freestyle move": {
+    "(MOVE 6 DEMO) Haku demonstrates the freestyle move": {
         "robot": "Haku",
         "text": "And finally, move number six. The freestyle! ^start(dance_hungarian_pt6_mute) Show me what you've got! Make it your own! \\pau=2000\\ My moves are the best. ^stop(dance_hungarian_pt6_mute)"
     },
-    "(Repeat) Freestyle move": {
+    "(Repeat) (MOVE 6) Freestyle move": {
         "robot": "Haku",
         "text": "^start(dance_hungarian_pt6_mute) ^wait(dance_hungarian_pt6_mute)"
     },
@@ -223,15 +223,15 @@
         "robot": "nonspoken",
         "text": "Drivers attempt freestyle moves."
     },
-    "Bandit protests freestyle": {
+    "(MOVE 6 BAD) Bandit protests freestyle": {
         "robot": "Bandit",
         "text": "^speak I can't watch this anymore!"
     },
-    "Haku reacts with humorous surprise": {
+    "(MOVE 6 GOOD) Haku reacts with humorous surprise": {
         "robot": "Haku",
         "text": "^start(kungfu) Whoa! Didn't expect moves like that from race car drivers! ^wait(kungfu)"
     },
-    "Haku comments on chaotic dance": {
+    "(MOVE 6 EXTRA) Haku comments on chaotic dance": {
         "robot": "Haku",
         "text": "^start(lookhand) I think I've created dance monsters! ^wait(lookhand)"
     },
@@ -243,7 +243,7 @@
         "robot": "Bandit",
         "text": "^speak This is going to be something."
     },
-    "Stop Bandit Music" : {
+    "Stop Bandit Music": {
         "robot": "Bandit",
         "text": "^stopmusic"
     },
@@ -257,7 +257,7 @@
     },
     "Haku performs full dance routine": {
         "robot": "Haku",
-        "text": "^start(dance_hungarian_full) And 5, 6, 7, 8... Follow me if you can! \\pau=3000\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=1400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! \\pau=2000\\ Give me some energy ^wait(dance_hungarian_full)"
+        "text": "^start(dance_hungarian_full) And 5, 6, 7, 8... Follow me if you can! \\pau=1500\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=1400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! \\pau=2000\\ Give me some energy ^wait(dance_hungarian_full)"
     },
     "Bandit remains the critic": {
         "robot": "Bandit",
