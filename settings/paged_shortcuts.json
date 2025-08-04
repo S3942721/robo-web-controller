@@ -1065,6 +1065,142 @@
                         "^start(hey) My apologies ^wait(hey)",
                         "^start(hey) I'm sorry ^wait(hey)"
                     ],
+                    "RMIT Tent Welcome": [
+                        "^start(hey) Hello, I'm Haku. Welcome to RMIT's Grand Prix tent ^wait(hey)",
+                        "^start(hey) Howdy, I'm Haku. Welcome to RMIT's Grand Prix tent ^wait(hey)",
+                        "^start(hey) I'm Haku. Welcome to RMIT's Grand Prix tent ^wait(hey)",
+                
+                        "^start(hey) Hey, I'm Haku. Check out our soccer robots ^wait(hey)",
+                        "^start(hey) Howdy, I'm Haku. Check out our soccer robots ^wait(hey)",
+                        "^start(hey) I'm Haku. Check out our soccer robots ^wait(hey)",
+                
+                        "^start(hey) Have a look at our rocket display ^wait(hey)",
+                        "^start(hey) Howdy, have a look at our rocket display ^wait(hey)",
+                
+                        "^start(hey) You should try the three sixty degree helicopter simulator ^wait(hey)",
+                        "^start(hey) Howdy, you should try the three sixty degree helicopter simulator ^wait(hey)",
+                
+                        "^start(hey) Don't forget to see the solar panel car ^wait(hey)",
+                        "^start(hey) Howdy, don't forget to see the solar panel car ^wait(hey)",
+                
+                        "^start(hey) Step into VR and fight some aliens ^wait(hey)",
+                        "^start(hey) Howdy, step into VR and fight some aliens ^wait(hey)",
+                
+                        "^start(hey) Take a look at our formula SAE car ^wait(hey)",
+                        "^start(hey) Howdy, take a look at our formula SAE car ^wait(hey)",
+                
+                        "^start(hey) Test drive the motion simulator on the Melbourne GP circuit ^wait(hey)",
+                        "^start(hey) Howdy, test drive the motion simulator on the Melbourne GP circuit ^wait(hey)",
+                
+                        "^start(hey) Watch how RMIT pushes engineering boundaries ^wait(hey)",
+                        "^start(hey) Howdy, watch how RMIT pushes engineering boundaries ^wait(hey)",
+                
+                        "^start(hey) It's fun in here ^wait(hey)",
+                        "^start(hey) Howdy, it's fun in here ^wait(hey)",
+                
+                        "^start(bowshort) Hello, I'm Haku. Welcome to our Grand Prix showcase ^wait(bowshort)",
+                        "^start(bowshort) Howdy, I'm Haku. Welcome to our Grand Prix showcase ^wait(bowshort)",
+                        "^start(bowshort) I'm Haku. Welcome to our Grand Prix showcase ^wait(bowshort)",
+                
+                        "^start(bowshort) Check out the soccer robots in action ^wait(bowshort)",
+                        "^start(bowshort) Howdy, check out the soccer robots in action ^wait(bowshort)",
+                
+                        "^start(bowshort) Try the three sixty degree helicopter ride ^wait(bowshort)",
+                        "^start(bowshort) Howdy, try the three sixty degree helicopter ride ^wait(bowshort)",
+                
+                        "^start(bowshort) Have a look at our rocket demo ^wait(bowshort)",
+                        "^start(bowshort) Howdy, have a look at our rocket demo ^wait(bowshort)",
+                
+                        "^start(bowshort) Don't miss the solar car engineering ^wait(bowshort)",
+                        "^start(bowshort) Howdy, don't miss the solar car engineering ^wait(bowshort)",
+                
+                        "^start(bowshort) Explore the formula SAE car up close ^wait(bowshort)",
+                        "^start(bowshort) Howdy, explore the formula SAE car up close ^wait(bowshort)",
+                
+                        "^start(bowshort) Hop into our motion simulator ^wait(bowshort)",
+                        "^start(bowshort) Howdy, hop into our motion simulator ^wait(bowshort)",
+                
+                        "^start(bowshort) Join us in pushing boundaries at RMIT ^wait(bowshort)",
+                        "^start(bowshort) Howdy, join us in pushing boundaries at RMIT ^wait(bowshort)",
+                
+                        "^start(bowshort) Feel free to ask our amazing staff anything ^wait(bowshort)",
+                        "^start(bowshort) Howdy, feel free to ask our amazing staff anything ^wait(bowshort)",
+                
+                        "^start(salute) Hi, I'm Haku. Welcome to RMIT's F1 experience ^wait(salute)",
+                        "^start(salute) Howdy, I'm Haku. Welcome to RMIT's F1 experience ^wait(salute)",
+                        "^start(salute) I'm Haku. Welcome to RMIT's F1 experience ^wait(salute)",
+                
+                        "^start(salute) See the soccer robots in action ^wait(salute)",
+                        "^start(salute) Howdy, see the soccer robots in action ^wait(salute)",
+                
+                        "^start(salute) Check out the rocket display ^wait(salute)",
+                        "^start(salute) Howdy, check out the rocket display ^wait(salute)",
+                
+                        "^start(salute) You can pilot the three sixty degree helicopter sim ^wait(salute)",
+                        "^start(salute) Howdy, you can pilot the three sixty degree helicopter sim ^wait(salute)",
+                
+                        "^start(salute) Explore our solar panel car project ^wait(salute)",
+                        "^start(salute) Howdy, explore our solar panel car project ^wait(salute)",
+                
+                        "^start(salute) Take a spin in VR against aliens ^wait(salute)",
+                        "^start(salute) Howdy, take a spin in VR against aliens ^wait(salute)",
+                
+                        "^start(salute) Our formula SAE car is a must-see ^wait(salute)",
+                        "^start(salute) Howdy, our formula SAE car is a must-see ^wait(salute)",
+                
+                        "^start(salute) Try the motion simulator on the track ^wait(salute)",
+                        "^start(salute) Howdy, try the motion simulator on the track ^wait(salute)",
+                
+                        "^start(salute) RMIT is leading in innovation ^wait(salute)",
+                        "^start(salute) Howdy, RMIT is leading in innovation ^wait(salute)",
+                
+                        "^start(salute) I hope you enjoy your time here ^wait(salute)",
+                        "^start(salute) Howdy, I hope you enjoy your time here ^wait(salute)"
+                    ]
+                },
+                "body_items": {
+                    "Intro Single": [
+                        "^start(hey) Hello, I'm Haku ^wait(hey)",
+                        "^start(hey) Hi, I'm Haku ^wait(hey)",
+                        "^start(hey) Hey, I'm Haku ^wait(hey)",
+                        "^start(hey) Hello! I'm Haku ^wait(hey)",
+                        "^start(hey) I'm Haku, nice to meet you ^wait(hey)",
+                        "^start(hey) I'm Haku, nice to see you ^wait(hey)"
+                    ],
+                    "Intro Crowd": [
+                        "^speak Hello everyone, I'm Haku",
+                        "^speak Hi everyone, I'm Haku",
+                        "^speak Hey everyone, I'm Haku",
+                        "^speak Hello! I'm Haku",
+                        "^speak I'm Haku, nice to meet you all",
+                        "^speak I'm Haku, nice to see you all"
+                    ],
+                    "Vroom Vroom": [
+                        "^start(drivecar) Vroom vroom! I'm definitely faster than those F1 cars ^wait(drivecar)",
+                        "^start(drivecar) Who needs an F1 license when you've got wheels in your base? ^wait(drivecar)",
+                        "^start(drivecar) I'd join the race, but I'm afraid I'd make the drivers jealous ^wait(drivecar)",
+                        "^start(drivecar) My top speed is... well, let's just say I'm built for charm, not velocity ^wait(drivecar)"
+                    ],
+                    "Excited": [
+                        "^run(excited)"
+                    ],
+                    "Racing Facts": [
+                        "^start(thinking) Did you know the first F1 race was held in 1950? My great-great-grandparent was just a calculator back then ^wait(thinking)",
+                        "^start(thinking) F1 drivers experience up to 5G of force when cornering. I get dizzy just spinning in circles ^wait(thinking)",
+                        "^start(thinking) F1 cars can accelerate from 0 to 100 km/h in about 1.8 seconds. I take about the same time to boot up in the morning ^wait(thinking)",
+                        "^start(thinking) The F1 track here at Albert Park is 5.3 kilometers long. At my walking speed, I'd finish in... calculating... a very long time ^wait(thinking)"
+                    ],
+                    "Photo Op": [
+                        "^start(strikeapose) Strike a pose! Tag me ^wait(strikeapose)",
+                        "^start(strikeapose) Let's take a selfie! I promise my metallic complexion looks great in photos ^wait(strikeapose)",
+                        "^start(strikeapose) This is my good side... actually, all my sides are pretty good ^wait(strikeapose)"
+                    ],
+                    "Weather Talk": [
+                        "^start(hot) Melbourne weather is as unpredictable as my dance moves ^wait(hot)",
+                        "^start(hot) Is it hot out here, or is it just my processors running? ^wait(hot)",
+                        "^start(showsky) Perfect day for racing! And if it starts raining, even better - impromptu water slides! ^wait(showsky)",
+                        "^start(umbrella) I didn't bring an umbrella. Worst case scenario, I'll just short circuit ^wait(showsky)"
+                    ],
                     "🤔Ask Handler": [
                         "^start(thinking) Hmm, let me ask my handler about that ^wait(thinking)",
                         "^start(thinking) Hmm, I'm not intelligent enough for that, let me ask someone who knows ^wait(thinking)",
@@ -1096,67 +1232,6 @@
                         "^start(hey) Take care, human! ^wait(hey)",
                         "^start(hey) See you soon, human! ^wait(hey)",
                         "^start(hey) Farewell, my human companion! ^wait(hey)"
-                    ]
-                },
-                "body_items": {
-                    "Intro Single": [
-                        "^start(hey) Hello, I'm Haku ^wait(hey)",
-                        "^start(hey) Hi, I'm Haku ^wait(hey)",
-                        "^start(hey) Hey, I'm Haku ^wait(hey)",
-                        "^start(hey) Hello! I'm Haku ^wait(hey)",
-                        "^start(hey) I'm Haku, nice to meet you ^wait(hey)",
-                        "^start(hey) I'm Haku, nice to see you ^wait(hey)"
-                    ],
-                    "Intro Crowd": [
-                        "^speak Hello everyone, I'm Bandit",
-                        "^speak Hi everyone, I'm Bandit",
-                        "^speak Hey everyone, I'm Bandit",
-                        "^speak Hello! I'm Bandit",
-                        "^speak I'm Bandit, nice to meet you all",
-                        "^speak I'm Bandit, nice to see you all"
-                    ],
-                    "IDK": [
-                        "^start(thinking) I'm not sure about that ^wait(thinking)",
-                        "^start(thinking) I don't know ^wait(thinking)",
-                        "^start(thinking) I'm not so sure ^wait(thinking)",
-                        "^start(thinking) I'm not too sure about that ^wait(thinking)",
-                        "^start(thinking) Sorry, I'm really not sure ^wait(thinking)",
-                        "^start(thinking) Hmm I don't know, I'm artificial, not too intelligent ^start(lookhand) ^wait(thinking) ^wait(lookhand)",
-                        "^start(thinking) I'm not sure, I'm just a robot ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
-                        "^start(thinking) As a robot, I don't know sorry ^stop(thinking) ^start(lookhand) ^wait(lookhand)",
-                        "^start(thinking) I'm just a robot, what do I know? ^wait(thinking)",
-                        "^start(sad) My circuits are not equipped for this ^wait(sad)",
-                        "^start(thinking) I'm just a bunch of code, I don't know ^wait(thinking)",
-                        "^start(thinking) I'm not programmed to know that ^wait(thinking)",
-                        "^start(thinking) I wish I could help, but I'm just a robot ^wait(thinking)",
-                        "^start(thinking) My creators didn't teach me that ^wait(thinking)"
-                    ],
-
-                    "Vroom Vroom": [
-                        "^start(drivecar) Vroom vroom! I'm definitely faster than those F1 cars ^wait(drivecar)",
-                        "^start(drivecar) Who needs an F1 license when you've got wheels in your base? ^wait(drivecar)",
-                        "^start(drivecar) I'd join the race, but I'm afraid I'd make the drivers jealous ^wait(drivecar)",
-                        "^start(drivecar) My top speed is... well, let's just say I'm built for charm, not velocity ^wait(drivecar)"
-                    ],
-                    "Excited": [
-                        "^run(excited)"
-                    ],
-                    "Racing Facts": [
-                        "^start(thinking) Did you know the first F1 race was held in 1950? My great-great-grandparent was just a calculator back then ^wait(thinking)",
-                        "^start(thinking) F1 drivers experience up to 5G of force when cornering. I get dizzy just spinning in circles ^wait(thinking)",
-                        "^start(thinking) F1 cars can accelerate from 0 to 100 km/h in about 1.8 seconds. I take about the same time to boot up in the morning ^wait(thinking)",
-                        "^start(thinking) The F1 track here at Albert Park is 5.3 kilometers long. At my walking speed, I'd finish in... calculating... a very long time ^wait(thinking)"
-                    ],
-                    "Photo Op": [
-                        "^start(strikeapose) Strike a pose! Tag me ^wait(strikeapose)",
-                        "^start(strikeapose) Let's take a selfie! I promise my metallic complexion looks great in photos ^wait(strikeapose)",
-                        "^start(strikeapose) This is my good side... actually, all my sides are pretty good ^wait(strikeapose)"
-                    ],
-                    "Weather Talk": [
-                        "^start(hot) Melbourne weather is as unpredictable as my dance moves ^wait(hot)",
-                        "^start(hot) Is it hot out here, or is it just my processors running? ^wait(hot)",
-                        "^start(showsky) Perfect day for racing! And if it starts raining, even better - impromptu water slides! ^wait(showsky)",
-                        "^start(umbrella) I didn't bring an umbrella. Worst case scenario, I'll just short circuit ^wait(showsky)"
                     ]
                 }
             },
