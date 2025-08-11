@@ -1,0 +1,12 @@
+{
+    "enabled": true,
+    "endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+    "model": "amazon.nova-sonic-v1:0",
+    "region": "us-east-1",
+    "maxTokens": 1000,
+    "temperature": 0.7,
+    "fallback": {
+        "enabled": true,
+        "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v1"
+    }
+}
