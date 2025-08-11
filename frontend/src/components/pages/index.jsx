@@ -9,6 +9,13 @@ import SelectAnnouncements from "../SelectAnnouncements"
 export default function Controller() {
     return (
         <div>
+            <div style={{ padding: '10px', backgroundColor: '#f8f9fa', marginBottom: '10px' }}>
+                <a href="/test" style={{ marginRight: '15px', color: '#007bff' }}>🧪 Nova Sonic Test</a>
+                <a href="/scripts" style={{ marginRight: '15px', color: '#007bff' }}>📜 Scripts</a>
+                <a href="/shortcuts" style={{ marginRight: '15px', color: '#007bff' }}>⌨️ Shortcuts</a>
+                <a href="/move-control" style={{ marginRight: '15px', color: '#007bff' }}>🎮 Move Control</a>
+                <a href="/upload-json" style={{ color: '#007bff' }}>📤 Upload Settings</a>
+            </div>
             <SelectProfile />
             <ShortCuts />
             <PreDefinedScripts />
