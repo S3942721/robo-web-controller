@@ -14,6 +14,7 @@ import { useEffect } from "react"
 import MoveController from "./pages/MoveController"
 import Puppeteer from "./pages/Puppeteer"
 import Tom from "./pages/Tom"
+import NovaSonicForT from "./pages/NovaSonicForT"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -62,6 +63,10 @@ export default function App() {
             {
                 path: '/tom',
                 element: <Tom />
+                },
+            {
+                path: '/test',
+                element: <NovaSonicForT />
             }
         ])} />
     )
