@@ -12,6 +12,7 @@ import UploadSettings from "./pages/UploadSettings"
 import { requestWS } from "../utils/useWebSocket"
 import { useEffect } from "react"
 import MoveController from "./MoveController"
+import TestNovaSonic from "./pages/TestNovaSonic"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -48,6 +49,10 @@ export default function App() {
             {
                 path: '/move-control',
                 element: <MoveController />
+            },
+            {
+                path: '/test',
+                element: <TestNovaSonic />
             }
         ])} />
     )
