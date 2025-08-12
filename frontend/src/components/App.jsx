@@ -13,6 +13,7 @@ import { requestWS } from "../utils/useWebSocket"
 import { useEffect } from "react"
 import MoveController from "./MoveController"
 import NovaSonicForT from "./pages/NovaSonicForT"
+import AudioStreamTest from "./pages/AudioStreamTest"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -53,6 +54,10 @@ export default function App() {
             {
                 path: '/test',
                 element: <NovaSonicForT />
+            },
+            {
+                path: '/audio-stream-test',
+                element: <AudioStreamTest />
             }
         ])} />
     )
