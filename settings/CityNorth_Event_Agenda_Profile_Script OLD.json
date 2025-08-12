@@ -1,0 +1,10 @@
+{
+    "City noooorth": {
+        "robot": "Bandit",
+        "text": "^start(everything) Ladies and gentlemen, Welcome to the City North Fest, Shared Future Series Showcase event! ^start(me) I'm Pepper, your lively event Co M C, brought to life by the RMIT RACE Hub with the wonderful support of the City North Project. \\pau=300\\ I'm delighted to introduce ^start(showtablet) $PepperMessage=Tom Tom Bentley, RMIT's Vice President of Strategy and Community Impact. Tom is a thinker, writer and adviser on public policy and institutional change. He has worked with institutions around the world on how to renew education systems along with economic and community life.  ^start(clap) Please join me in welcoming Professor Tom Bentley to the stage. ^wait(clap)"
+    },
+    "City north 2": {
+        "robot": "Haku",
+        "text": "^start(everything) Ladies and gentlemen, Welcome to the City North Fest, Shared Future Series Showcase event! ^start(me) I'm Pepper, your lively event Co M C, brought to life by the RMIT RACE Hub with the wonderful support of the City North Project. \\pau=300\\ I'm delighted to introduce ^start(showtablet) $PepperMessage=Tom Tom Bentley, RMIT's Vice President of Strategy and Community Impact. Tom is a thinker, writer and adviser on public policy and institutional change. He has worked with institutions around the world on how to renew education systems along with economic and community life.  ^start(clap) Please join me in welcoming Professor Tom Bentley to the stage. ^wait(clap)"
+    }
+}

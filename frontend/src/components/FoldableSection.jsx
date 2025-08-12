@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { CaretRight } from "./icons";
 
-export default function FoldableSection({ className, children, title }) {
+export default function FoldableSection({ className, children, title, foldable = true, compact = false }) {
 
     const [folded, setFolded] = useState(false);
 
+    if (!foldable) {
+        return (
+            <div className={`${className || ''} ${compact ? 'compact' : ''}`} style={{padding: '10px'}}>
+                { children }
+            </div>
+        )
+    }
     return (
         <section className={`${className || ''}${folded ? ' folded':''}`}>
             <div 
@@ -14,7 +21,7 @@ export default function FoldableSection({ className, children, title }) {
                 <div className={`fold-button ${folded?'expand':''}`}><CaretRight /></div>
                 { title ? <h1>{title}</h1> : <></>}
             </div>
-            <div className={`foldable ${folded ? 'folded':undefined}`}>
+            <div className={`foldable ${folded ? 'folded' : ''} ${compact ? 'compact' : ''}`}>
                 { children }
             </div>
         </section>

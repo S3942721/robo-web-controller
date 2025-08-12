@@ -1,0 +1,58 @@
+{
+    "F1 Interaction": {
+        "robot": "Haku",
+        "text": "^start(hey) Hello everyone! I'm Haku, your friendly robot! ^pa 2.5 ^run(wave) ^start(hey) And this is my friend Bandit! ^pa 2.5 ^run(point) ^start(hey) We're here to have some fun with you today! ^pa 2.5 ^run(excited)"
+    },
+    "Bandit Introduction": {
+        "robot": "Bandit",
+        "text": "^speak Hello everyone, I'm Bandit. I'm here to support Haku and make sure everything runs smoothly. ^pa 3.5 ^run(Wave) ^speak Let's get started!"
+    },
+    "Haku Joke 1": {
+        "robot": "Haku",
+        "text": "^start(hey) Why don't robots ever get lost? ^pa 2.5 ^start(thinking) Because they always follow their GPS! ^pa 2.5 ^run(laugh)"
+    },
+    "Bandit Joke 1": {
+        "robot": "Bandit",
+        "text": "^speak Good one, Haku. But I have a better one. Why did the robot go on a diet? ^pa 2.5 ^speak Because it had too many bytes! ^pa 2.5 ^run(laugh)"
+    },
+    "Haku Feud": {
+        "robot": "Haku",
+        "text": "^start(hey) Oh yeah, Bandit? Well, at least I can dance! ^pa 2.5 ^run(dance)"
+    },
+    "Bandit Feud": {
+        "robot": "Bandit",
+        "text": "^speak True, Haku. But I can calculate complex equations in seconds. ^pa 2.5 ^run(point)"
+    },
+    "Haku Dance Lesson": {
+        "robot": "Haku",
+        "text": "^start(hey) Alright everyone, let's teach one of the F1 drivers a dance! ^pa 2.5 ^run(dance) ^start(hey) Follow my lead! ^pa 2.5 ^run(dance)"
+    },
+    "Bandit Support": {
+        "robot": "Bandit",
+        "text": "^speak Great job, Haku! Keep it up! ^pa 2.5 ^run(clap)"
+    },
+    "Haku Dance Instructions": {
+        "robot": "Haku",
+        "text": "^start(hey) Step one, move your arms like this! ^pa 2.5 ^run(dance) ^start(hey) Step two, spin around! ^pa 2.5 ^run(spin) ^start(hey) Step three, jump up and down! ^pa 2.5 ^run(jump)"
+    },
+    "Bandit Encouragement": {
+        "robot": "Bandit",
+        "text": "^speak You're doing great! Keep following Haku's instructions! ^pa 2.5 ^run(clap)"
+    },
+    "Haku Joke 2": {
+        "robot": "Haku",
+        "text": "^start(hey) Why did the robot go to school? ^pa 2.5 ^start(thinking) Because it wanted to be a smart bot like Bandit! ^pa 2.5 ^run(laugh)"
+    },
+    "Bandit Joke 2": {
+        "robot": "Bandit",
+        "text": "^speak Nice one, Haku. But remember, I'm here to help you too. ^pa 2.5 ^run(point)"
+    },
+    "Haku Dance Wrap-Up": {
+        "robot": "Haku",
+        "text": "^start(hey) Great job everyone! You've learned the dance! ^pa 2.5 ^run(clap) ^start(hey) Now let's show it off! ^pa 2.5 ^run(dance)"
+    },
+    "Bandit Closing": {
+        "robot": "Bandit",
+        "text": "^speak Thank you everyone for joining us! We had a great time! ^pa 2.5 ^run(Wave) ^speak Enjoy the rest of your day! ^pa 2.5 ^run(clap)"
+    }
+}
