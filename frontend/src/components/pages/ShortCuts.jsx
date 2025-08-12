@@ -1,5 +1,5 @@
-import useWebSocket, { requestWS } from "../utils/useWebSocket";
-import FoldableSection from "./FoldableSection";
+import useWebSocket, { requestWS } from "../../utils/useWebSocket";
+import FoldableSection from "../FoldableSection";
 
 export default function ShortCuts({ full_screen }) {
     const {

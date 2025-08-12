@@ -14,10 +14,18 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
 }
 
 #root {
-    --root-width: 800px;
-    width: var(--root-width);
-    max-width: 100dvw;
-    margin: auto;
+    --root-width: 1280px;
+    /* width: var(--root-width); */
+    width: '100vw';
+    height: '100vh';
+    /* max-width: 100dvw; */
+    /* margin: auto; */
+}
+
+:root {
+    --primary-color: dodgerblue;
+    --hover-color: rgb(14, 105, 196);
+    --active-color: rgb(10, 80, 150);
 }
 
 .btn {
@@ -25,12 +33,12 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
     height: 40px;
     font-size: 16px;
     color: white;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     border-radius: 7px;
     user-select: none;
     align-content: center;
     text-align: center;
-    transition-duration: .3s;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
     margin: auto;
 }
 
@@ -40,7 +48,11 @@ section > .foldable > .grid-shortcuts > .shortcut:hover,
 }
 
 .btn:hover {
-    background-color: rgb(14, 105, 196);
+    background-color: var(--hover-color);
+}
+
+.btn:active {
+    background-color: var(--active-color);
 }
 
 section {
@@ -61,7 +73,7 @@ section > .title-bar > .fold-button {
     position: absolute;
     right: 0;
     top: 10px;
-    transition-duration: .5s;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
     transform-origin: center;
 }
 section > .title-bar > .fold-button.expand {
@@ -69,6 +81,7 @@ section > .title-bar > .fold-button.expand {
 }
 section > .foldable {
     transform-origin: top;
+    transition-duration: 0.5s; /* Adjust this value to change the fade time */
 }
 section > .foldable.folded {
     transform: scaleY(0);
@@ -80,7 +93,7 @@ section > .foldable > .btn {
 }
 
 section > .foldable > div.selected {
-    border-color: dodgerblue;
+    border-color: var(--primary-color);
 }
 
 section.folded {
@@ -124,6 +137,53 @@ section > .foldable > .profile > .html {
     color: gray;
 }
 
+/* Profile Switcher */
+
+.profile-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    position: relative;
+    height: 40px; /* Ensure the height is fixed */
+}
+
+.profile-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: absolute;
+}
+
+.profile-button.left {
+    left: 0;
+}
+
+.profile-button.right {
+    right: 0;
+}
+
+.profile-button:hover {
+    background-color: var(--hover-color);
+}
+
+.profile-name {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    flex-grow: 1;
+    white-space: nowrap; /* Prevent text from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* SCRIPTS */
 
 section > .foldable > .script {
@@ -149,6 +209,29 @@ section > .foldable > .script > .script-value {
     align-content: center;
     white-space: nowrap;
     overflow: hidden;
+}
+
+section > .foldable > .script.selected {
+    background-color: var(--primary-color);
+    color: white;
+    transition: background-color 0.5s ease;
+}
+
+section > .foldable > .script.executed {
+    background-color: var(--primary-color);
+    color: white;
+    animation: flash 2s ease;
+}
+
+@keyframes flash {
+    0% {
+        background-color: var(--primary-color);
+        color: black
+    }
+    100% {
+        background-color: lightgray;
+        color: black;
+    }
 }
 
 section > .foldable > form > .manual-script {
@@ -196,40 +279,122 @@ section > .foldable > .trigger > .trigger-checkbox:hover {
 }
 
 section > .foldable > .trigger:has(.trigger-checkbox:checked) {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
-    border-color: blue;
+    border-color: var(--primary-color);
 }
 
 /* shortcuts */
-section > .foldable > .grid-shortcuts {
+.grid-shortcuts {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
+    width: 100%;
 }
 
-section.full-screen > .foldable > .grid-shortcuts {
+.main-item > .grid-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%; /* Ensure it fills the width of the column */
+}
+
+.full-screen .grid-shortcuts {
     grid-template-columns: repeat(8, 1fr);
     gap: 20px;
 }
 
-section > .foldable > .grid-shortcuts > .shortcut {
+.grid-shortcuts .shortcut {
     width: auto;
     min-height: 100px;
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
     font-size: 20px;
     text-align: center;
     align-content: center;
     border-radius: 10px;
+    transition-duration: 0.1s;
 }
-section.full-screen > .foldable > .grid-shortcuts > .shortcut {
+
+.grid-shortcuts .shortcut:active,
+.grid-shortcuts .shortcut.active {
+    background-color: var(--active-color);
+}
+
+.full-screen .grid-shortcuts .shortcut {
     font-size: 40px;
     min-height: 150px;
 }
 
-section > .foldable > .grid-shortcuts > .shortcut:active {
-    background-color: rgb(14, 105, 196);
+.grid-shortcuts .shortcut:active {
+    background-color: var(--active-color);
+}
+
+.paged-shortcuts-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+}
+
+.paged-shortcuts-column {
+    display: grid;
+    grid-template-rows: 2fr 1fr 2fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.paged-shortcuts-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.paged-shortcuts-item.shortcut {
+    width: auto;
+    min-height: 100px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    align-content: center;
+    border-radius: 10px;
+    transition-duration: 0.2s;
+}
+
+.paged-shortcuts-item.shortcut:active,
+.paged-shortcuts-item.shortcut.active {
+    background-color: var(--active-color);
+}
+
+.paged-shortcuts-item.main-item {
+    display: block;
+    width: 100%;
+    height: 100%;
+    display: 'flex';
+    align-items: 'center';
+    justify-content: 'center';
+    padding: 5px
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    width: 100%;
 }
 
 /* upload settings */
@@ -245,7 +410,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     margin: auto;
     width: var(--elem-width);
     height: 300px;
-    border: 5px dashed dodgerblue;
+    border: 5px dashed var(--primary-color);
     border-radius: 20px;
     margin-top: 30px;
 }
@@ -301,8 +466,22 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     margin-bottom: 10px;
 }
 
+.scroll-bar-container > .number.compact {
+    color: black;
+    font-size: 17px;
+    margin-bottom: 10px;
+}
+
 .scroll-bar-container > input[type='range'] {
     width: 100%;
+    accent-color: var(--primary-color);
+}
+
+.scroll-bar-container.compact {
+    height: fit-content;
+    margin-left: 0px;
+    margin-bottom: 0px;
+    width: calc(100% - 20px);
 }
 
 /* move control */
@@ -361,6 +540,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     right: calc(var(--rotation-width) + 10px);
     top: 0;
 }
+
 .movement-controller > .E {
     right: 0;
     top: 0;
@@ -384,7 +564,7 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     align-items: center;
 }
 .movement-controller > div.holding {
-    background-color: dodgerblue;
+    background-color: var(--primary-color);
     color: white;
 }
 .movement-controller > div > * {
@@ -392,6 +572,21 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
     width: 20px;
     height: 20px;
 }
+
+.rotation.compact {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid gray;
+    border-radius: 10px;
+}
+
+.rotation.compact.holding {
+    background-color: var(--primary-color);
+    color: white;
+}
+
 /* announcements */
 .select-announces {
     width: 100%;
@@ -401,4 +596,343 @@ section > .foldable > .grid-shortcuts > .shortcut:active {
 
 .include-announces > .lines {
     margin-left:7px;
+}
+
+.full-screen-unscrollable {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: white;
+    z-index: 1000;
+}
+
+.grid-container {
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
+    gap: 0px;
+}
+
+.grid-container .robot-target-scripts {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: 1fr;
+    grid-template-columns: 4fr 1fr;
+    gap: 0px;
+}
+
+.grid-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.grid-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.full-screen-section {
+    margin: 0;
+    padding: 10px;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: white;
+    z-index: 1000;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.joystick-box {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 2px solid gray;
+    border-radius: 10px;
+    margin: auto;
+    background-color: var(--primary-color-light);
+}
+
+.joystick-point {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.joystick-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+}
+
+.compact {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.compact .script {
+    /* display: flex;
+    flex-direction: column; */
+    width: 100%;
+    min-height: 30px;
+    align-content: center;
+    font-size: 14px;
+    padding: 5px;
+    margin: 10px 0px;
+    border: 1px solid lightgray;
+    border-radius: 5px;
+}
+
+.compact .script > .script-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.compact .script > .script-value {
+    color: gray;
+    margin-top: 3px;
+    height: 15px;
+    align-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.compact .inline-btns {
+    bottom: 0;
+    width: 100%;
+    justify-content: space-around;
+    padding: 10px;
+    position: relative;
+}
+
+.compact .script-container {
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    border: 1px solid lightgray;
+    border-radius: 5px;
+    padding: 5px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.compact .script.selected {
+    background-color: rgb(213, 213, 213);
+    border: 4px dashed var(--primary-color);
+    border-width: 4px;
+    /* color: white; */
+    transition: background-color 0.5s ease;
+}
+
+.compact .script.executed {
+    background-color: var(--primary-color);
+    color: white;
+    animation: flash 2s ease;
+}
+
+.paged-shortcuts-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+}
+
+.paged-shortcuts-column {
+    display: grid;
+    grid-template-rows: 2fr 1fr 2fr;
+    gap: 5px;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.paged-shortcuts-item {
+    border: 1px solid gray;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.paged-shortcuts-item.shortcut {
+    width: auto;
+    min-height: 100px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    align-content: center;
+    border-radius: 10px;
+    transition-duration: 0.2s;
+}
+
+.paged-shortcuts-item.shortcut:active,
+.paged-shortcuts-item.shortcut.active {
+    background-color: var(--active-color);
+}
+
+.paged-shortcuts-item.main-item {
+    display: block;
+    width: 100%;
+    height: 100%;
+    display: 'flex';
+    align-items: 'center';
+    justify-content: 'center';
+    padding: 5px
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+/* scroll controllers grid */
+.scroll-controllers-grid {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    height: 100%;
+}
+
+.scroll-controllers-numerical {
+    padding-left: 60px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) lightgray;
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar {
+    width: 20px; /* Make the scrollbar wider */
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar-track {
+    background: lightgray;
+}
+
+.scroll-controllers-numerical::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 10px;
+    border: 3px solid lightgray;
+}
+
+.scroll-controllers-triggers {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) lightgray;
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar {
+    width: 20px; /* Make the scrollbar wider */
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar-track {
+    background: lightgray;
+}
+
+.scroll-controllers-triggers::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 10px;
+    border: 3px solid lightgray;
+}
+
+/* trigger buttons grid */
+.trigger-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.trigger-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    background-color: lightgray;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.trigger-button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* button container */
+.button-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    width: 100%;
+}
+
+.button-container .full-width {
+    width: calc(100% - 20px); /* 10px buffer on left and right */
+    height: calc(50% - 20px); /* 10px buffer on top and bottom */
+    font-size: 36px;
+    margin: 10px;
+    color: white;
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+}
+
+.button-container .full-width:hover {
+    background-color: var(--hover-color);
+}
+
+.button-container .full-width:active,
+.button-container .full-width.active {
+    background-color: var(--active-color);
+    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+}
+
+.script.section.unselectable {
+    user-select: none;
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.script.nonspoken.unselectable {
+    user-select: none;
+    color: rgb(70, 70, 70);
+    background-color: rgb(242, 243, 243);
 }

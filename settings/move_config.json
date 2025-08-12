@@ -1,0 +1,89 @@
+{
+    "Bandit": {
+        "MovementSpeed": {
+            "name": "Movement speed (m/s)",
+            "initial": 0.5,
+            "max": 0.5,
+            "min": 0.01,
+            "step": 0.01,
+            "signal": "ControlMovementSpeed",
+            "compact": true
+        },
+        "TurnSpeed": {
+            "name": "Turn speed (rad/s)",
+            "initial": 0.5,
+            "max": 1.0,
+            "min": 0.05,
+            "step": 0.10,
+            "signal": "ControlTurnSpeed",
+            "compact": true
+        },
+        "MoveTimeout": {
+            "name": "Move Timeout (s)",
+            "initial": 4,
+            "max": 20,
+            "min": 0.5,
+            "step": 0.5,
+            "signal": "ControlMovementTimeout",
+            "compact": true
+        }
+    },
+    "Haku": {
+        "MovementSpeed": {
+            "name": "Movement speed (m/s)",
+            "initial": 0.3,
+            "max": 0.55,
+            "min": 0.1,
+            "step": 0.05,
+            "signal": "ControlMovementSpeed",
+            "compact": true
+        },
+        "TurnSpeed": {
+            "name": "Turn speed (rad/s)",
+            "initial": 0.6,
+            "max": 2,
+            "min": 0.2,
+            "step": 0.05,
+            "signal": "ControlTurnSpeed",
+            "compact": true
+        },
+        "MoveTimeout": {
+            "name": "Move Timeout (s)",
+            "initial": 4,
+            "max": 20,
+            "min": 0.5,
+            "step": 0.5,
+            "signal": "ControlMovementTimeout",
+            "compact": true
+        }
+    },
+    "Default": {
+        "MovementSpeed": {
+            "name": "Movement speed (m/s)",
+            "initial": 0.3,
+            "max": 0.55,
+            "min": 0.1,
+            "step": 0.05,
+            "signal": "ControlMovementSpeed",
+            "compact": true
+        },
+        "TurnSpeed": {
+            "name": "Turn speed (rad/s)",
+            "initial": 0.6,
+            "max": 2,
+            "min": 0.2,
+            "step": 0.05,
+            "signal": "ControlTurnSpeed",
+            "compact": true
+        },
+        "MoveTimeout": {
+            "name": "Move Timeout (s)",
+            "initial": 4,
+            "max": 20,
+            "min": 0.5,
+            "step": 0.5,
+            "signal": "ControlMovementTimeout",
+            "compact": true
+        }
+    }
+}
