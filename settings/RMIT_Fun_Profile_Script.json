@@ -1,0 +1,48 @@
+{
+    "Dances": {
+        "robot": "section"
+    },
+    "Driver Dance (60s)": {
+        "robot": "Haku",
+        "text": "^run(dance_hungarian_full)"
+    },
+    "Sax (QUICK)": {
+        "robot": "Haku",
+        "text": "^run(saxaphone)"
+    },
+    "La Bamba (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_la_bamba)"
+    },
+    "Gangnamstyle (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_gangnamstyle)"
+    },
+    "Relax Take it eeeeeaaasy (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_mika_relax)"
+    },
+    "Salsa Dancing (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_salsa_dancing)"
+    },
+    "Walk This Way (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_walk_this_way)"
+    },
+    "Nut Cracker": {
+        "robot": "Haku",
+        "text": "^run(dance_nut_cracker)"
+    },
+    "Dango Dango (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_dango)"
+    },
+    "Dance of the nights (COPYRIGHT)": {
+        "robot": "Haku",
+        "text": "^run(dance_of_the_nights)"
+    },
+    "Emotions": {
+        "robot": "section"
+    }
+}

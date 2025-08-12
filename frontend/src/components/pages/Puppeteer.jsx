@@ -7,6 +7,12 @@ import PagedShortCuts from "./PagedShortCuts";
 export default function Puppeteer() {
     const [activeButton, setActiveButton] = useState("Bandit");
 
+    // Update global active robot variable whenever activeButton changes
+    useEffect(() => {
+        window.g_active_robot = activeButton;
+        console.log("Updated active robot:", activeButton);
+    }, [activeButton]);
+
     const handleButtonClick = (button) => {
         setActiveButton(button);
     };
@@ -30,12 +36,12 @@ export default function Puppeteer() {
         <div className={'full-screen-unscrollable'}>
             <div className={'grid-container'}>
                 <div className={'grid-item'}>
-                    <MoveController foldable={false} compact={true} profile_switcher={true}/>
+                    <MoveController foldable={false} compact={true} profile_switcher={true} activeRobot={activeButton} />
                 </div>
                 <div className={'grid-item'}>
                     <div className={'grid-container robot-target-scripts'}>
                         <div className={'grid-item'}>
-                            <PreDefinedScripts foldable={false} compact={true} />
+                            <PreDefinedScripts foldable={false} compact={true} activeRobot={activeButton} />
                         </div>
                         <div className={'grid-item'}>
                             <div className={'button-container'}>
@@ -58,10 +64,19 @@ export default function Puppeteer() {
                     </div>
                 </div>
                 <div className={'grid-item'}>
-                    <ScrollControllers foldable={false} compact={true} triggers={true} />
+                    <ScrollControllers
+                        foldable={false}
+                        compact={true}
+                        triggers={true}
+                        activeRobot={activeButton}
+                    />
                 </div>
                 <div className={'grid-item'}>
-                    <PagedShortCuts foldable={false} compact={true} />
+                    <PagedShortCuts 
+                        foldable={false} 
+                        compact={true} 
+                        activeRobot={activeButton} 
+                    />
                 </div>
             </div>
         </div>

@@ -294,7 +294,7 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 
 .main-item > .grid-shortcuts {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     width: 100%; /* Ensure it fills the width of the column */
 }
@@ -922,4 +922,17 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
 .button-container .full-width.active {
     background-color: var(--active-color);
     box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+}
+
+.script.section.unselectable {
+    user-select: none;
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.script.nonspoken.unselectable {
+    user-select: none;
+    color: rgb(70, 70, 70);
+    background-color: rgb(242, 243, 243);
 }
