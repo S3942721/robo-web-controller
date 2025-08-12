@@ -1,78 +1,312 @@
 {
-    "(Opt) Welcome Message": {
+    "Introductions": {
+        "robot": "section"
+    },
+    "Student introductions": {
+        "robot": "nonspoken",
+        "text": "Everyone introduces themselves and their degree"
+    },
+    "Haku Introduction": {
+        "robot": "Haku",
+        "text": "Hello everyone! My name is Haku and I live in the Virtual Experiences Laboratory at RMIT with my friends, including my companion Bandit.  "
+    },
+    "Bandit Introduction": {
         "robot": "Bandit",
-        "text": "^start(happy) Good morning, welcome to the STEM Learning and Teaching Showcase! ^start(me) I'm Pepper, your friendly neighborhood robot, here to make sure everything runs smoothly. ^start(enthusiastic) I'm so excited to be here today, I've been practicing my best robot dance moves all week! ^run(enthusiastic)"
+        "text": "^speak Thanks, haacoo. Stealing my thunder as always... ^pa 5.0 ^run Wave ^speak My name is Bandit. Don't ask why I only have one arm... I was born this way. haacoo and I are roomies at R M I T, where I am always left out."
     },
-    "(Opt) Tall Joke": {
+    "Haku Popular!": {
+        "robot": "Haku",
+        "text": "I can't help it if I am the attractive \\pau=100\\ \\emph=1\\and \\pau=100\\ ^start(happy) popular one! ^wait(happy)"
+    },
+    "Raise Bandit": {
         "robot": "Bandit",
-        "text": "Wow. You're so tall, you must get great reception up \\emph=0\\there. I wish my legs were that long. ^start(lookhand). \\emph=1\\Oh wait... I don't even have legs... just wheels... \\pau=500\\ ^stop(lookhand) ^start(innocent) I guess I'll just have \\emph=0\\to... \\pau=200\\ \\emph=1\\roll with it. ^start(mischevious)\\pau=1000\\ $Sound=crickets ^wait(mischevious)"
+        "text": "^speak I can't help it if I am the taller one ^pa 1.5 ^raise 0.35 ^pa 2.5 ^speak I also can't help it if I have all the brains! ^pa 3.0 ^raise 0.22"
     },
-    "(Opt) Music Joke": {
+    "Greeting Drivers": {
+        "robot": "section"
+    },
+    "Haku driver intro": {
         "robot": "Haku",
-        "text": "Hey. What is a \\emph=1\\row bot's favorite type of music?"
+        "text": "Hello! Please excuse my friend. What is your name?"
     },
-    "(Opt) Punchline": {
+    "Haku pleased to meet you!": {
         "robot": "Haku",
-        "text": "Heavy metal. $Sound=badoom_tss ^start(airguitar) \\pau=3000\\ ^stop(airguitar)"
+        "text": "Very pleased to meet you! ^run(bowshort)"
     },
-    "(Opt) We should address the elephant...": {
+    "Bandit Driver First interaction": {
         "robot": "Bandit",
-        "text": "^start(lookhand) We should address the elephant in the room. \\pau=500\\ Oh wait, \\pau=300\\ that's just me! ^stop(lookhand) ^run(elephant)"
+        "text": "^speak Hello! What would your name be?"
     },
-    "(Opt) Disco Joke": {
+    "Bandit pleased to meet you!": {
         "robot": "Bandit",
-        "text": "You know, I once went to a disco. ^start(headbang) I was the life of the party with my electric boogie! \\pau=500\\ And trust me, it was shocking! \\pau=2000\\ ^stop(headbang)"
+        "text": "^headtrack False ^speak Very pleased to meet you! ^pa 0.5 ^run bow ^pa 4 ^headtrack True"
     },
-    "(Opt) Elephant Joke": {
+    "Banter": {
+        "robot": "section"
+    },
+    "Bandit a birdie told me you drive": {
         "robot": "Bandit",
-        "text": "I tried to teach an elephant to use a computer once. \\pau=500\\ It didn't go well \\pau=500\\ turns out they're terrified of the mouse! ^run(elephant)"
+        "text": "^speak Now ^pa 0.5 ^speak a little birdie told me you like to drive cars really fast. I can go pretty fast myself... ^pa 7.0"
     },
-    "(Opt) Football Joke": {
+    "You'd fry your circuts!": {
+        "robot": "Haku",
+        "text": "Bandit, you'd fry your circuts if you tried to race"
+    },
+    "Driver Dance Lesson": {
+        "robot": "section"
+    },
+    "Milindi": {
+        "robot": "nonspoken",
+        "text": "Would you like to learn a dance?"
+    },
+    "Haku invites dance lesson": {
+        "robot": "Haku",
+        "text": "Sounds like it's dance time. ^run(excited)"
+    },
+    "Bandit declines dance invitation": {
         "robot": "Bandit",
-        "text": "I joined a football team once. \\pau=500\\ They said I was great at throwing errors. ^run(football)"
+        "text": "^speak I definetly don't. I can't even touch my toes. Oh wait. Those are wheels."
     },
-    "(Opt) Golf Joke": {
+    "Haku clarifies target audience": {
+        "robot": "Haku",
+        "text": "Not \\emph=1\\ you Bandit. \\pau=300\\ not everything is about you. I was talking about our special guests. Isack and Yuki, would you like to learn a dance?"
+    },
+    "Guests accept dance invitation": {
+        "robot": "nonspoken",
+        "text": "Yes we'd like to learn a dance."
+    },
+    "Haku warns about dance pace": {
+        "robot": "Haku",
+        "text": "Now, this dance might be a little quick for you, so we are going to break it down."
+    },
+    "Haku expresses confidence in drivers": {
+        "robot": "Haku",
+        "text": "I figured given you are F1 drivers, reaction time won't be a problem for you."
+    },
+    "Haku initiates dance warm-up": {
+        "robot": "Haku",
+        "text": "Please give me some space to limber up my joints.^run(stretch)"
+    },
+    "Haku gives dance move instructions": {
+        "robot": "Haku",
+        "text": "Okay, so I am going to show you each move individually, then you are going to repeat after me... Got it?"
+    },
+    "Bandit plays music": {
         "robot": "Bandit",
-        "text": "I took up golf to improve my \\pau=200\\ \\emph=1\\hard \\pau=300\\ drive. \\pau=400\\ Now I'm the best robot on the green! ^run(golf)"
+        "text": "^speak Let me set the mood. ^pa 1.0 ^sound SmoothJazz"
     },
-    "(Opt) Gorilla Joke": {
+    "Drivers confirm instructions": {
+        "robot": "nonspoken",
+        "text": "Got it"
+    },
+    "Haku sets an added dance challenge": {
+        "robot": "Haku",
+        "text": "As an added challenge. I will only play the music at the very end to see if we can tie it all together."
+    },
+    "(MOVE 1 DEMO) Haku demonstrates the conductor move": {
+        "robot": "Haku",
+        "text": "Great! First move, ^start(dance_hungarian_pt1_mute) I like to call it the conductor, pretend you are conducting a choir. ^wait(dance_hungarian_pt1_mute)"
+    },
+    "(Repeat) (MOVE 1) Conductor move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt1_mute) ^wait(dance_hungarian_pt1_mute)"
+    },
+    "(MOVE 1 YOU TRY) Haku prompts conductor repetition": {
+        "robot": "Haku",
+        "text": "Okay, now you try."
+    },
+    "Drivers attempt conductor move": {
+        "robot": "nonspoken",
+        "text": "Drivers et al attempt dance pt1."
+    },
+    "(MOVE 1 BAD) Haku encourages improved conductor": {
+        "robot": "Haku",
+        "text": "^start(comeon) I think you can do better than that. Give me more energy. ^wait(comeon)"
+    },
+    "(MOVE 1 GOOD) Haku praises conductor move": {
+        "robot": "Haku",
+        "text": "^start(excited) That's it... good! ^wait(excited)"
+    },
+    "(MOVE 2 DEMO) Haku demonstrates the DJ move": {
+        "robot": "Haku",
+        "text": "Okay, now onto the second dance move. This one is the DJ. ^start(dance_hungarian_pt2_mute) Repeat after me. \\pau=1000\\ Oh yeah. Work it. ^wait(dance_hungarian_pt2_mute)"
+    },
+    "(Repeat) (MOVE 2) DJ move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt2_mute) ^wait(dance_hungarian_pt2_mute)"
+    },
+    "(MOVE 2 YOU TRY) Give it a go": {
+        "robot": "Haku",
+        "text": "Give it a go!"
+    },
+    "Drivers attempt DJ move": {
+        "robot": "nonspoken",
+        "text": "Drivers et all attempt dance pt2."
+    },
+    "(MOVE 2 BAD) Haku criticizes DJ move": {
+        "robot": "Haku",
+        "text": "^start(thinking) Hmmm... that's good enough... if you want to \\emph=1\\lose. Try Again. ^wait(thinking)"
+    },
+    "(MOVE 2 GOOD) Haku claps for DJ move": {
+        "robot": "Haku",
+        "text": "^start(clap) That's more like it. ^wait(clap)"
+    },
+    "(MOVE 3 DEMO) Haku demonstrates the air violin move": {
+        "robot": "Haku",
+        "text": "Move number three. The air violin! ^start(dance_hungarian_pt3_mute) Play it like you mean it. ^wait(dance_hungarian_pt3_mute)."
+    },
+    "(Repeat) (MOVE 3) Air violin move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt3_mute) ^wait(dance_hungarian_pt3_mute)"
+    },
+    "Drivers attempt air violin move": {
+        "robot": "nonspoken",
+        "text": "Drivers et all attempt dance pt2."
+    },
+    "(MOVE 3 BAD) Haku expresses mild disappointment": {
+        "robot": "Haku",
+        "text": "^start(disappointed) Solid effort, not as good as me, but that's okay. One more time. ^wait(disappointed)"
+    },
+    "(MOVE 3 GOOD) Haku compliments air violin move": {
+        "robot": "Haku",
+        "text": "^start(happy) Well done. ^wait(happy)"
+    },
+    "(MOVE 4 DEMO) Haku demonstrates the running man move": {
+        "robot": "Haku",
+        "text": "Move number four. The running man! ^start(dance_hungarian_pt4_mute) Feel the rhythm in your hands, let them run with the beat! ^wait(dance_hungarian_pt4_mute)"
+    },
+    "(Repeat) (MOVE 4) Running man move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt4_mute) ^wait(dance_hungarian_pt4_mute)"
+    },
+    "Drivers attempt running man move": {
+        "robot": "nonspoken",
+        "text": "Drivers et al attempt dance pt4."
+    },
+    "(MOVE 4 BAD) Haku teases about running move": {
+        "robot": "Haku",
+        "text": "^start(scratchhead) I'm not sure what I just witnessed. Was that running or crawling? Give the running another go. ^wait(scratchhead)"
+    },
+    "(MOVE 4 GOOD) Haku expresses enthusiasm": {
+        "robot": "Haku",
+        "text": "^start(enthusiastic) Now we're talking! You're getting the hang of it! ^wait(enthusiastic)"
+    },
+    "(MOVE 5 DEMO) Haku demonstrates the reaching move": {
+        "robot": "Haku",
+        "text": "Move number five! Reaching for the stars! ^start(dance_hungarian_pt5_mute) Stretch those arms up high and grab the universe! ^wait(dance_hungarian_pt5_mute)"
+    },
+    "(Repeat) (MOVE 5) Reaching move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt5_mute) ^wait(dance_hungarian_pt5_mute)"
+    },
+    "Drivers attempt reaching move": {
+        "robot": "nonspoken",
+        "text": "Drivers et al attempt dance pt5."
+    },
+    "(MOVE 5 BAD) Haku humorously critiques reaching": {
+        "robot": "Haku",
+        "text": "Oh my... that was... something. Maybe stick to driving? Reach up again for me. ^run(quicklaugh)"
+    },
+    "(MOVE 5 GOOD) Haku expresses admiration for reaching": {
+        "robot": "Haku",
+        "text": "^start(impressed) Absolutely magnificent! F1 stars \\pau=100\\ \\emph=1\\and \\pau=100\\ dance stars! ^wait(impressed)"
+    },
+    "(MOVE 6 DEMO) Haku demonstrates the freestyle move": {
+        "robot": "Haku",
+        "text": "And finally, move number six. The freestyle! ^start(dance_hungarian_pt6_mute) Show me what you've got! Make it your own! \\pau=2000\\ My moves are the best. ^stop(dance_hungarian_pt6_mute)"
+    },
+    "(Repeat) (MOVE 6) Freestyle move": {
+        "robot": "Haku",
+        "text": "^start(dance_hungarian_pt6_mute) ^wait(dance_hungarian_pt6_mute)"
+    },
+    "Drivers attempt freestyle move": {
+        "robot": "nonspoken",
+        "text": "Drivers attempt freestyle moves."
+    },
+    "(MOVE 6 BAD) Bandit protests freestyle": {
         "robot": "Bandit",
-        "text": "I visited the zoo and saw my cousin, the gorilla. \\pau=300\\ We had a great time comparing ^run(gorilla) our programming skills!"
+        "text": "^speak I can't watch this anymore!"
     },
-    "time's up! (bell)": {
+    "(MOVE 6 GOOD) Haku reacts with humorous surprise": {
         "robot": "Haku",
-        "text": "$Sound=multiplebells ^run(reject)"
+        "text": "^start(kungfu) Whoa! Didn't expect moves like that from race car drivers! ^wait(kungfu)"
     },
-    "Question time is up! (bell)": {
+    "(MOVE 6 EXTRA) Haku comments on chaotic dance": {
         "robot": "Haku",
-        "text": "$Sound=calm_bell"
+        "text": "^start(lookhand) I think I've created dance monsters! ^wait(lookhand)"
     },
-    "Morning Tea Reminder": {
+    "Haku recaps all dance moves": {
         "robot": "Haku",
-        "text": "^start(everyone) Well, next we've got a delicious morning tea coming up \\pau=300\\ though, sadly, it's all food I can't eat. Seriously, not even a USB stick for me? ^run(tinylaugh) After that, I'll ring my trusty bell $Sound=quickbells \\pau=600\\ to remind everyone to head to the parallel sessions. Then, we'll all meet back here at mid day for our first keynote presenter. It's going to be electrifying \\pau=300\\ and I should know, I run on electricity! ^run(knockeye) Sorry, sometimes that happens."
+        "text": "Now, let's put it all together with the music! Remember all six moves. The conductor, the DJ, the air violin, the running man, reaching for the stars, and your freestyle!"
     },
-    "Introduce Danny Liu": {
-        "robot": "Haku",
-        "text": "^start(enthusiastic) Sure thing! It's my absolute pleasure to introduce our first keynote speaker, $PepperMessage=DannyLiu Professor Danny Liu from the University of Sydney. His presentation is titled 'Getting the Most Out of AI in STEM Education.' \\pau=600\\ I'm hoping he teaches you all how to get the most out of me! \\pau=350\\ Now, let me tell you a bit about Danny liu. ^start(you) Danny is basically a superhero in the academic world \\pau=300\\ molecular biologist by training, programmer by night, researcher and academic developer by day, and educator at heart. ^start(wings) The only thing missing is a cape! \\pau=500\\ ^stop(wings) He's a multiple international and national teaching award winner, which means he's not just smart \\pau=300\\ ^start(excited) he's award-winning smart. ^start(clap) Let's give him a big round of applause! ^wait(clap)"
+    "Bandit in doubt": {
+        "robot": "Bandit",
+        "text": "^speak This is going to be something."
     },
-    "Post-Lunch Banter": {
-        "robot": "Haku",
-        "text": "Nope! I was way too busy posing for photos. Now that everyone knows me, they all want a selfie \\pau=300\\ it's like I'm the Beyonsay of robots! ^run(quicklaugh)"
+    "Stop Bandit Music": {
+        "robot": "Bandit",
+        "text": "^stopmusic"
     },
-    "Introduce Bonnie Dean": {
-        "robot": "Haku",
-        "text": "^start(excited) Absolutely! \\emph=1\\Ladies and \\emph=1\\gentlemen, get ready for a keynote that's guaranteed to make you smarter and maybe even more employable. Our next speaker is $PepperMessage=Amelia Associate Professor Bonnie  Dean from the University of Wollongong, here to present 'Bridging Classroom and Career: Strengthening Student Employability Through Work-Integrated Learning' ^wait(next). Now, let me introduce Bonnie  Dean. ^start(you) Bonnie is all about creating employability-driven curricula and empowering educators to be their best selves \\pau=300\\ like a life coach, but for academics. Bonnie is also a Senior Fellow of Advance H E, which sounds fancy because it is. Oh, and in 2023, she won a national Australian Awards for University Teaching citation. That's right, she's award-winning AND employability-focused \\pau=300\\ basically your dream keynote speaker. ^wait(you) ^start(clap) Let's give Bonnie a huge round of applause as she takes the stage! ^wait(clap)"
+    "Bandit Toggle Headbop": {
+        "robot": "Bandit",
+        "text": "^run BounceHeadRepeat"
     },
-    "Closing Thank You Message": {
+    "Haku playfully debates best dancer": {
         "robot": "Haku",
-        "text": "^start(enthusiastic) Oh, that's easy! $PepperMessage=ThankYouImage My favorite part was when everyone clapped for me \\pau=300\\ I loved ^start(excited) all the great conversations and ideas shared today. ^start(you) Thanks again, and remember \\pau=300\\ the future of learning is in great hands \\pau=400\\ yours! \\pau=400\\ Goodbye everyone, and just remember ^start(you) $EyeColour=red $Sound=ill_be_back $EyeColour=red ^wait(you) \\pau=5000\\"
+        "text": "Now... who's the best dancer? Isack, Yuki or R M I T students."
     },
-    "(Opt) I'm artificial... but not intelligent": {
+    "Haku performs full dance routine": {
         "robot": "Haku",
-        "text": "^start(scratchhead) Sorry Angela, I'm definitely artificial, but I'm not \\emph=1\\that intelligent. ^run(sad)"
+        "text": "^start(dance_hungarian_full) And 5, 6, 7, 8... Follow me if you can! \\pau=1500\\ Pretend you are conducting a choir! \\pau=2200\\ Get into the DJ groove! \\pau=1000\\ Play it like you mean it! \\pau=1400\\ Let your arms run with the beat! \\pau=5000\\ Reach for the stars! \\pau=3000\\ Show us your unique style! \\pau=2000\\ Give me some energy ^wait(dance_hungarian_full)"
     },
-    "(Opt) I didn't get enough freedom": {
+    "Bandit remains the critic": {
+        "robot": "Bandit",
+        "text": "^speak I think I'll stick to being a professional critic."
+    },
+    "Haku congratulates performance": {
         "robot": "Haku",
-        "text": "^start(sad) My creators didn't give me enough freedom to answer that."
+        "text": "^start(clap) Bravo, Bravo! Give it up for our F1 superstars! ^wait(clap)"
+    },
+    "Haku comments on drivers' rhythm": {
+        "robot": "Haku",
+        "text": "Who knew race car drivers could have such rhythm? ^wait(showmuscles)"
+    },
+    "Bandit critiques drivers' rhythm": {
+        "robot": "Bandit",
+        "text": "^speak I'm not sure I'd call that rhythm."
+    },
+    "Haku tells Bandit to stop": {
+        "robot": "Haku",
+        "text": "That's enough Bandit"
+    },
+    "Clapping": {
+        "robot": "nonspoken",
+        "text": "Clapping"
+    },
+    "Photo": {
+        "robot": "section"
+    },
+    "Haku prompts a pose for photo": {
+        "robot": "Haku",
+        "text": "^start(strikeapose) Quick! Someone take a picture! This needs to be documented! ^wait(strikeapose)"
+    },
+    "Smile for the camera": {
+        "robot": "Haku",
+        "text": "^start(strikeapose) 3,2,1 Say Robot! ^wait(strikeapose)"
+    },
+    "Goodbyes": {
+        "robot": "section"
+    },
+    "Thanks for being a good sport": {
+        "robot": "Haku",
+        "text": "Thank you for dancing with me! See me at R M I T anytime."
+    },
+    "You gave it your best": {
+        "robot": "Bandit",
+        "text": "Well done. You gave it your best. Goodbye. ^run Wave"
+    },
+    "Goodbye ": {
+        "robot": "Haku",
+        "text": "Goodbye. Goodluck with your race! ^run(hey)"
     }
 }
