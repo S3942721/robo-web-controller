@@ -33,5 +33,4 @@ export default function Puppeteer() {
         root.style.setProperty('--primary-color-light', colors.light);
     }, [activeButton]);
 
-    // ...existing code...
 }
