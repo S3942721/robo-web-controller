@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { requestWS } from '../../utils/useWebSocket';
 
 export default function AudioStreamTest() {
     const [isStreaming, setIsStreaming] = useState(false);
@@ -190,20 +191,20 @@ export default function AudioStreamTest() {
                 throw new Error('WebSocket connection lost');
             }
             
-            console.log('WebSocket readyState:', wsRef.current.readyState);
-            console.log('WebSocket OPEN constant:', WebSocket.OPEN);
-            
-            // Send start command with additional debugging
-            console.log('Sending start command to server...');
-            const startMessage = JSON.stringify({ action: 'start' });
-            console.log('Start message:', startMessage);
-            console.log('About to call ws.send()...');
-            
-            wsRef.current.send(startMessage);
-            console.log('Start command sent successfully');
+            // Send trigger message to start audio streaming using the sync WebSocket
+            console.log('Sending trigger to start UDP audio streaming...');
+            requestWS('req-execute', {
+                type: 'trigger',
+                message: {
+                    name: 'Audio Stream',
+                    Signal: 'ControlUDPAudioStreaming',
+                    Value: true
+                },
+                robot: 'Haku'  // Specify the robot since this trigger is under Haku
+            });
             
             setIsStreaming(true);
-            setStatus('🎤 Start command sent - waiting for confirmation...');
+            setStatus('🎤 Audio streaming trigger sent - waiting for UDP packets...');
             
         } catch (error) {
             console.error('Failed to start stream:', error);
@@ -222,11 +223,17 @@ export default function AudioStreamTest() {
             reconnectTimeoutRef.current = null;
         }
         
-        // Send stop command
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            console.log('Sending stop command...');
-            wsRef.current.send(JSON.stringify({ action: 'stop' }));
-        }
+        // Send trigger message to stop audio streaming
+        console.log('Sending trigger to stop UDP audio streaming...');
+        requestWS('req-execute', {
+            type: 'trigger',
+            message: {
+                name: 'Audio Stream',
+                Signal: 'ControlUDPAudioStreaming',
+                Value: false
+            },
+            robot: 'Haku'  // Specify the robot since this trigger is under Haku
+        });
         
         // Close WebSocket after a brief delay to allow stop command to be sent
         setTimeout(() => {
@@ -242,7 +249,7 @@ export default function AudioStreamTest() {
             audioContextRef.current = null;
         }
         
-        setStatus('⏹️ Stopped');
+        setStatus('⏹️ Stopped - Audio streaming trigger disabled');
         setVolume(0);
         volumeHistoryRef.current = [];
     };
@@ -385,6 +392,7 @@ export default function AudioStreamTest() {
                 }}>
                     <strong>Troubleshooting:</strong>
                     <ul>
+                        <li>This uses the robot trigger system (Haku → Audio Stream trigger)</li>
                         <li>If you see packets in server logs but no audio here, check browser console for errors</li>
                         <li>Try refreshing the page if WebSocket connection fails</li>
                         <li>Ensure Python script is running and can reach this server</li>

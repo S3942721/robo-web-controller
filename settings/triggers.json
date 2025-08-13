@@ -7,44 +7,58 @@
         "Signal": "ControlMovement",
         "Value": true
     },
-    "Greetings/Announcements": {
-        "Signal": "ControlGreetings",
-        "Value": false
-    },
-    "Face Lost needed for Greetings": {
-        "Signal": "GreetingsRequireFaceLost",
-        "Value": true
-    },
-    "Speech Recognition": {
-        "Signal": "ControlRecording",
-        "Value": false
-    },
-    "Move contextually": {
-        "Signal": "ControlContextMovement",
-        "Value": false
-    },
-    "Awareness": {
-        "Signal": "ControlAwareness",
-        "Value": true
-    },
-    "Engaged": {
-        "Signal": "ControlEngagement",
-        "Value": true
-    },
-    "Move to Idle": {
-        "Signal": "ControlIdlePosition",
-        "Value": true
-    },
-    "!!!Collision Avoidance!!!": {
-        "Signal": "ControlCollisionAvoidance",
-        "Value": true
-    },
-    "Wandering": {
-        "Signal": "ControlWandering",
-        "Value": false
-    },
-    "Lock Head": {
-        "Signal": "LockHead",
-        "Value": false
+    "Haku": {
+        "Mute": {
+            "Signal": "Mute",
+            "Value": false
+        },
+        "Move": {
+            "Signal": "ControlMovement",
+            "Value": true
+        },
+        "Audio Stream": {
+            "Signal": "ControlUDPAudioStreaming",
+            "Value": false
+        },
+        "Greetings": {
+            "Signal": "ControlGreetings",
+            "Value": false
+        },
+        "Face Lost needed for Greetings": {
+            "Signal": "GreetingsRequireFaceLost",
+            "Value": true
+        },
+        "Speech Recognition": {
+            "Signal": "ControlRecording",
+            "Value": false
+        },
+        "Move contextually": {
+            "Signal": "ControlContextMovement",
+            "Value": false
+        },
+        "Awareness": {
+            "Signal": "ControlAwareness",
+            "Value": true
+        },
+        "Engaged": {
+            "Signal": "ControlEngagement",
+            "Value": true
+        },
+        "Move to Idle": {
+            "Signal": "ControlIdlePosition",
+            "Value": true
+        },
+        "!!!Collision Avoidance!!!": {
+            "Signal": "ControlCollisionAvoidance",
+            "Value": true
+        },
+        "Wandering": {
+            "Signal": "ControlWandering",
+            "Value": false
+        },
+        "Lock Head": {
+            "Signal": "LockHead",
+            "Value": false
+        }
     }
 }

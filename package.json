@@ -16,7 +16,8 @@
     "dotenv": "^17.2.1",
     "express": "^4.21.1",
     "express-ws": "^5.0.2",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
