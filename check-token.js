@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 // Decode JWT token to check expiration
 function decodeToken(token) {
     try {
