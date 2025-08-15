@@ -5,7 +5,6 @@ import ScrollControllers from "../ScrollControllers";
 import MoveController from "./MoveController";
 import PagedShortCuts from "./PagedShortCuts";
 
-// ...existing code...
 export default function Puppeteer() {
     const [activeButton, setActiveButton] = useState("Bandit");
 
