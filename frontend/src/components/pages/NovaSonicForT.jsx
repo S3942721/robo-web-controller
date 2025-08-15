@@ -17,8 +17,6 @@ export default function NovaSonicForT() {
     const wsRef = useRef(null);
     const audioInitialized = useRef(false);
 
-    console.log('NovaSonicForT component mounted');
-
     useEffect(() => {
         const loadConfig = async () => {
             const configData = await request('api/nova-sonic-config', { method: 'GET' });

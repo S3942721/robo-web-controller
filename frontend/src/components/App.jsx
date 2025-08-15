@@ -2,23 +2,29 @@
 // import SelectProfile from "./SelectProfile"
 // import TriggerBehaviour from "./TriggerBehaviour"
 // import ManualDefinedScript from "./ManualDefinedScript"
-import Controller from "./pages"
+import Controller from "./pages/index"
 import {
     createBrowserRouter, RouterProvider
 } from 'react-router-dom'
 import RunScriptPage from "./pages/RunScriptPage"
-import ShortCuts from "./ShortCuts"
+import ShortCuts from "./pages/ShortCuts"
 import UploadSettings from "./pages/UploadSettings"
 import { requestWS } from "../utils/useWebSocket"
 import { useEffect } from "react"
-import MoveController from "./MoveController"
+import MoveController from "./pages/MoveController"
+import Puppeteer from "./pages/Puppeteer"
+import Tom from "./pages/Tom"
 import NovaSonicForT from "./pages/NovaSonicForT"
 import AudioStreamTest from "./pages/AudioStreamTest"
 
 export default function App() {
     function globalBackspaceListener(event) {
-        if( event.shiftKey && event.key === 'Backspace' ) {
-            requestWS('req-execute', {type:'shortcut', message: '$StopAction=None'});
+        if ((event.shiftKey && event.key === 'Backspace') || event.key === 'B') {
+            requestWS('req-execute', {
+                type: 'shortcut',
+                message: '$StopAction=None',
+                robot: "" // empty string to stop both robots.
+            });
         }
     }
 
@@ -52,12 +58,20 @@ export default function App() {
                 element: <MoveController />
             },
             {
-                path: '/test',
-                element: <NovaSonicForT />
-            },
-            {
                 path: '/audio-stream-test',
                 element: <AudioStreamTest />
+            },
+            {
+                path: '/puppeteer',
+                element: <Puppeteer />
+            },
+            {
+                path: '/tom',
+                element: <Tom />
+                },
+            {
+                path: '/test',
+                element: <NovaSonicForT />
             }
         ])} />
     )
