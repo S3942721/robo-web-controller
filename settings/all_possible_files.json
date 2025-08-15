@@ -1,7 +1,16 @@
 [
     "CityNorth Event Agenda Profile",
+    "CCityNorth Event Agenda Profile",
     "LTQ Showcase Event Agenda Profile",
+    "RMIT Fun Profile",
+    "Driver Dance Teaching Profile",
+    "Standup Profile",
+    "Driving Joke Profile",
     "triggers",
     "shortcuts",
-    "announcements"
+    "announcements",
+    "paged_shortcuts",
+    "move_config",
+    "scroll_controllers_config",
+    "F1 Driver Haku Bandit Profile"
 ]

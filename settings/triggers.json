@@ -1,11 +1,67 @@
 {
-    "Mute": {
-        "Signal": "Mute",
-        "Value": false
+    "Default": {
+        "Mute": {
+            "Signal": "Mute",
+            "Value": false
+        },
+        "Move": {
+            "Signal": "ControlMovement",
+            "Value": true
+        },
+        "Greetings": {
+            "Signal": "ControlGreetings",
+            "Value": false
+        },
+        "Face Lost needed for Greetings": {
+            "Signal": "GreetingsRequireFaceLost",
+            "Value": true
+        },
+        "Speech Recognition": {
+            "Signal": "ControlRecording",
+            "Value": false
+        },
+        "Move contextually": {
+            "Signal": "ControlContextMovement",
+            "Value": false
+        },
+        "Awareness": {
+            "Signal": "ControlAwareness",
+            "Value": true
+        },
+        "Engaged": {
+            "Signal": "ControlEngagement",
+            "Value": true
+        },
+        "Move to Idle": {
+            "Signal": "ControlIdlePosition",
+            "Value": true
+        },
+        "!!!Collision Avoidance!!!": {
+            "Signal": "ControlCollisionAvoidance",
+            "Value": true
+        },
+        "Wandering": {
+            "Signal": "ControlWandering",
+            "Value": false
+        },
+        "Lock Head": {
+            "Signal": "LockHead",
+            "Value": false
+        }
     },
-    "Move": {
-        "Signal": "ControlMovement",
-        "Value": true
+    "Bandit": {
+        "Head Tracking": {
+            "Signal": "HeadTrack",
+            "Value": true
+        },
+        "Arm": {
+            "Signal": "ArmEnabled",
+            "Value": true
+        },
+        "Stop Animation repeat": {
+            "Signal": "AnimationRepeat",
+            "Value": false
+        }
     },
     "Haku": {
         "Mute": {
