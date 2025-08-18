@@ -480,7 +480,36 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 				ws.send(JSON.stringify({ action: 'contentStart', ...data }));
 				break;
 			case 'textOutput':
+				// Send text to frontend
 				ws.send(JSON.stringify({ action: 'textOutput', ...data }));
+				
+				// Only send AI assistant responses to Haku robot for speech, not user input
+				// Check the role field to determine if this is from the assistant or user
+				if (data.content && data.content.trim() && data.role === 'ASSISTANT') {
+					console.log('🗣️ Sending Nova AI response to Haku for speech:', data.content);
+					
+					// Send to robot via socket connection (same as script execution)
+					sendSockets.forEach(s => {
+						const speechCommand = JSON.stringify({ 
+							cmd: 'req-execute',
+							type: 'script', 
+							message: data.content.trim(), 
+							robot: 'Haku' 
+						})
+						.normalize('NFKC')
+						.replace(/[""]/g, '"')
+						.replace(/['']/g, "'")
+						.replace(/…/g, '...')
+						.replace(/[^\x00-\x7F]/g, "");
+						
+						s(speechCommand);
+						console.log("Sent Nova AI response to Haku socket:", speechCommand);
+					});
+				} else if (data.role === 'USER') {
+					console.log('👤 User input detected, not sending to robot:', data.content);
+				} else {
+					console.log('🔍 Unknown role in textOutput:', data.role, 'Content:', data.content);
+				}
 				break;
 			case 'audioOutput':
 				if (data.audioData && data.audioData.content) {
