@@ -8,6 +8,12 @@ export default function AudioStreamTest() {
     const [status, setStatus] = useState('Ready to start audio stream test');
     const [connectionInfo, setConnectionInfo] = useState('');
     const [lastPacketTime, setLastPacketTime] = useState(null);
+    const [networkInfo, setNetworkInfo] = useState('');
+    const [diagnostics, setDiagnostics] = useState({
+        udpPacketsReceived: 0,
+        lastPacketTime: null,
+        serverStatus: 'Unknown'
+    });
     
     const wsRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -19,6 +25,17 @@ export default function AudioStreamTest() {
         const host = window.location.hostname;
         const port = window.location.port || '3000';
         setConnectionInfo(`Server: ${host}:${port} | UDP: ${host}:9999`);
+        
+        // Get network information
+        fetch('/api/network-info')
+            .then(res => res.json())
+            .then(data => {
+                setNetworkInfo(data);
+            })
+            .catch(err => {
+                console.error('Failed to get network info:', err);
+                setNetworkInfo({ error: 'Failed to get network info' });
+            });
         
         return () => {
             stopStream();
@@ -128,6 +145,13 @@ export default function AudioStreamTest() {
                             playAudioChunk(data.audio, data.volume);
                             setPacketsReceived(prev => prev + 1);
                             setStatus('🎵 Receiving and playing audio...');
+                            
+                            // Update diagnostics
+                            setDiagnostics(prev => ({
+                                ...prev,
+                                udpPacketsReceived: prev.udpPacketsReceived + 1,
+                                lastPacketTime: new Date().toLocaleTimeString()
+                            }));
                         } else if (data.status) {
                             console.log('Status update from server:', data.status);
                             setStatus(data.status);
@@ -191,7 +215,14 @@ export default function AudioStreamTest() {
                 throw new Error('WebSocket connection lost');
             }
             
-            // Send trigger message to start audio streaming using the sync WebSocket
+            // Send command to start jitter buffer first
+            console.log('Starting jitter buffer on server...');
+            wsRef.current.send(JSON.stringify({ action: 'start' }));
+            
+            // Wait a moment for jitter buffer to start
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Send trigger message to start audio streaming
             console.log('Sending trigger to start UDP audio streaming...');
             requestWS('req-execute', {
                 type: 'trigger',
@@ -200,11 +231,11 @@ export default function AudioStreamTest() {
                     Signal: 'ControlUDPAudioStreaming',
                     Value: true
                 },
-                robot: 'Haku'  // Specify the robot since this trigger is under Haku
+                robot: 'Haku'
             });
             
             setIsStreaming(true);
-            setStatus('🎤 Audio streaming trigger sent - waiting for UDP packets...');
+            setStatus('🎤 Audio streaming enabled - jitter buffer active');
             
         } catch (error) {
             console.error('Failed to start stream:', error);
@@ -223,6 +254,12 @@ export default function AudioStreamTest() {
             reconnectTimeoutRef.current = null;
         }
         
+        // Send command to stop jitter buffer first
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            console.log('Stopping jitter buffer on server...');
+            wsRef.current.send(JSON.stringify({ action: 'stop' }));
+        }
+        
         // Send trigger message to stop audio streaming
         console.log('Sending trigger to stop UDP audio streaming...');
         requestWS('req-execute', {
@@ -232,7 +269,7 @@ export default function AudioStreamTest() {
                 Signal: 'ControlUDPAudioStreaming',
                 Value: false
             },
-            robot: 'Haku'  // Specify the robot since this trigger is under Haku
+            robot: 'Haku'
         });
         
         // Close WebSocket after a brief delay to allow stop command to be sent
@@ -249,7 +286,7 @@ export default function AudioStreamTest() {
             audioContextRef.current = null;
         }
         
-        setStatus('⏹️ Stopped - Audio streaming trigger disabled');
+        setStatus('⏹️ Stopped - Audio streaming disabled');
         setVolume(0);
         volumeHistoryRef.current = [];
     };
@@ -272,6 +309,42 @@ export default function AudioStreamTest() {
         <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
             <h2>🎵 External Audio Stream Test</h2>
             
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4>Network Configuration:</h4>
+                {networkInfo && !networkInfo.error ? (
+                    <div>
+                        <p><strong>Server IP Addresses:</strong></p>
+                        {networkInfo.interfaces && networkInfo.interfaces.map((iface, idx) => (
+                            <p key={idx} style={{ marginLeft: '20px', fontFamily: 'monospace' }}>
+                                {iface.name}: {iface.address}
+                            </p>
+                        ))}
+                        <p><strong>UDP Port:</strong> 9999</p>
+                        <p><strong>Robot should send to:</strong> [One of the above IPs]:9999</p>
+                    </div>
+                ) : (
+                    <p>Loading network information...</p>
+                )}
+                
+                <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fff3cd', borderRadius: '4px' }}>
+                    <strong>Network Diagnostics:</strong>
+                    <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                        <li>UDP Packets Expected: From robot to this server</li>
+                        <li>WebSocket Status: {wsRef.current?.readyState === WebSocket.OPEN ? 'Connected' : 'Disconnected'}</li>
+                        <li>Server Status: {diagnostics.serverStatus}</li>
+                        {diagnostics.lastPacketTime && (
+                            <li>Last UDP Packet: {diagnostics.lastPacketTime}</li>
+                        )}
+                    </ul>
+                </div>
+            </div>
+
             <div style={{ 
                 marginBottom: '20px', 
                 padding: '15px', 
