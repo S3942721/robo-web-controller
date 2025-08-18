@@ -14,6 +14,7 @@ import argparse
 import subprocess
 import os
 import time
+import threading
 
 class VirtualMicReceiver:
     def __init__(self, listen_port=5004, virtual_mic_name="PepperRobotMic"):
@@ -22,6 +23,8 @@ class VirtualMicReceiver:
         self.pipeline = None
         self.loop = None
         self.pulse_module_id = None
+        self.volume_level = 0.0
+        self.visualizer_active = True
         
         # Initialize GStreamer
         Gst.init(None)
@@ -64,16 +67,34 @@ class VirtualMicReceiver:
             except Exception as e:
                 print(f"Error removing virtual microphone: {e}")
     
+    def on_level_message(self, bus, message):
+        """Handle volume level messages from the level element"""
+        if message.type == Gst.MessageType.ELEMENT:
+            structure = message.get_structure()
+            if structure and structure.get_name() == "level":
+                # Get RMS values (volume levels)
+                rms = structure.get_value("rms")
+                if rms and len(rms) > 0:
+                    # Convert from dB to linear scale (0-1)
+                    db_level = rms[0]
+                    if db_level != float('-inf'):
+                        # Convert dB to linear (0-1 range)
+                        linear_level = min(1.0, max(0.0, (db_level + 60) / 60))
+                        self.volume_level = linear_level
+    
     def create_pipeline(self):
         """Create GStreamer pipeline for receiving audio and sending to virtual mic"""
-        # Pipeline receives RTP audio and sends it to the PulseAudio sink
+        # Pipeline with volume level monitoring
         pipeline_desc = (
             f"udpsrc port={self.listen_port} "
             "caps=\"application/x-rtp,media=(string)audio,clock-rate=(int)44100,encoding-name=(string)L16,encoding-params=(string)2,channels=(int)2,payload=(int)96\" ! "
             "rtpL16depay ! "
             "audioconvert ! "
             "audio/x-raw,rate=44100,channels=1,format=S16LE ! "  # Convert to mono for voice
-            f"pulsesink device={self.virtual_mic_name}"
+            "tee name=t ! "
+            "queue ! level name=volumelevel interval=50000000 ! "  # 50ms intervals
+            f"pulsesink device={self.virtual_mic_name} "
+            "t. ! queue ! fakesink"  # Tee branch for level monitoring
         )
         
         print(f"Creating pipeline: {pipeline_desc}")
@@ -88,26 +109,69 @@ class VirtualMicReceiver:
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message", self.on_message)
+        bus.connect("message::element", self.on_level_message)
         
         return True
+    
+    def visualize_volume(self):
+        """Continuously display volume visualization"""
+        while self.visualizer_active:
+            try:
+                # Clear line and move cursor to beginning
+                print('\r' + ' ' * 80, end='')
+                print('\r', end='')
+                
+                # Create volume bar
+                bar_length = 50
+                filled_length = int(bar_length * self.volume_level)
+                bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                
+                # Volume percentage
+                volume_percent = int(self.volume_level * 100)
+                
+                # Color coding based on volume level
+                if self.volume_level > 0.8:
+                    color = '\033[91m'  # Red
+                elif self.volume_level > 0.6:
+                    color = '\033[93m'  # Yellow
+                elif self.volume_level > 0.3:
+                    color = '\033[92m'  # Green
+                else:
+                    color = '\033[94m'  # Blue
+                
+                reset_color = '\033[0m'
+                
+                # Display volume bar
+                print(f"Volume: {color}[{bar}]{reset_color} {volume_percent:3d}%", end='', flush=True)
+                
+                time.sleep(0.05)  # 20 FPS update rate
+                
+            except KeyboardInterrupt:
+                break
+            except Exception:
+                continue
     
     def on_message(self, bus, message):
         """Handle GStreamer messages"""
         if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
-            print(f"Error: {err}")
+            print(f"\nError: {err}")
             print(f"Debug: {debug}")
             self.stop()
         elif message.type == Gst.MessageType.EOS:
-            print("End of stream")
+            print("\nEnd of stream")
             self.stop()
         elif message.type == Gst.MessageType.STATE_CHANGED:
             if message.src == self.pipeline:
                 old_state, new_state, pending_state = message.parse_state_changed()
-                print(f"Pipeline state changed from {old_state.value_nick} to {new_state.value_nick}")
+                print(f"\nPipeline state changed from {old_state.value_nick} to {new_state.value_nick}")
         elif message.type == Gst.MessageType.STREAM_START:
-            print("Stream started - audio is now being fed to virtual microphone")
+            print("\nStream started - audio is now being fed to virtual microphone")
             self.show_usage_instructions()
+            # Start volume visualizer in a separate thread
+            visualizer_thread = threading.Thread(target=self.visualize_volume)
+            visualizer_thread.daemon = True
+            visualizer_thread.start()
     
     def show_usage_instructions(self):
         """Show instructions for using the virtual microphone"""
@@ -122,7 +186,9 @@ class VirtualMicReceiver:
         print("\nTo test with command line:")
         print(f"  arecord -D pulse -d 5 -f cd test.wav")
         print(f"  pactl list sources | grep -A 5 {self.virtual_mic_name}")
-        print("="*60 + "\n")
+        print("="*60)
+        print("Volume visualization will appear below when audio is received...")
+        print()
     
     def start(self):
         """Start the virtual microphone receiver"""
@@ -170,6 +236,7 @@ class VirtualMicReceiver:
     
     def stop(self):
         """Stop the virtual microphone receiver"""
+        self.visualizer_active = False
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
         if self.loop and self.loop.is_running():
@@ -177,6 +244,7 @@ class VirtualMicReceiver:
         
         # Clean up virtual microphone
         self.remove_virtual_microphone()
+        print("\nVirtual microphone stopped.")
 
 def list_audio_devices():
     """List available audio devices"""
