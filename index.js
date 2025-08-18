@@ -174,21 +174,16 @@ function getFullSyncItem() {
 // Jitter Buffer for consistent audio playback
 class JitterBuffer {
     constructor(targetDelay = 50) {
-        this.buffer = new Map();
         this.targetDelay = targetDelay;
+        this.buffer = new Map();
         this.nextSequence = 0;
-        this.startTime = null;
-        this.playbackInterval = null;
-        this.onAudioReady = null;
         this.isActive = false;
+        this.playbackInterval = null;
+        this.startTime = null;
     }
     
     start() {
-        if (this.isActive) return;
         this.isActive = true;
-        this.nextSequence = 0;
-        this.buffer.clear();
-        this.startTime = Date.now();
         this.schedulePlayback();
         console.log('Jitter buffer started');
     }
@@ -200,7 +195,7 @@ class JitterBuffer {
         
         if (!this.startTime && !this.playbackInterval) {
             this.startTime = Date.now();
-            this.schedulePlayback();
+            this.nextSequence = sequence;
         }
     }
     
@@ -208,23 +203,62 @@ class JitterBuffer {
         if (this.playbackInterval) return;
         
         this.playbackInterval = setInterval(() => {
-            if (!this.isActive) return;
+            if (!this.isActive) {
+                clearInterval(this.playbackInterval);
+                this.playbackInterval = null;
+                return;
+            }
             
-            const packet = this.buffer.get(this.nextSequence);
-            if (packet) {
-                if (this.onAudioReady) {
-                    this.onAudioReady({
-                        audio: packet.audio,
-                        volume: packet.volume,
-                        sequence: this.nextSequence
-                    });
-                }
+            // Check if we have the next expected packet
+            if (this.buffer.has(this.nextSequence)) {
+                const packet = this.buffer.get(this.nextSequence);
                 this.buffer.delete(this.nextSequence);
+                
+                // Send to all active WebSocket clients
+                const audioMessage = JSON.stringify({
+                    action: 'audioData',
+                    sequence: this.nextSequence,
+                    volume: packet.volume,
+                    audio: Array.from(packet.audio) // Convert Buffer to Array for JSON
+                });
+                
+                let sentCount = 0;
+                audioStreamClients.forEach(client => {
+                    if (client.readyState === 1) { // WebSocket.OPEN
+                        try {
+                            client.send(audioMessage);
+                            sentCount++;
+                        } catch (error) {
+                            console.error('Failed to send audio to client:', error);
+                        }
+                    }
+                });
+                
+                // Log audio forwarding for first few packets
+                if (this.nextSequence <= 5 || this.nextSequence % 100 === 0) {
+                    console.log(`=== AUDIO FORWARDED ===`);
+                    console.log(`Sequence: ${this.nextSequence}, Volume: ${packet.volume}`);
+                    console.log(`Sent to ${sentCount} WebSocket clients`);
+                    console.log(`Audio data size: ${packet.audio.length} bytes`);
+                }
+                
                 this.nextSequence++;
             } else {
-                // Packet lost - skip for now
+                // Packet missing, skip for now (could implement packet loss recovery here)
+                if (this.nextSequence % 100 === 0) {
+                    console.log(`Missing packet ${this.nextSequence}, buffer size: ${this.buffer.size}`);
+                }
                 this.nextSequence++;
             }
+            
+            // Clean up old packets (older than 1 second)
+            const now = Date.now();
+            for (const [seq, packet] of this.buffer.entries()) {
+                if (now - packet.received > 1000) {
+                    this.buffer.delete(seq);
+                }
+            }
+            
         }, 16); // 16ms intervals (matches 256 samples at 16kHz)
     }
     
@@ -245,6 +279,34 @@ class JitterBuffer {
 const udpServer = dgram.createSocket('udp4');
 const jitterBuffer = new JitterBuffer(50);
 let audioStreamClients = [];
+
+// Add network interface detection
+const os = require('os');
+function getLocalIPAddresses() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip over non-IPv4 and internal addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push({ name, address: iface.address });
+            }
+        }
+    }
+    return addresses;
+}
+
+// Log network configuration on startup
+const localIPs = getLocalIPAddresses();
+console.log('=== NETWORK CONFIGURATION ===');
+console.log('Available network interfaces:');
+localIPs.forEach(ip => {
+    console.log(`  ${ip.name}: ${ip.address}`);
+});
+console.log('UDP server will bind to 0.0.0.0:9999');
+console.log('Robot should send UDP packets to one of the above IPs on port 9999');
+console.log('===============================');
 
 // MOVE WEBSOCKET HANDLERS BEFORE ROUTER SETUP
 // WebSocket for audio stream testing
@@ -274,21 +336,14 @@ app.ws('/api/audio-stream-test', (ws, req) => {
         try {
             console.log('=== RECEIVED WEBSOCKET MESSAGE ===');
             console.log('Message type:', typeof msg);
-            console.log('Message constructor:', msg.constructor.name);
-            console.log('Message length:', msg.length);
-            console.log('Raw message:', msg);
-            console.log('Raw message toString():', msg.toString());
-            console.log('Current clients count:', audioStreamClients.length);
+            console.log('Raw message:', msg.toString());
             
             const messageString = msg.toString();
-            console.log('Message as string:', messageString);
-            
             const command = JSON.parse(messageString);
             console.log('Parsed command:', JSON.stringify(command, null, 2));
-            console.log('Command action:', command.action);
             
             if (command.action === 'start') {
-                console.log('=== STARTING AUDIO STREAM TEST ===');
+                console.log('=== STARTING AUDIO STREAM JITTER BUFFER ===');
                 console.log('Clients available for streaming:', audioStreamClients.length);
                 console.log('Jitter buffer active before start:', jitterBuffer.isActive);
                 
@@ -296,16 +351,15 @@ app.ws('/api/audio-stream-test', (ws, req) => {
                 
                 console.log('Jitter buffer active after start:', jitterBuffer.isActive);
                 const confirmationMessage = JSON.stringify({ 
-                    status: 'Audio stream test started - listening for UDP packets on port 9999' 
+                    status: 'Jitter buffer started - ready for UDP packets on port 9999' 
                 });
                 console.log('Sending confirmation message:', confirmationMessage);
                 ws.send(confirmationMessage);
-                console.log('Sent start confirmation');
                 
             } else if (command.action === 'stop') {
-                console.log('=== STOPPING AUDIO STREAM TEST ===');
+                console.log('=== STOPPING AUDIO STREAM JITTER BUFFER ===');
                 jitterBuffer.stop();
-                const stopMessage = JSON.stringify({ status: 'Audio stream test stopped' });
+                const stopMessage = JSON.stringify({ status: 'Jitter buffer stopped' });
                 ws.send(stopMessage);
                 console.log('Sent stop confirmation');
             } else {
@@ -314,10 +368,7 @@ app.ws('/api/audio-stream-test', (ws, req) => {
         } catch (error) {
             console.error('=== WEBSOCKET MESSAGE ERROR ===');
             console.error('Error details:', error);
-            console.error('Error stack:', error.stack);
             console.error('Raw message that failed:', msg);
-            console.error('Raw message type:', typeof msg);
-            console.error('Raw message string representation:', String(msg));
         }
     });
     
@@ -580,42 +631,73 @@ udpServer.on('message', (msg, rinfo) => {
         
         const activeClients = audioStreamClients.filter(client => client.readyState === 1);
         
-        // More detailed logging for debugging
-        if (sequence % 50 === 0) { // Log every 50th packet to reduce spam
+        // Enhanced logging for first few packets and periodic updates
+        if (sequence <= 5 || sequence % 100 === 0) {
             console.log(`=== UDP PACKET RECEIVED ===`);
-            console.log(`Sequence: ${sequence}, Volume: ${volume}`);
+            console.log(`From: ${rinfo.address}:${rinfo.port}`);
+            console.log(`Sequence: ${sequence}, Volume: ${volume}, Audio size: ${audio.length}`);
             console.log(`Total clients: ${audioStreamClients.length}`);
             console.log(`Active clients: ${activeClients.length}`);
             console.log(`Buffer active: ${jitterBuffer.isActive}`);
-            console.log(`Will process: ${activeClients.length > 0 && jitterBuffer.isActive}`);
+            console.log(`Timestamp: ${timestamp}`);
         }
         
         // Only process if we have active audio stream test clients
         if (activeClients.length > 0 && jitterBuffer.isActive) {
             jitterBuffer.addPacket(sequence, timestamp, volume, audio);
+            
+            // Log successful processing for first few packets
+            if (sequence <= 5) {
+                console.log(`Successfully processed packet ${sequence}`);
+            }
         } else {
-            // Only log when conditions change to avoid spam
-            if (sequence % 100 === 0) {
-                console.log(`Ignoring packet ${sequence} - active clients: ${activeClients.length}, buffer active: ${jitterBuffer.isActive}`);
+            // Enhanced logging for ignored packets
+            if (sequence <= 5 || sequence % 100 === 0) {
+                console.log(`Ignoring packet ${sequence}:`);
+                console.log(`  - Active clients: ${activeClients.length}`);
+                console.log(`  - Buffer active: ${jitterBuffer.isActive}`);
+                console.log(`  - Reason: ${activeClients.length === 0 ? 'No active clients' : 'Buffer not active'}`);
             }
         }
         
     } catch (error) {
         console.error('UDP packet parsing error:', error);
+        console.error('Packet details:', {
+            length: msg.length,
+            from: `${rinfo.address}:${rinfo.port}`,
+            firstBytes: msg.slice(0, Math.min(16, msg.length))
+        });
     }
 });
 
 udpServer.on('error', (err) => {
     console.error('UDP server error:', err);
+    
+    // Try to restart the UDP server
+    setTimeout(() => {
+        console.log('Attempting to restart UDP server...');
+        try {
+            udpServer.bind(9999, '0.0.0.0');
+        } catch (restartError) {
+            console.error('Failed to restart UDP server:', restartError);
+        }
+    }, 5000);
 });
 
 udpServer.on('listening', () => {
     const address = udpServer.address();
     console.log(`UDP audio server listening on ${address.address}:${address.port}`);
+    console.log('Waiting for UDP audio packets from robot...');
 });
 
-// Start UDP server on port 9999
-udpServer.bind(9999, '0.0.0.0');
+// Enhanced UDP server binding with error handling
+try {
+    udpServer.bind(9999, '0.0.0.0');
+} catch (error) {
+    console.error('Failed to bind UDP server:', error);
+    console.log('Make sure port 9999 is not in use by another application');
+    process.exit(1);
+}
 
 // ROUTER SETUP AFTER WEBSOCKETS
 app.use(express.static(join(__dirname, 'dist')));
@@ -683,6 +765,21 @@ router.get("/api/nova-sonic-config", (req, res)=>{
 		region: nova_sonic_config.region
 	});
 })
+
+// Add network info endpoint
+router.get("/api/network-info", (req, res) => {
+    try {
+        const interfaces = getLocalIPAddresses();
+        res.status(200).json({
+            interfaces: interfaces,
+            udpPort: 9999,
+            serverTime: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Network info error:', error);
+        res.status(500).json({ error: 'Failed to get network info' });
+    }
+});
 
 // normal setup
 router.get("*", (req, res)=>{
