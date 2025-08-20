@@ -485,26 +485,42 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 				
 				// Only send AI assistant responses to Haku robot for speech, not user input
 				// Check the role field to determine if this is from the assistant or user
+				// Also check if the message contains an "interrupted" flag
 				if (data.content && data.content.trim() && data.role === 'ASSISTANT') {
-					console.log('🗣️ Sending Nova AI response to Haku for speech:', data.content);
+					// Check if the content contains an interrupted flag
+					let shouldSendToRobot = true;
+					try {
+						// Look for JSON-like content with interrupted flag
+						if (data.content.includes('"interrupted"') && data.content.includes('true')) {
+							console.log('🚫 Message contains interrupted flag, not sending to robot:', data.content);
+							shouldSendToRobot = false;
+						}
+					} catch (error) {
+						// If there's an error parsing, default to sending (safer option)
+						console.warn('Error checking for interrupted flag:', error);
+					}
 					
-					// Send to robot via socket connection (same as script execution)
-					sendSockets.forEach(s => {
-						const speechCommand = JSON.stringify({ 
-							cmd: 'req-execute',
-							type: 'script', 
-							message: data.content.trim(), 
-							robot: 'Haku' 
-						})
-						.normalize('NFKC')
-						.replace(/[""]/g, '"')
-						.replace(/['']/g, "'")
-						.replace(/…/g, '...')
-						.replace(/[^\x00-\x7F]/g, "");
+					if (shouldSendToRobot) {
+						console.log('🗣️ Sending Nova AI response to Haku for speech:', data.content);
 						
-						s(speechCommand);
-						console.log("Sent Nova AI response to Haku socket:", speechCommand);
-					});
+						// Send to robot via socket connection (same as script execution)
+						sendSockets.forEach(s => {
+							const speechCommand = JSON.stringify({ 
+								cmd: 'req-execute',
+								type: 'conversation-response', 
+								message: data.content.trim(), 
+								robot: 'Haku' 
+							})
+							.normalize('NFKC')
+							.replace(/[""]/g, '"')
+							.replace(/['']/g, "'")
+							.replace(/…/g, '...')
+							.replace(/[^\x00-\x7F]/g, "");
+							
+							s(speechCommand);
+							console.log("Sent Nova AI response to Haku socket:", speechCommand);
+						});
+					}
 				} else if (data.role === 'USER') {
 					console.log('👤 User input detected, not sending to robot:', data.content);
 				} else {
