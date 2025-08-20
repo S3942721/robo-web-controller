@@ -84,16 +84,25 @@ class VirtualMicReceiver:
     
     def create_pipeline(self):
         """Create GStreamer pipeline for receiving audio and sending to virtual mic"""
-        # Pipeline with volume level monitoring
+        # Pipeline with jitter buffer and optimized audio handling
         pipeline_desc = (
             f"udpsrc port={self.listen_port} "
-            "caps=\"application/x-rtp,media=(string)audio,clock-rate=(int)44100,encoding-name=(string)L16,encoding-params=(string)2,channels=(int)2,payload=(int)96\" ! "
+            "caps=\"application/x-rtp,media=(string)audio,clock-rate=(int)44100,encoding-name=(string)L16,payload=(int)96,channels=(int)1\" ! "
+            "rtpjitterbuffer "
+            "latency=200 "  # 200ms jitter buffer
+            "drop-on-latency=true "
+            "max-dropout-time=1000 "
+            "max-misorder-time=100 ! "
             "rtpL16depay ! "
             "audioconvert ! "
-            "audio/x-raw,rate=44100,channels=1,format=S16LE ! "  # Convert to mono for voice
+            "audioresample ! "  # Handle sample rate changes
             "tee name=t ! "
-            "queue ! level name=volumelevel interval=50000000 ! "  # 50ms intervals
-            f"pulsesink device={self.virtual_mic_name} "
+            "queue "
+            "max-size-buffers=50 "
+            "max-size-time=1000000000 "  # 1 second buffer
+            "leaky=downstream ! "
+            "level name=volumelevel interval=50000000 ! "  # 50ms intervals for volume monitoring
+            f"pulsesink device={self.virtual_mic_name} sync=false "  # Disable sync for lower latency
             "t. ! queue ! fakesink"  # Tee branch for level monitoring
         )
         

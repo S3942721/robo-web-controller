@@ -22,13 +22,24 @@ class AudioReceiver:
         Gst.init(None)
         
     def create_pipeline(self):
-        """Create GStreamer pipeline for receiving audio"""
+        """Create adaptive GStreamer pipeline for receiving audio with jitter buffer"""
         pipeline_desc = (
             f"udpsrc port={self.listen_port} "
-            "caps=\"application/x-rtp,media=(string)audio,clock-rate=(int)44100,encoding-name=(string)L16,encoding-params=(string)2,channels=(int)2,payload=(int)96\" ! "
+            "caps=\"application/x-rtp,media=(string)audio,clock-rate=(int)44100,encoding-name=(string)L16,payload=(int)96,channels=(int)1\" ! "
+            "rtpjitterbuffer "
+            "latency=200 "  # 200ms jitter buffer
+            "drop-on-latency=true "
+            "max-dropout-time=1000 "
+            "max-misorder-time=100 ! "
             "rtpL16depay ! "
             "audioconvert ! "
-            "autoaudiosink"
+            "audioresample ! "  # Handle sample rate changes
+            "queue "
+            "max-size-buffers=50 "
+            "max-size-time=1000000000 "  # 1 second buffer
+            "leaky=downstream ! "
+            "autoaudiosink "
+            "sync=false"  # Disable sync for lower latency
         )
         
         print(f"Creating pipeline: {pipeline_desc}")
