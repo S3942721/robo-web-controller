@@ -27,6 +27,10 @@ export default function STTLLMTest() {
     });
     const [lastDelay, setLastDelay] = useState(null);
 
+    // Add client-side delay tracking
+    const [pendingRequests, setPendingRequests] = useState(new Map());
+    const sttCompleteTimeRef = useRef(null);
+
     useEffect(() => {
         // Load network configuration from server
         fetch('/api/network-config')
@@ -238,6 +242,10 @@ export default function STTLLMTest() {
             case 'complete':
                 if (data.text && data.text.trim()) {
                     console.log('✅ Complete transcription:', data.text);
+                    
+                    // Record STT complete time for delay measurement
+                    sttCompleteTimeRef.current = Date.now();
+                    
                     const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
                     setConversationHistory(prev => [...prev, {
                         text: data.text,
@@ -284,15 +292,97 @@ export default function STTLLMTest() {
         console.log('🤖 Processing LLM data:', data);
         
         if (data.action === 'completion') {
+            // Check if this is the first response chunk with content
+            if (data.content && data.content.trim() && sttCompleteTimeRef.current) {
+                const responseTime = Date.now();
+                const delay = responseTime - sttCompleteTimeRef.current;
+                
+                console.log(`⏱️ STT→LLM delay: ${delay}ms`);
+                
+                // Update delay statistics
+                updateDelayStats(delay);
+                
+                // Clear the STT complete time since we've measured the delay
+                sttCompleteTimeRef.current = null;
+            }
+            
             if (data.content && data.content.trim()) {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
-                setConversationHistory(prev => [...prev, {
-                    text: data.content,
-                    timestamp: timestamp,
-                    type: 'assistant'
-                }]);
-                setOverallStatus('🤖 AI responded - Ready for your next input');
+                
+                // Only add to conversation history when the response is finished
+                if (data.isFinished) {
+                    // Accumulate all content chunks
+                    setConversationHistory(prev => {
+                        const lastItem = prev[prev.length - 1];
+                        if (lastItem && lastItem.type === 'assistant' && lastItem.accumulating) {
+                            // Update the last assistant message
+                            return [
+                                ...prev.slice(0, -1),
+                                {
+                                    ...lastItem,
+                                    text: lastItem.text + data.content,
+                                    accumulating: false
+                                }
+                            ];
+                        } else {
+                            // Find existing assistant message or create new one
+                            const existingAssistantIndex = prev.findIndex(item => 
+                                item.type === 'assistant' && item.accumulating
+                            );
+                            
+                            if (existingAssistantIndex >= 0) {
+                                // Update existing assistant message
+                                const updated = [...prev];
+                                updated[existingAssistantIndex] = {
+                                    ...updated[existingAssistantIndex],
+                                    text: updated[existingAssistantIndex].text + data.content,
+                                    accumulating: false
+                                };
+                                return updated;
+                            } else {
+                                // Create new assistant message
+                                return [...prev, {
+                                    text: data.content,
+                                    timestamp: timestamp,
+                                    type: 'assistant',
+                                    accumulating: false
+                                }];
+                            }
+                        }
+                    });
+                } else {
+                    // For streaming responses, accumulate content
+                    setConversationHistory(prev => {
+                        const existingAssistantIndex = prev.findIndex(item => 
+                            item.type === 'assistant' && item.accumulating
+                        );
+                        
+                        if (existingAssistantIndex >= 0) {
+                            // Update existing assistant message
+                            const updated = [...prev];
+                            updated[existingAssistantIndex] = {
+                                ...updated[existingAssistantIndex],
+                                text: updated[existingAssistantIndex].text + data.content
+                            };
+                            return updated;
+                        } else {
+                            // Create new accumulating assistant message
+                            return [...prev, {
+                                text: data.content,
+                                timestamp: timestamp,
+                                type: 'assistant',
+                                accumulating: true
+                            }];
+                        }
+                    });
+                }
+                
+                if (data.isFinished) {
+                    setOverallStatus('🤖 AI responded - Ready for your next input');
+                } else {
+                    setOverallStatus('🤖 AI is responding...');
+                }
             }
         } else if (data.content) {
             // Handle streaming or partial responses
@@ -306,18 +396,33 @@ export default function STTLLMTest() {
         }
     };
 
-    const handleDelayMeasurement = (data) => {
-        console.log('⏱️ Delay measurement:', data);
-        setLastDelay(data.delay);
-        setDelayStats(data.stats);
-        
-        // Update status with delay info
-        setOverallStatus(`🤖 AI responded in ${data.delay}ms - Ready for your next input`);
+    // Add delay statistics update function
+    const updateDelayStats = (delay) => {
+        setDelayStats(prev => {
+            const newStats = {
+                totalRequests: prev.totalRequests + 1,
+                totalDelay: prev.totalDelay + delay,
+                minDelay: prev.minDelay === 0 ? delay : Math.min(prev.minDelay, delay),
+                maxDelay: Math.max(prev.maxDelay, delay),
+                recentDelays: [...prev.recentDelays.slice(-9), delay] // Keep last 10
+            };
+            newStats.averageDelay = newStats.totalDelay / newStats.totalRequests;
+            
+            setLastDelay(delay);
+            setOverallStatus(`🤖 AI responded in ${delay}ms - Ready for your next input`);
+            
+            return newStats;
+        });
     };
 
     const sendToLLM = (message) => {
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
+            
+            // Record send time if this is from STT
+            if (!sttCompleteTimeRef.current) {
+                sttCompleteTimeRef.current = Date.now();
+            }
             
             // Use the format expected by AWS API Gateway
             const llmPayload = {
@@ -333,6 +438,76 @@ export default function STTLLMTest() {
         } else {
             console.error('❌ Cannot send to LLM - not connected');
             setOverallStatus('❌ Cannot send to LLM - not connected');
+        }
+    };
+
+    const sendManualMessage = () => {
+        const message = prompt('Enter message to send to LLM:');
+        if (message && message.trim()) {
+            // Add to conversation history
+            const timestamp = new Date().toLocaleTimeString();
+            setConversationHistory(prev => [...prev, {
+                text: message.trim(),
+                timestamp: timestamp,
+                type: 'user',
+                manual: true
+            }]);
+            
+            // Clear STT complete time for manual messages
+            sttCompleteTimeRef.current = Date.now();
+            
+            // Send to LLM
+            sendToLLM(message.trim());
+        }
+    };
+
+    const disconnect = () => {
+        console.log('🔌 Disconnecting...');
+        
+        // Close STT connection
+        if (sttWsRef.current) {
+            sttWsRef.current.close();
+            sttWsRef.current = null;
+        }
+        
+        // Close LLM connection
+        if (llmWsRef.current) {
+            llmWsRef.current.close();
+            llmWsRef.current = null;
+        }
+        
+        setSessionId('');
+        setSTTStatus('disconnected');
+        setLLMStatus('disconnected');
+        setOverallStatus('Disconnected');
+    };
+
+    const clearConversation = () => {
+        setConversationHistory([]);
+        setCurrentTranscription('');
+        setLLMResponse('');
+        // Reset delay stats
+        setDelayStats({
+            totalRequests: 0,
+            averageDelay: 0,
+            minDelay: 0,
+            maxDelay: 0,
+            recentDelays: []
+        });
+        setLastDelay(null);
+        sttCompleteTimeRef.current = null;
+    };
+
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'connected':
+                return '#28a745';
+            case 'connecting':
+                return '#ffc107';
+            case 'error':
+                return '#dc3545';
+            default:
+                return '#6c757d';
         }
     };
 
@@ -376,69 +551,6 @@ export default function STTLLMTest() {
             connectLLM();
         }
         setOverallStatus('🔗 Connecting services...');
-    };
-
-    const sendManualMessage = () => {
-        const message = prompt('Enter message to send to LLM:');
-        if (message && message.trim()) {
-            // Add to conversation history
-            const timestamp = new Date().toLocaleTimeString();
-            setConversationHistory(prev => [...prev, {
-                text: message.trim(),
-                timestamp: timestamp,
-                type: 'user',
-                manual: true
-            }]);
-            
-            // Send to LLM
-            sendToLLM(message.trim());
-        }
-    };
-
-    const disconnect = () => {
-        console.log('🔌 Disconnecting...');
-        
-        // Close STT connection
-        if (sttWsRef.current) {
-            sttWsRef.current.close();
-            sttWsRef.current = null;
-        }
-        
-        // Close LLM connection
-        if (llmWsRef.current) {
-            llmWsRef.current.close();
-            llmWsRef.current = null;
-        }
-        
-        setSessionId('');
-        setSTTStatus('disconnected');
-        setLLMStatus('disconnected');
-        setOverallStatus('Disconnected');
-    };
-
-    const clearConversation = () => {
-        setConversationHistory([]);
-        setCurrentTranscription('');
-        setLLMResponse('');
-    };
-
-    const requestDelayStats = () => {
-        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
-            llmWsRef.current.send(JSON.stringify({ action: 'get_delay_stats' }));
-        }
-    };
-
-    const getStatusColor = (status) => {
-        switch(status) {
-            case 'connected':
-                return '#28a745';
-            case 'connecting':
-                return '#ffc107';
-            case 'error':
-                return '#dc3545';
-            default:
-                return '#6c757d';
-        }
     };
 
     return (
@@ -762,7 +874,7 @@ export default function STTLLMTest() {
                     </div>
                     <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
                         <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ffc107' }}>
-                            {delayStats.minDelay !== Infinity ? `${delayStats.minDelay}ms` : '--'}
+                            {delayStats.minDelay && delayStats.minDelay !== Infinity ? `${delayStats.minDelay}ms` : '--'}
                         </div>
                         <div style={{ fontSize: '0.9em', color: '#666' }}>Min</div>
                     </div>
@@ -802,23 +914,6 @@ export default function STTLLMTest() {
                         </div>
                     </div>
                 )}
-                
-                <button 
-                    onClick={requestDelayStats}
-                    style={{
-                        marginTop: '10px',
-                        padding: '8px 16px',
-                        backgroundColor: '#6c757d',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                    }}
-                    disabled={llmStatus !== 'connected'}
-                >
-                    🔄 Refresh Stats
-                </button>
             </div>
 
             {/* Instructions */}
