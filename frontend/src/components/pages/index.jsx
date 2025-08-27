@@ -12,7 +12,8 @@ export default function Controller() {
         <div>
             <div style={{ padding: '10px', backgroundColor: '#f8f9fa', marginBottom: '10px' }}>
                 <a href="/test" style={{ marginRight: '15px', color: '#007bff' }}>🧪 Nova Sonic Test</a>
-                <a href="/audio-stream-test" style={{ marginRight: '15px', color: '#007bff' }}>🎵 Audio Stream Test</a>
+                <a href="/stt-test" style={{ marginRight: '15px', color: '#007bff' }}>🎙️ STT Test</a>
+                <a href="/stt-llm-test" style={{ marginRight: '15px', color: '#007bff' }}>🎙️💬 STT+LLM Test</a>
                 <a href="/puppeteer" style={{ marginRight: '15px', color: '#007bff' }}>🖥️ Puppeteer</a>
                 <a href="/scripts" style={{ marginRight: '15px', color: '#007bff' }}>📜 Scripts</a>
                 <a href="/shortcuts" style={{ marginRight: '15px', color: '#007bff' }}>⌨️ Shortcuts</a>

@@ -2,8 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import { robotColors } from "../utils/robotColors";
 import FoldableSection from "./FoldableSection";
-import { TbXboxAFilled } from "react-icons/tb";
-import { FaCaretSquareDown, FaCaretSquareUp } from "react-icons/fa";
+import { FaCaretSquareDown, FaCaretSquareUp, FaPlayCircle } from "react-icons/fa";
 
 export default function PreDefinedScripts({ controller, resetController, foldable, compact, activeRobot }) {
     
@@ -203,7 +202,7 @@ export default function PreDefinedScripts({ controller, resetController, foldabl
                         <FaCaretSquareUp style={{ display: 'block', margin: 'auto' }} /> Prev Line
                     </div>
                     <div className="btn" ref={executeButtonRef} onClick={executeSelectedScript}>
-                        <TbXboxAFilled style={{ fontSize: '1.0em', display: 'block', margin: 'auto' }} /> Execute Line
+                        <FaPlayCircle style={{ fontSize: '1.0em', display: 'block', margin: 'auto' }} /> Execute Line
                     </div>
                     <div className="btn" ref={nextButtonRef} onClick={()=>switchSelect('next')}>
                         <FaCaretSquareDown style={{ display: 'block', margin: 'auto' }} /> Next Line

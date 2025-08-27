@@ -73,7 +73,7 @@
             "Value": true
         },
         "Audio Stream": {
-            "Signal": "ControlUDPAudioStreaming",
+            "Signal": "ControlAudioStreaming",
             "Value": false
         },
         "Greetings": {
