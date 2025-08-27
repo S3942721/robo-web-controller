@@ -7,8 +7,6 @@ export default function STTLLMTest() {
     const [conversationHistory, setConversationHistory] = useState([]);
     const [currentTranscription, setCurrentTranscription] = useState('');
     const [llmResponse, setLLMResponse] = useState('');
-    const [llmChunks, setLLMChunks] = useState({}); // Store chunks by number
-    const [expectedFinalChunk, setExpectedFinalChunk] = useState(null);
     const [overallStatus, setOverallStatus] = useState('Ready to start conversation');
     
     // Configuration - will be loaded from server
@@ -286,69 +284,25 @@ export default function STTLLMTest() {
         console.log('🤖 Processing LLM data:', data);
         
         if (data.action === 'completion') {
-            if (data.content !== undefined && data.chunkNumber !== undefined) {
-                // Store the chunk
-                setLLMChunks(prevChunks => {
-                    const newChunks = { ...prevChunks, [data.chunkNumber]: data.content };
-                    
-                    // Build progressive response in chunk order
-                    let orderedResponse = '';
-                    const maxChunk = Math.max(...Object.keys(newChunks).map(Number));
-                    
-                    for (let i = 0; i <= maxChunk; i++) {
-                        if (newChunks[i] !== undefined) {
-                            orderedResponse += newChunks[i];
-                        }
-                    }
-                    
-                    setLLMResponse(orderedResponse);
-                    return newChunks;
-                });
-                
-                // Check if this is the final chunk
-                if (data.isFinished) {
-                    setExpectedFinalChunk(data.chunkNumber);
-                    console.log(`🤖 LLM response complete at chunk ${data.chunkNumber}`);
-                    
-                    // Verify we have all chunks and finalize
-                    setTimeout(() => {
-                        setLLMChunks(prevChunks => {
-                            // Build final response ensuring all chunks are present
-                            let finalResponse = '';
-                            for (let i = 0; i <= data.chunkNumber; i++) {
-                                if (prevChunks[i] !== undefined) {
-                                    finalResponse += prevChunks[i];
-                                } else {
-                                    console.warn(`Missing chunk ${i} in final assembly`);
-                                }
-                            }
-                            
-                            // Add to conversation history
-                            if (finalResponse.trim()) {
-                                const timestamp = new Date().toLocaleTimeString();
-                                setConversationHistory(prev => [...prev, {
-                                    text: finalResponse.trim(),
-                                    timestamp: timestamp,
-                                    type: 'assistant'
-                                }]);
-                            }
-                            
-                            // Clear chunks for next response
-                            setExpectedFinalChunk(null);
-                            return {};
-                        });
-                    }, 100); // Small delay to ensure all chunks are processed
-                }
+            if (data.content && data.content.trim()) {
+                console.log('✅ LLM response received:', data.content);
+                const timestamp = new Date().toLocaleTimeString();
+                setConversationHistory(prev => [...prev, {
+                    text: data.content,
+                    timestamp: timestamp,
+                    type: 'assistant'
+                }]);
+                setOverallStatus('🤖 AI responded - Ready for your next input');
             }
         } else if (data.content) {
-            // Fallback for non-chunked responses
-            setLLMResponse(data.content);
-            const timestamp = new Date().toLocaleTimeString();
-            setConversationHistory(prev => [...prev, {
-                text: data.content,
-                timestamp: timestamp,
-                type: 'assistant'
-            }]);
+            // Handle streaming or partial responses
+            setLLMResponse(prev => prev + (data.content || ''));
+            setOverallStatus('🤖 AI is responding...');
+        } else if (data.error) {
+            console.error('❌ LLM Error:', data.error);
+            setOverallStatus('❌ LLM Error: ' + data.error);
+        } else {
+            console.log('🤖 Other LLM message:', data);
         }
     };
 
@@ -365,16 +319,11 @@ export default function STTLLMTest() {
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
             
-            // Clear previous response and chunks
-            setLLMResponse('');
-            setLLMChunks({});
-            setExpectedFinalChunk(null);
-            
             // Use the format expected by AWS API Gateway
             const llmPayload = {
-                "action": "completion",
+                action: 'completion',
                 history: [
-                    ...conversationHistory.slice(-8),
+                    ...conversationHistory.slice(-8), // Keep last 8 messages for context
                     { role: 'user', content: message }
                 ]
             };
