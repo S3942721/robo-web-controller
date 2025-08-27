@@ -7,14 +7,27 @@ export default function STTLLMTest() {
     const [conversationHistory, setConversationHistory] = useState([]);
     const [currentTranscription, setCurrentTranscription] = useState('');
     const [llmResponse, setLLMResponse] = useState('');
+    const [llmChunks, setLLMChunks] = useState({}); // Store chunks by number
+    const [expectedFinalChunk, setExpectedFinalChunk] = useState(null);
     const [overallStatus, setOverallStatus] = useState('Ready to start conversation');
     
     // Configuration - will be loaded from server
     const [networkConfig, setNetworkConfig] = useState(null);
     const [autoStart, setAutoStart] = useState(true);
     
-    const wsRef = useRef(null);
+    const sttWsRef = useRef(null);
+    const llmWsRef = useRef(null);
     const conversationRef = useRef(null);
+
+    // Delay statistics
+    const [delayStats, setDelayStats] = useState({
+        totalRequests: 0,
+        averageDelay: 0,
+        minDelay: 0,
+        maxDelay: 0,
+        recentDelays: []
+    });
+    const [lastDelay, setLastDelay] = useState(null);
 
     useEffect(() => {
         // Load network configuration from server
@@ -41,229 +54,413 @@ export default function STTLLMTest() {
         }
     }, [conversationHistory, currentTranscription]);
 
-    const connect = async () => {
+    const connectSTT = async () => {
         if (!networkConfig) {
             setOverallStatus('❌ Network configuration not loaded');
             return;
         }
 
         try {
-            setOverallStatus('🔗 Connecting to conversation service...');
+            setOverallStatus('🔗 Connecting to STT server...');
             
-            // Use the current hostname and port, but with the correct WebSocket path
-            const wsUrl = `ws://${window.location.hostname}:${window.location.port || '3000'}/api/stt-llm-conversation`;
-            console.log('Connecting to:', wsUrl);
+            // Close existing STT connection if any
+            if (sttWsRef.current) {
+                sttWsRef.current.close();
+            }
             
-            wsRef.current = new WebSocket(wsUrl);
+            const sttUrl = networkConfig.stt.defaultUrl;
+            console.log('Connecting to STT server at:', sttUrl);
+            sttWsRef.current = new WebSocket(sttUrl);
             
-            wsRef.current.onopen = () => {
-                console.log('Connected to STT-LLM conversation service');
-                setOverallStatus('✅ Connected to conversation service');
+            const timeout = setTimeout(() => {
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.CONNECTING) {
+                    sttWsRef.current.close();
+                    setOverallStatus('❌ STT connection timeout');
+                }
+            }, 10000);
+            
+            sttWsRef.current.onopen = () => {
+                clearTimeout(timeout);
+                console.log('STT WebSocket connected successfully');
+                setSTTStatus('connected');
+                setOverallStatus('✅ STT connected - Ready to start transcription');
                 
-                // Send initial session info with config URLs
-                const sessionData = {
-                    action: 'session_start',
-                    sttServerUrl: networkConfig.stt.defaultUrl,
-                    llmGatewayUrl: networkConfig.llm.defaultUrl,
-                    autoStart: autoStart
-                };
-                wsRef.current.send(JSON.stringify(sessionData));
-            };
-            
-            wsRef.current.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    handleMessage(data);
-                } catch (error) {
-                    console.error('Message parsing error:', error, 'Raw data:', event.data);
+                // Auto-connect to LLM if enabled
+                if (autoStart) {
+                    console.log('Auto-connecting to LLM services...');
+                    setTimeout(() => {
+                        connectLLM();
+                    }, 500);
                 }
             };
             
-            wsRef.current.onclose = (event) => {
-                console.log('STT-LLM WebSocket closed:', event.code, event.reason);
-                setOverallStatus('🔌 Disconnected');
-                setSessionId('');
-                setSTTStatus('disconnected');
-                setLLMStatus('disconnected');
+            sttWsRef.current.onmessage = (event) => {
+                try {
+                    console.log('STT message received:', event.data);
+                    const data = JSON.parse(event.data);
+                    handleSTTMessage(data);
+                } catch (error) {
+                    console.error('Failed to parse STT message:', error, 'Raw data:', event.data);
+                }
             };
             
-            wsRef.current.onerror = (error) => {
-                console.error('STT-LLM WebSocket error:', error);
-                setOverallStatus('❌ Connection error');
+            sttWsRef.current.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('STT WebSocket error:', error);
+                setOverallStatus('❌ STT connection error');
+                setSTTStatus('error');
+            };
+            
+            sttWsRef.current.onclose = (event) => {
+                clearTimeout(timeout);
+                console.log('STT WebSocket closed:', event.code, event.reason);
+                setSTTStatus('disconnected');
+                
+                if (event.code === 1006) {
+                    setOverallStatus('❌ STT connection lost - server may be down');
+                } else if (event.wasClean) {
+                    setOverallStatus('🔌 STT disconnected');
+                } else {
+                    setOverallStatus('❌ STT connection interrupted');
+                }
             };
             
         } catch (error) {
-            console.error('Failed to connect:', error);
-            setOverallStatus('❌ Failed to connect: ' + error.message);
+            console.error('Failed to connect to STT:', error);
+            setOverallStatus('❌ Failed to connect to STT: ' + error.message);
+            setSTTStatus('error');
         }
     };
 
-    const handleMessage = (data) => {
-        console.log('Received message:', data.type, data);
+    const connectLLM = async () => {
+        if (!networkConfig) {
+            setOverallStatus('❌ Network configuration not loaded');
+            return;
+        }
+
+        try {
+            setOverallStatus('🔗 Connecting to LLM gateway...');
+            
+            // Close existing LLM connection if any
+            if (llmWsRef.current) {
+                llmWsRef.current.close();
+            }
+            
+            const llmUrl = networkConfig.llm.defaultUrl;
+            console.log('Connecting to LLM gateway at:', llmUrl);
+            llmWsRef.current = new WebSocket(llmUrl);
+            
+            const timeout = setTimeout(() => {
+                if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.CONNECTING) {
+                    llmWsRef.current.close();
+                    setOverallStatus('❌ LLM connection timeout');
+                }
+            }, 10000);
+            
+            llmWsRef.current.onopen = () => {
+                clearTimeout(timeout);
+                console.log('LLM WebSocket connected successfully');
+                setLLMStatus('connected');
+                setOverallStatus('🤖 LLM connected - Ready for conversation');
+                
+                // Auto-start transcription if both services are connected
+                if (sttStatus === 'connected' && autoStart) {
+                    setTimeout(() => {
+                        console.log('Auto-starting transcription...');
+                        startTranscription();
+                    }, 500);
+                }
+            };
+            
+            llmWsRef.current.onmessage = (event) => {
+                try {
+                    console.log('LLM message received:', event.data);
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'llm_message') {
+                        handleLLMMessage(data.data);
+                    } else if (data.type === 'delay_measurement') {
+                        handleDelayMeasurement(data);
+                    } else if (data.type === 'delay_stats') {
+                        setDelayStats(data.stats);
+                    } else {
+                        handleLLMMessage(data);
+                    }
+                } catch (error) {
+                    console.error('Failed to parse LLM message:', error, 'Raw data:', event.data);
+                }
+            };
+            
+            llmWsRef.current.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('LLM WebSocket error:', error);
+                setOverallStatus('❌ LLM connection error');
+                setLLMStatus('error');
+            };
+            
+            llmWsRef.current.onclose = (event) => {
+                clearTimeout(timeout);
+                console.log('LLM WebSocket closed:', event.code, event.reason);
+                setLLMStatus('disconnected');
+                
+                if (event.code === 1006) {
+                    setOverallStatus('❌ LLM connection lost - server may be down');
+                } else if (event.wasClean) {
+                    setOverallStatus('🔌 LLM disconnected');
+                } else {
+                    setOverallStatus('❌ LLM connection interrupted');
+                }
+            };
+            
+        } catch (error) {
+            console.error('Failed to connect to LLM:', error);
+            setOverallStatus('❌ Failed to connect to LLM: ' + error.message);
+            setLLMStatus('error');
+        }
+    };
+
+    const connect = async () => {
+        // Generate a simple session ID for tracking
+        const newSessionId = Math.random().toString(36).substr(2, 9);
+        setSessionId(newSessionId);
+        
+        // Connect to STT first
+        await connectSTT();
+    };
+
+    const handleSTTMessage = (data) => {
+        console.log('🎤 Processing STT data:', data.type, data);
         
         switch(data.type) {
-            case 'session_created':
-                setSessionId(data.sessionId);
-                setOverallStatus('✅ Session created - Ready to connect services');
-                break;
-                
-            case 'stt_status':
-                setSTTStatus(data.status);
-                if (data.status === 'connected') {
-                    setOverallStatus('🎤 STT connected - Ready for LLM');
-                } else if (data.status === 'error') {
-                    setOverallStatus('❌ STT error: ' + (data.error || 'Unknown error'));
-                }
-                break;
-                
-            case 'llm_status':
-                setLLMStatus(data.status);
-                if (data.status === 'connected') {
-                    setOverallStatus('🤖 LLM connected - Ready to start conversation');
-                } else if (data.status === 'error') {
-                    setOverallStatus('❌ LLM error: ' + (data.error || 'Unknown error'));
-                }
-                break;
-                
-            case 'stt_message':
-                handleSTTMessage(data.data);
-                break;
-                
-            case 'llm_message':
-                handleLLMMessage(data.data);
-                break;
-                
-            case 'error':
-                console.error('Server error:', data.error);
-                setOverallStatus('❌ Server error: ' + data.error);
-                break;
-                
-            default:
-                console.warn('Unknown message type:', data.type);
-        }
-    };
-
-    const handleSTTMessage = (sttData) => {
-        switch(sttData.type) {
             case 'partial':
-                setCurrentTranscription(sttData.text || '');
-                setOverallStatus('🎤 Listening...');
+                setCurrentTranscription(data.text || '');
+                setOverallStatus('🎤 Listening... (partial result)');
                 break;
                 
             case 'complete':
-                if (sttData.text && sttData.text.trim()) {
-                    const timestamp = sttData.timestamp ? 
-                        new Date(sttData.timestamp * 1000).toLocaleTimeString() : 
-                        new Date().toLocaleTimeString();
-                    
+                if (data.text && data.text.trim()) {
+                    console.log('✅ Complete transcription:', data.text);
+                    const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
                     setConversationHistory(prev => [...prev, {
-                        type: 'user',
-                        text: sttData.text,
+                        text: data.text,
                         timestamp: timestamp,
-                        confidence: sttData.confidence
+                        confidence: data.confidence,
+                        type: 'user'
                     }]);
                     setCurrentTranscription('');
-                    setOverallStatus('🤖 Processing with AI...');
+                    setOverallStatus('✅ Transcription complete - sending to AI');
+                    
+                    // Automatically send to LLM
+                    sendToLLM(data.text.trim());
                 }
                 break;
                 
             case 'status':
-                console.log('STT status:', sttData.status);
+                console.log('📡 STT Status update:', data.status, data.details);
+                switch(data.status) {
+                    case 'started':
+                        setOverallStatus('🎤 STT started - listening for speech');
+                        break;
+                    case 'stopped':
+                        setOverallStatus('⏹️ STT stopped');
+                        break;
+                    case 'connected':
+                        setOverallStatus('✅ STT connected');
+                        break;
+                    default:
+                        setOverallStatus(`📡 STT Status: ${data.status}`);
+                }
+                break;
+
+            case 'error':
+                console.error('❌ STT Error:', data.error);
+                setOverallStatus('❌ STT Error: ' + data.error);
                 break;
                 
-            case 'error':
-                console.error('STT error:', sttData.error);
-                setOverallStatus('❌ STT error: ' + sttData.error);
-                break;
+            default:
+                console.warn('⚠️ Unknown STT message type:', data.type, data);
         }
     };
 
-    const handleLLMMessage = (llmData) => {
-        if (llmData.type === 'response' || llmData.content) {
-            const responseText = llmData.content || llmData.text || llmData.response;
-            
-            if (responseText && responseText.trim()) {
-                setLLMResponse(prev => prev + responseText);
-                setOverallStatus('🤖 AI responding...');
+    const handleLLMMessage = (data) => {
+        console.log('🤖 Processing LLM data:', data);
+        
+        if (data.action === 'completion') {
+            if (data.content !== undefined && data.chunkNumber !== undefined) {
+                // Store the chunk
+                setLLMChunks(prevChunks => {
+                    const newChunks = { ...prevChunks, [data.chunkNumber]: data.content };
+                    
+                    // Build progressive response in chunk order
+                    let orderedResponse = '';
+                    const maxChunk = Math.max(...Object.keys(newChunks).map(Number));
+                    
+                    for (let i = 0; i <= maxChunk; i++) {
+                        if (newChunks[i] !== undefined) {
+                            orderedResponse += newChunks[i];
+                        }
+                    }
+                    
+                    setLLMResponse(orderedResponse);
+                    return newChunks;
+                });
+                
+                // Check if this is the final chunk
+                if (data.isFinished) {
+                    setExpectedFinalChunk(data.chunkNumber);
+                    console.log(`🤖 LLM response complete at chunk ${data.chunkNumber}`);
+                    
+                    // Verify we have all chunks and finalize
+                    setTimeout(() => {
+                        setLLMChunks(prevChunks => {
+                            // Build final response ensuring all chunks are present
+                            let finalResponse = '';
+                            for (let i = 0; i <= data.chunkNumber; i++) {
+                                if (prevChunks[i] !== undefined) {
+                                    finalResponse += prevChunks[i];
+                                } else {
+                                    console.warn(`Missing chunk ${i} in final assembly`);
+                                }
+                            }
+                            
+                            // Add to conversation history
+                            if (finalResponse.trim()) {
+                                const timestamp = new Date().toLocaleTimeString();
+                                setConversationHistory(prev => [...prev, {
+                                    text: finalResponse.trim(),
+                                    timestamp: timestamp,
+                                    type: 'assistant'
+                                }]);
+                            }
+                            
+                            // Clear chunks for next response
+                            setExpectedFinalChunk(null);
+                            return {};
+                        });
+                    }, 100); // Small delay to ensure all chunks are processed
+                }
             }
-        } else if (llmData.type === 'partial' || llmData.partial) {
-            const partialText = llmData.content || llmData.text || llmData.partial;
-            if (partialText) {
-                setLLMResponse(prev => prev + partialText);
-            }
-        } else if (llmData.type === 'complete') {
-            // LLM response complete
-            if (llmResponse.trim()) {
-                setConversationHistory(prev => [...prev, {
-                    type: 'assistant',
-                    text: llmResponse,
-                    timestamp: new Date().toLocaleTimeString()
-                }]);
-                setLLMResponse('');
-                setOverallStatus('✅ Ready for your next message');
-            }
+        } else if (data.content) {
+            // Fallback for non-chunked responses
+            setLLMResponse(data.content);
+            const timestamp = new Date().toLocaleTimeString();
+            setConversationHistory(prev => [...prev, {
+                text: data.content,
+                timestamp: timestamp,
+                type: 'assistant'
+            }]);
         }
     };
 
-    const connectServices = () => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            // Connect to STT server
-            wsRef.current.send(JSON.stringify({
-                action: 'connect_stt',
-                sttServerUrl: networkConfig.stt.defaultUrl
-            }));
+    const handleDelayMeasurement = (data) => {
+        console.log('⏱️ Delay measurement:', data);
+        setLastDelay(data.delay);
+        setDelayStats(data.stats);
+        
+        // Update status with delay info
+        setOverallStatus(`🤖 AI responded in ${data.delay}ms - Ready for your next input`);
+    };
+
+    const sendToLLM = (message) => {
+        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
+            console.log('✍️ Sending message to LLM:', message);
             
-            // Connect to LLM gateway
-            wsRef.current.send(JSON.stringify({
-                action: 'connect_llm',
-                llmGatewayUrl: networkConfig.llm.defaultUrl
-            }));
+            // Clear previous response and chunks
+            setLLMResponse('');
+            setLLMChunks({});
+            setExpectedFinalChunk(null);
             
-            setOverallStatus('🔗 Connecting to STT and LLM services...');
+            // Use the format expected by AWS API Gateway
+            const llmPayload = {
+                "action": "completion",
+                history: [
+                    ...conversationHistory.slice(-8),
+                    { role: 'user', content: message }
+                ]
+            };
+            
+            llmWsRef.current.send(JSON.stringify(llmPayload));
+            setOverallStatus('✍️ Message sent to AI - waiting for response');
+        } else {
+            console.error('❌ Cannot send to LLM - not connected');
+            setOverallStatus('❌ Cannot send to LLM - not connected');
         }
     };
 
     const startTranscription = () => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ action: 'start_transcription' }));
+        if (!sttWsRef.current || sttWsRef.current.readyState !== WebSocket.OPEN) {
+            setOverallStatus('❌ Not connected to STT server');
+            return;
+        }
+        
+        try {
+            console.log('🎤 Starting transcription...');
+            sttWsRef.current.send(JSON.stringify({ action: 'start' }));
             setOverallStatus('🎤 Started listening - speak now');
+        } catch (error) {
+            console.error('Failed to start transcription:', error);
+            setOverallStatus('❌ Failed to start transcription');
         }
     };
 
     const stopTranscription = () => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ action: 'stop_transcription' }));
-            setOverallStatus('⏹️ Stopped listening');
+        if (!sttWsRef.current || sttWsRef.current.readyState !== WebSocket.OPEN) {
+            return;
         }
+        
+        try {
+            console.log('⏹️ Stopping transcription...');
+            sttWsRef.current.send(JSON.stringify({ action: 'stop' }));
+            setOverallStatus('⏹️ Stopped listening');
+            setCurrentTranscription('');
+        } catch (error) {
+            console.error('Failed to stop transcription:', error);
+            setOverallStatus('❌ Failed to stop transcription');
+        }
+    };
+
+    const connectServices = () => {
+        if (sttStatus !== 'connected') {
+            connectSTT();
+        }
+        if (llmStatus !== 'connected') {
+            connectLLM();
+        }
+        setOverallStatus('🔗 Connecting services...');
     };
 
     const sendManualMessage = () => {
         const message = prompt('Enter message to send to LLM:');
         if (message && message.trim()) {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({
-                    action: 'send_to_llm',
-                    message: message.trim()
-                }));
-                
-                // Add to conversation history
-                setConversationHistory(prev => [...prev, {
-                    type: 'user',
-                    text: message.trim(),
-                    timestamp: new Date().toLocaleTimeString(),
-                    manual: true
-                }]);
-                
-                setOverallStatus('🤖 Processing manual message...');
-            }
+            // Add to conversation history
+            const timestamp = new Date().toLocaleTimeString();
+            setConversationHistory(prev => [...prev, {
+                text: message.trim(),
+                timestamp: timestamp,
+                type: 'user',
+                manual: true
+            }]);
+            
+            // Send to LLM
+            sendToLLM(message.trim());
         }
     };
 
     const disconnect = () => {
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
+        console.log('🔌 Disconnecting...');
+        
+        // Close STT connection
+        if (sttWsRef.current) {
+            sttWsRef.current.close();
+            sttWsRef.current = null;
         }
+        
+        // Close LLM connection
+        if (llmWsRef.current) {
+            llmWsRef.current.close();
+            llmWsRef.current = null;
+        }
+        
         setSessionId('');
         setSTTStatus('disconnected');
         setLLMStatus('disconnected');
@@ -274,6 +471,12 @@ export default function STTLLMTest() {
         setConversationHistory([]);
         setCurrentTranscription('');
         setLLMResponse('');
+    };
+
+    const requestDelayStats = () => {
+        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
+            llmWsRef.current.send(JSON.stringify({ action: 'get_delay_stats' }));
+        }
     };
 
     const getStatusColor = (status) => {
@@ -291,7 +494,7 @@ export default function STTLLMTest() {
 
     return (
         <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-            <h2>🎙️ STT Conversation Test</h2>
+            <h2>🎙️💬 STT+LLM Conversation Test (Direct Connection)</h2>
             
             {/* Connection Configuration */}
             <div style={{ 
@@ -344,7 +547,7 @@ export default function STTLLMTest() {
                             checked={autoStart}
                             onChange={(e) => setAutoStart(e.target.checked)}
                         />
-                        <span>Auto-start transcription when STT service connects</span>
+                        <span>Auto-connect and start services when session connects</span>
                     </label>
                 </div>
                 
@@ -460,7 +663,7 @@ export default function STTLLMTest() {
                                 fontWeight: 'bold',
                                 marginRight: '10px'
                             }}
-                            disabled={sttStatus !== 'connected'}
+                            disabled={llmStatus !== 'connected'}
                         >
                             ✍️ Manual Message
                         </button>
@@ -584,6 +787,89 @@ export default function STTLLMTest() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Delay Statistics */}
+            <div style={{ 
+                marginTop: '15px', 
+                padding: '15px', 
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d9ff',
+                borderRadius: '8px'
+            }}>
+                <h4>⏱️ Response Time Metrics:</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#007bff' }}>
+                            {lastDelay ? `${lastDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Last Response</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#28a745' }}>
+                            {delayStats.averageDelay ? `${Math.round(delayStats.averageDelay)}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Average</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ffc107' }}>
+                            {delayStats.minDelay !== Infinity ? `${delayStats.minDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Min</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#dc3545' }}>
+                            {delayStats.maxDelay ? `${delayStats.maxDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Max</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#6f42c1' }}>
+                            {delayStats.totalRequests || 0}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Total Requests</div>
+                    </div>
+                </div>
+                
+                {delayStats.recentDelays && delayStats.recentDelays.length > 0 && (
+                    <div style={{ marginTop: '10px' }}>
+                        <strong>Recent Response Times:</strong>
+                        <div style={{ 
+                            marginTop: '5px', 
+                            fontFamily: 'monospace', 
+                            fontSize: '12px',
+                            backgroundColor: '#f8f9fa',
+                            padding: '5px',
+                            borderRadius: '4px'
+                        }}>
+                            {delayStats.recentDelays.map((delay, idx) => (
+                                <span key={idx} style={{ 
+                                    marginRight: '8px',
+                                    color: delay < 1000 ? '#28a745' : delay < 3000 ? '#ffc107' : '#dc3545'
+                                }}>
+                                    {delay}ms
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                <button 
+                    onClick={requestDelayStats}
+                    style={{
+                        marginTop: '10px',
+                        padding: '8px 16px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                    }}
+                    disabled={llmStatus !== 'connected'}
+                >
+                    🔄 Refresh Stats
+                </button>
             </div>
 
             {/* Instructions */}
