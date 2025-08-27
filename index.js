@@ -5,7 +5,6 @@ require('dotenv').config();
 const express = require("express");
 const {join} = require("path")
 const {readdirSync, readFileSync, writeFileSync} = require('fs')
-const dgram = require('dgram');
 
 const app = express();
 
@@ -26,6 +25,22 @@ let shortcuts = [];
 let paged_shortcuts = [];
 let announcements = [];
 let all_possible_files = [];
+
+// Network configuration from environment
+const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0';
+const SERVER_PORT = process.env.SERVER_PORT || 3000;
+const SOCKET_PORT = process.env.SOCKET_PORT || 3456;
+
+const STT_SERVER_HOST = process.env.STT_SERVER_HOST || 'localhost';
+const STT_SERVER_PORT = process.env.STT_SERVER_PORT || 8765;
+const STT_LLM_ENABLED = process.env.STT_LLM_ENABLED === 'true';
+
+const LLM_GATEWAY_HOST = process.env.LLM_GATEWAY_HOST || 'localhost';
+const LLM_GATEWAY_PORT = process.env.LLM_GATEWAY_PORT || 8080;
+const LLM_ENDPOINT = process.env.LLM_ENDPOINT || '/chat';
+
+const WS_RECONNECT_ATTEMPTS = parseInt(process.env.WS_RECONNECT_ATTEMPTS) || 5;
+const WS_RECONNECT_DELAY = parseInt(process.env.WS_RECONNECT_DELAY) || 2000;
 
 // Function to parse script object
 function parseScriptObject(obj) {
@@ -170,250 +185,6 @@ function getFullSyncItem() {
 		announcements
 	}
 }
-
-// Jitter Buffer for consistent audio playback
-class JitterBuffer {
-    constructor(targetDelay = 50) {
-        this.targetDelay = targetDelay;
-        this.buffer = new Map();
-        this.nextSequence = 0;
-        this.isActive = false;
-        this.playbackInterval = null;
-        this.startTime = null;
-    }
-    
-    start() {
-        this.isActive = true;
-        this.schedulePlayback();
-        console.log('Jitter buffer started');
-    }
-    
-    addPacket(sequence, timestamp, volume, audio) {
-        if (!this.isActive) return;
-        
-        this.buffer.set(sequence, { timestamp, volume, audio, received: Date.now() });
-        
-        if (!this.startTime && !this.playbackInterval) {
-            this.startTime = Date.now();
-            this.nextSequence = sequence;
-        }
-    }
-    
-    schedulePlayback() {
-        if (this.playbackInterval) return;
-        
-        this.playbackInterval = setInterval(() => {
-            if (!this.isActive) {
-                clearInterval(this.playbackInterval);
-                this.playbackInterval = null;
-                return;
-            }
-            
-            // Check if we have the next expected packet
-            if (this.buffer.has(this.nextSequence)) {
-                const packet = this.buffer.get(this.nextSequence);
-                this.buffer.delete(this.nextSequence);
-                
-                // Send to all active WebSocket clients
-                const audioMessage = JSON.stringify({
-                    action: 'audioData',
-                    sequence: this.nextSequence,
-                    volume: packet.volume,
-                    audio: Array.from(packet.audio) // Convert Buffer to Array for JSON
-                });
-                
-                let sentCount = 0;
-                audioStreamClients.forEach(client => {
-                    if (client.readyState === 1) { // WebSocket.OPEN
-                        try {
-                            client.send(audioMessage);
-                            sentCount++;
-                        } catch (error) {
-                            console.error('Failed to send audio to client:', error);
-                        }
-                    }
-                });
-                
-                // Log audio forwarding for first few packets
-                if (this.nextSequence <= 5 || this.nextSequence % 100 === 0) {
-                    console.log(`=== AUDIO FORWARDED ===`);
-                    console.log(`Sequence: ${this.nextSequence}, Volume: ${packet.volume}`);
-                    console.log(`Sent to ${sentCount} WebSocket clients`);
-                    console.log(`Audio data size: ${packet.audio.length} bytes`);
-                }
-                
-                this.nextSequence++;
-            } else {
-                // Packet missing, skip for now (could implement packet loss recovery here)
-                if (this.nextSequence % 100 === 0) {
-                    console.log(`Missing packet ${this.nextSequence}, buffer size: ${this.buffer.size}`);
-                }
-                this.nextSequence++;
-            }
-            
-            // Clean up old packets (older than 1 second)
-            const now = Date.now();
-            for (const [seq, packet] of this.buffer.entries()) {
-                if (now - packet.received > 1000) {
-                    this.buffer.delete(seq);
-                }
-            }
-            
-        }, 16); // 16ms intervals (matches 256 samples at 16kHz)
-    }
-    
-    stop() {
-        this.isActive = false;
-        if (this.playbackInterval) {
-            clearInterval(this.playbackInterval);
-            this.playbackInterval = null;
-        }
-        this.buffer.clear();
-        this.nextSequence = 0;
-        this.startTime = null;
-        console.log('Jitter buffer stopped');
-    }
-}
-
-// UDP Audio Stream Server
-const udpServer = dgram.createSocket('udp4');
-const jitterBuffer = new JitterBuffer(50);
-let audioStreamClients = [];
-
-// Add network interface detection
-const os = require('os');
-function getLocalIPAddresses() {
-    const interfaces = os.networkInterfaces();
-    const addresses = [];
-    
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            // Skip over non-IPv4 and internal addresses
-            if (iface.family === 'IPv4' && !iface.internal) {
-                addresses.push({ name, address: iface.address });
-            }
-        }
-    }
-    return addresses;
-}
-
-// Log network configuration on startup
-const localIPs = getLocalIPAddresses();
-console.log('=== NETWORK CONFIGURATION ===');
-console.log('Available network interfaces:');
-localIPs.forEach(ip => {
-    console.log(`  ${ip.name}: ${ip.address}`);
-});
-console.log('UDP server will bind to 0.0.0.0:9999');
-console.log('Robot should send UDP packets to one of the above IPs on port 9999');
-console.log('===============================');
-
-// MOVE WEBSOCKET HANDLERS BEFORE ROUTER SETUP
-// WebSocket for audio stream testing
-app.ws('/api/audio-stream-test', (ws, req) => {
-    console.log('=== NEW AUDIO STREAM CLIENT CONNECTED ===');
-    console.log('Client IP:', req.ip || req.connection.remoteAddress);
-    console.log('WebSocket protocol:', ws.protocol);
-    console.log('WebSocket extensions:', ws.extensions);
-    console.log('Clients before adding:', audioStreamClients.length);
-    
-    audioStreamClients.push(ws);
-    console.log('Clients after adding:', audioStreamClients.length);
-    console.log('WebSocket readyState:', ws.readyState);
-    console.log('WebSocket constants - CONNECTING:', ws.CONNECTING, 'OPEN:', ws.OPEN);
-    
-    // Send immediate welcome message to test the connection
-    try {
-        const welcomeMessage = JSON.stringify({ status: 'Connected to audio stream server' });
-        console.log('Sending welcome message:', welcomeMessage);
-        ws.send(welcomeMessage);
-        console.log('Welcome message sent successfully');
-    } catch (error) {
-        console.error('Failed to send welcome message:', error);
-    }
-    
-    ws.on('message', (msg) => {
-        try {
-            console.log('=== RECEIVED WEBSOCKET MESSAGE ===');
-            console.log('Message type:', typeof msg);
-            console.log('Raw message:', msg.toString());
-            
-            const messageString = msg.toString();
-            const command = JSON.parse(messageString);
-            console.log('Parsed command:', JSON.stringify(command, null, 2));
-            
-            if (command.action === 'start') {
-                console.log('=== STARTING AUDIO STREAM JITTER BUFFER ===');
-                console.log('Clients available for streaming:', audioStreamClients.length);
-                console.log('Jitter buffer active before start:', jitterBuffer.isActive);
-                
-                jitterBuffer.start();
-                
-                console.log('Jitter buffer active after start:', jitterBuffer.isActive);
-                const confirmationMessage = JSON.stringify({ 
-                    status: 'Jitter buffer started - ready for UDP packets on port 9999' 
-                });
-                console.log('Sending confirmation message:', confirmationMessage);
-                ws.send(confirmationMessage);
-                
-            } else if (command.action === 'stop') {
-                console.log('=== STOPPING AUDIO STREAM JITTER BUFFER ===');
-                jitterBuffer.stop();
-                const stopMessage = JSON.stringify({ status: 'Jitter buffer stopped' });
-                ws.send(stopMessage);
-                console.log('Sent stop confirmation');
-            } else {
-                console.log('Unknown command action:', command.action);
-            }
-        } catch (error) {
-            console.error('=== WEBSOCKET MESSAGE ERROR ===');
-            console.error('Error details:', error);
-            console.error('Raw message that failed:', msg);
-        }
-    });
-    
-    ws.on('close', (code, reason) => {
-        console.log('=== AUDIO STREAM CLIENT DISCONNECTED ===');
-        console.log('Close code:', code, 'Reason:', reason?.toString());
-        console.log('Clients before removal:', audioStreamClients.length);
-        
-        audioStreamClients = audioStreamClients.filter(client => client !== ws);
-        
-        console.log('Clients after removal:', audioStreamClients.length);
-        
-        // Stop jitter buffer if no clients
-        if (audioStreamClients.length === 0) {
-            console.log('No more clients, stopping jitter buffer');
-            jitterBuffer.stop();
-        }
-    });
-    
-    ws.on('error', (error) => {
-        console.error('=== AUDIO STREAM WEBSOCKET ERROR ===');
-        console.error('Error details:', error);
-        console.error('Error stack:', error.stack);
-        
-        audioStreamClients = audioStreamClients.filter(client => client !== ws);
-        console.log('Clients after error removal:', audioStreamClients.length);
-        
-        // Stop jitter buffer if no clients
-        if (audioStreamClients.length === 0) {
-            console.log('No more clients after error, stopping jitter buffer');
-            jitterBuffer.stop();
-        }
-    });
-    
-    // Test that the WebSocket is working by sending a ping after a short delay
-    setTimeout(() => {
-        try {
-            console.log('Sending ping test message...');
-            ws.send(JSON.stringify({ status: 'Ping test - server is ready' }));
-            console.log('Ping test message sent');
-        } catch (error) {
-            console.error('Failed to send ping test:', error);
-        }
-    }, 1000);
-});
 
 // websocket setup
 app.ws('/api/sync', (ws, req)=>{
@@ -634,117 +405,7 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 	});
 });
 
-// Handle audio packets from jitter buffer
-jitterBuffer.onAudioReady = (audioPacket) => {
-    const activeClients = audioStreamClients.filter(client => client.readyState === 1);
-    
-    if (activeClients.length === 0) {
-        console.log('No active clients for audio packet, stopping jitter buffer');
-        jitterBuffer.stop();
-        return;
-    }
-    
-    console.log(`Sending audio packet ${audioPacket.sequence} to ${activeClients.length} clients, volume: ${audioPacket.volume}`);
-    
-    activeClients.forEach(client => {
-        try {
-            const message = JSON.stringify({
-                action: 'audioData',
-                audio: audioPacket.audio.toString('base64'),
-                volume: audioPacket.volume,
-                sequence: audioPacket.sequence
-            });
-            client.send(message);
-        } catch (error) {
-            console.error('Error sending audio data to client:', error);
-        }
-    });
-};
-
-// UDP server for receiving audio from Python script
-udpServer.on('message', (msg, rinfo) => {
-    try {
-        if (msg.length < 12) {
-            console.warn('Received invalid packet, too short:', msg.length);
-            return;
-        }
-        
-        const sequence = msg.readUInt32BE(0);
-        const timestamp = msg.readUInt32BE(4);
-        const volume = msg.readUInt32BE(8);
-        const audio = msg.slice(12);
-        
-        const activeClients = audioStreamClients.filter(client => client.readyState === 1);
-        
-        // Enhanced logging for first few packets and periodic updates
-        if (sequence <= 5 || sequence % 100 === 0) {
-            console.log(`=== UDP PACKET RECEIVED ===`);
-            console.log(`From: ${rinfo.address}:${rinfo.port}`);
-            console.log(`Sequence: ${sequence}, Volume: ${volume}, Audio size: ${audio.length}`);
-            console.log(`Total clients: ${audioStreamClients.length}`);
-            console.log(`Active clients: ${activeClients.length}`);
-            console.log(`Buffer active: ${jitterBuffer.isActive}`);
-            console.log(`Timestamp: ${timestamp}`);
-        }
-        
-        // Only process if we have active audio stream test clients
-        if (activeClients.length > 0 && jitterBuffer.isActive) {
-            jitterBuffer.addPacket(sequence, timestamp, volume, audio);
-            
-            // Log successful processing for first few packets
-            if (sequence <= 5) {
-                console.log(`Successfully processed packet ${sequence}`);
-            }
-        } else {
-            // Enhanced logging for ignored packets
-            if (sequence <= 5 || sequence % 100 === 0) {
-                console.log(`Ignoring packet ${sequence}:`);
-                console.log(`  - Active clients: ${activeClients.length}`);
-                console.log(`  - Buffer active: ${jitterBuffer.isActive}`);
-                console.log(`  - Reason: ${activeClients.length === 0 ? 'No active clients' : 'Buffer not active'}`);
-            }
-        }
-        
-    } catch (error) {
-        console.error('UDP packet parsing error:', error);
-        console.error('Packet details:', {
-            length: msg.length,
-            from: `${rinfo.address}:${rinfo.port}`,
-            firstBytes: msg.slice(0, Math.min(16, msg.length))
-        });
-    }
-});
-
-udpServer.on('error', (err) => {
-    console.error('UDP server error:', err);
-    
-    // Try to restart the UDP server
-    setTimeout(() => {
-        console.log('Attempting to restart UDP server...');
-        try {
-            udpServer.bind(9999, '0.0.0.0');
-        } catch (restartError) {
-            console.error('Failed to restart UDP server:', restartError);
-        }
-    }, 5000);
-});
-
-udpServer.on('listening', () => {
-    const address = udpServer.address();
-    console.log(`UDP audio server listening on ${address.address}:${address.port}`);
-    console.log('Waiting for UDP audio packets from robot...');
-});
-
-// Enhanced UDP server binding with error handling
-try {
-    udpServer.bind(9999, '0.0.0.0');
-} catch (error) {
-    console.error('Failed to bind UDP server:', error);
-    console.log('Make sure port 9999 is not in use by another application');
-    process.exit(1);
-}
-
-// ROUTER SETUP AFTER WEBSOCKETS
+// ROUTER SETUP
 app.use(express.static(join(__dirname, 'dist')));
 
 const router = express.Router();
@@ -763,7 +424,6 @@ router.get("/api/scrollcontrollers-config", (req, res) => {
 });
 
 router.get("/api/triggers-config", (req, res) => {
-    // Make sure we're returning the parsed triggers object
     res.status(200).json(triggers);
 });
 
@@ -817,13 +477,38 @@ router.get("/api/network-info", (req, res) => {
         const interfaces = getLocalIPAddresses();
         res.status(200).json({
             interfaces: interfaces,
-            udpPort: 9999,
             serverTime: new Date().toISOString()
         });
     } catch (error) {
         console.error('Network info error:', error);
         res.status(500).json({ error: 'Failed to get network info' });
     }
+});
+
+// Add configuration endpoint
+router.get("/api/network-config", (req, res) => {
+    res.status(200).json({
+        server: {
+            host: SERVER_HOST,
+            port: SERVER_PORT
+        },
+        stt: {
+            host: STT_SERVER_HOST,
+            port: STT_SERVER_PORT,
+            enabled: STT_LLM_ENABLED,
+            defaultUrl: `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
+        },
+        llm: {
+            host: LLM_GATEWAY_HOST,
+            port: LLM_GATEWAY_PORT,
+            endpoint: LLM_ENDPOINT,
+            defaultUrl: `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`
+        },
+        websocket: {
+            reconnectAttempts: WS_RECONNECT_ATTEMPTS,
+            reconnectDelay: WS_RECONNECT_DELAY
+        }
+    });
 });
 
 // normal setup
@@ -833,8 +518,8 @@ router.get("*", (req, res)=>{
 
 app.use('/', router);
 
-app.listen(3000, '0.0.0.0', () => {
-    console.log("Express server is listening on port 3000!")
+app.listen(SERVER_PORT, SERVER_HOST, () => {
+    console.log(`Express server is listening on ${SERVER_HOST}:${SERVER_PORT}!`)
 })
 
 // SOCKET
@@ -867,6 +552,704 @@ const server = net.createServer((socket) => {
 });
 
 
-server.listen(3456, '0.0.0.0', () => {
-  	console.log(`Socket server is listening on port 3456`);
+server.listen(SOCKET_PORT, SERVER_HOST, () => {
+  	console.log(`Socket server is listening on ${SERVER_HOST}:${SOCKET_PORT}`);
+});
+
+// Add WebSocket client for STT server connection
+const WebSocket = require('ws');
+
+// STT and LLM connection management
+let sttConnections = new Map(); // sessionId -> sttClient
+let llmConnections = new Map(); // sessionId -> llmClient
+
+// Add network interface detection
+const os = require('os');
+function getLocalIPAddresses() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip over non-IPv4 and internal addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push({ name, address: iface.address });
+            }
+        }
+    }
+    return addresses;
+}
+
+// STT WebSocket client class
+class STTClient {
+    constructor(sessionId, frontendWs) {
+        this.sessionId = sessionId;
+        this.frontendWs = frontendWs;
+        this.sttWs = null;
+        this.isConnected = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = WS_RECONNECT_ATTEMPTS;
+        this.reconnectDelay = WS_RECONNECT_DELAY;
+    }
+
+    async connect(sttServerUrl = `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`) {
+        try {
+            console.log(`[STT-${this.sessionId}] Connecting to STT server: ${sttServerUrl}`);
+            
+            this.sttWs = new WebSocket(sttServerUrl);
+            
+            this.sttWs.on('open', () => {
+                console.log(`[STT-${this.sessionId}] Connected to STT server`);
+                this.isConnected = true;
+                this.reconnectAttempts = 0;
+                this.sendToFrontend({ type: 'stt_status', status: 'connected' });
+            });
+
+            this.sttWs.on('message', (data) => {
+                try {
+                    const message = JSON.parse(data.toString());
+                    console.log(`[STT-${this.sessionId}] Received from STT:`, message.type);
+                    
+                    // Forward STT messages to frontend
+                    this.sendToFrontend({
+                        type: 'stt_message',
+                        data: message
+                    });
+                } catch (error) {
+                    console.error(`[STT-${this.sessionId}] Error parsing STT message:`, error);
+                }
+            });
+
+            this.sttWs.on('close', (code, reason) => {
+                console.log(`[STT-${this.sessionId}] STT connection closed:`, code, reason?.toString());
+                this.isConnected = false;
+                this.sendToFrontend({ type: 'stt_status', status: 'disconnected' });
+                
+                // Auto-reconnect logic
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    setTimeout(() => {
+                        console.log(`[STT-${this.sessionId}] Reconnecting attempt ${this.reconnectAttempts}...`);
+                        this.connect(sttServerUrl);
+                    }, this.reconnectDelay * this.reconnectAttempts);
+                }
+            });
+
+            this.sttWs.on('error', (error) => {
+                console.error(`[STT-${this.sessionId}] STT connection error:`, error);
+                this.sendToFrontend({ type: 'stt_status', status: 'error', error: error.message });
+            });
+
+        } catch (error) {
+            console.error(`[STT-${this.sessionId}] Failed to connect to STT:`, error);
+            this.sendToFrontend({ type: 'stt_status', status: 'error', error: error.message });
+        }
+    }
+
+    sendToSTT(message) {
+        if (this.sttWs && this.isConnected) {
+            this.sttWs.send(JSON.stringify(message));
+        } else {
+            console.warn(`[STT-${this.sessionId}] Cannot send to STT - not connected`);
+        }
+    }
+
+    sendToFrontend(message) {
+        if (this.frontendWs && this.frontendWs.readyState === 1) {
+            this.frontendWs.send(JSON.stringify(message));
+        }
+    }
+
+    disconnect() {
+        console.log(`[STT-${this.sessionId}] Disconnecting STT client`);
+        if (this.sttWs) {
+            this.sttWs.close();
+            this.sttWs = null;
+        }
+        this.isConnected = false;
+    }
+}
+
+// LLM WebSocket client class
+class LLMClient {
+    constructor(sessionId, frontendWs) {
+        this.sessionId = sessionId;
+        this.frontendWs = frontendWs;
+        this.llmWs = null;
+        this.isConnected = false;
+        this.conversationHistory = [];
+    }
+
+    async connect(llmGatewayUrl = `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`) {
+        try {
+            console.log(`[LLM-${this.sessionId}] Connecting to LLM gateway: ${llmGatewayUrl}`);
+            
+            this.llmWs = new WebSocket(llmGatewayUrl);
+            
+            this.llmWs.on('open', () => {
+                console.log(`[LLM-${this.sessionId}] Connected to LLM gateway`);
+                this.isConnected = true;
+                this.sendToFrontend({ type: 'llm_status', status: 'connected' });
+            });
+
+            this.llmWs.on('message', (data) => {
+                try {
+                    const message = JSON.parse(data.toString());
+                    console.log(`[LLM-${this.sessionId}] Received from LLM:`, message.type || 'response');
+                    
+                    // Forward LLM messages to frontend
+                    this.sendToFrontend({
+                        type: 'llm_message',
+                        data: message
+                    });
+                } catch (error) {
+                    console.error(`[LLM-${this.sessionId}] Error parsing LLM message:`, error);
+                }
+            });
+
+            this.llmWs.on('close', (code, reason) => {
+                console.log(`[LLM-${this.sessionId}] LLM connection closed:`, code, reason?.toString());
+                this.isConnected = false;
+                this.sendToFrontend({ type: 'llm_status', status: 'disconnected' });
+            });
+
+            this.llmWs.on('error', (error) => {
+                console.error(`[LLM-${this.sessionId}] LLM connection error:`, error);
+                this.sendToFrontend({ type: 'llm_status', status: 'error', error: error.message });
+            });
+
+        } catch (error) {
+            console.error(`[LLM-${this.sessionId}] Failed to connect to LLM:`, error);
+            this.sendToFrontend({ type: 'llm_status', status: 'error', error: error.message });
+        }
+    }
+
+    sendMessage(userMessage) {
+        if (this.llmWs && this.isConnected) {
+            // Add to conversation history
+            this.conversationHistory.push({ role: 'user', content: userMessage });
+            
+            // Send to LLM gateway
+            const llmPayload = {
+                action: 'chat',
+                messages: this.conversationHistory.slice(-10), // Keep last 10 messages
+                sessionId: this.sessionId
+            };
+            
+            console.log(`[LLM-${this.sessionId}] Sending to LLM:`, userMessage);
+            this.llmWs.send(JSON.stringify(llmPayload));
+        } else {
+            console.warn(`[LLM-${this.sessionId}] Cannot send to LLM - not connected`);
+            this.sendToFrontend({ 
+                type: 'llm_message', 
+                data: { type: 'error', error: 'LLM not connected' }
+            });
+        }
+    }
+
+    sendToFrontend(message) {
+        if (this.frontendWs && this.frontendWs.readyState === 1) {
+            this.frontendWs.send(JSON.stringify(message));
+        }
+    }
+
+    disconnect() {
+        console.log(`[LLM-${this.sessionId}] Disconnecting LLM client`);
+        if (this.llmWs) {
+            this.llmWs.close();
+            this.llmWs = null;
+        }
+        this.isConnected = false;
+    }
+}
+
+// STT + LLM Integration WebSocket
+app.ws('/api/stt-llm-conversation', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[Session-${sessionId}] New STT+LLM conversation started`);
+    
+    // Create STT and LLM clients
+    const sttClient = new STTClient(sessionId, ws);
+    const llmClient = new LLMClient(sessionId, ws);
+    
+    // Store connections
+    sttConnections.set(sessionId, sttClient);
+    llmConnections.set(sessionId, llmClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[Session-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect_stt':
+                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
+                    await sttClient.connect(sttUrl);
+                    break;
+                    
+                case 'connect_llm':
+                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
+                    await llmClient.connect(llmUrl);
+                    break;
+                    
+                case 'start_transcription':
+                    sttClient.sendToSTT({ action: 'start' });
+                    break;
+                    
+                case 'stop_transcription':
+                    sttClient.sendToSTT({ action: 'stop' });
+                    break;
+                    
+                case 'configure_stt':
+                    sttClient.sendToSTT({ action: 'configure', config: data.config });
+                    break;
+                    
+                case 'send_to_llm':
+                    if (data.message) {
+                        llmClient.sendMessage(data.message);
+                    }
+                    break;
+                    
+                case 'audio_data':
+                    // Forward audio data to STT server
+                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
+                    break;
+                    
+                default:
+                    console.warn(`[Session-${sessionId}] Unknown action:`, data.action);
+            }
+            
+        } catch (error) {
+            console.error(`[Session-${sessionId}] Message processing error:`, error);
+            ws.send(JSON.stringify({ 
+                type: 'error', 
+                error: 'Failed to process message: ' + error.message 
+            }));
+        }
+    });
+    
+    // Handle conversation flow - when STT produces complete text, send to LLM
+    const originalSTTSendToFrontend = sttClient.sendToFrontend.bind(sttClient);
+    sttClient.sendToFrontend = (message) => {
+        // Call original method
+        originalSTTSendToFrontend(message);
+        
+        // Check if this is a complete transcription
+        if (message.type === 'stt_message' && 
+            message.data.type === 'complete' && 
+            message.data.text && 
+            message.data.text.trim()) {
+            
+            console.log(`[Session-${sessionId}] Complete transcription received, sending to LLM:`, message.data.text);
+            
+            // Automatically send complete transcription to LLM
+            llmClient.sendMessage(message.data.text.trim());
+        }
+    };
+    
+    ws.on('close', () => {
+        console.log(`[Session-${sessionId}] Conversation ended`);
+        
+        // Clean up connections
+        sttClient.disconnect();
+        llmClient.disconnect();
+        sttConnections.delete(sessionId);
+        llmConnections.delete(sessionId);
+    });
+    
+    ws.on('error', (error) => {
+        console.error(`[Session-${sessionId}] WebSocket error:`, error);
+        
+        // Clean up on error
+        sttClient.disconnect();
+        llmClient.disconnect();
+        sttConnections.delete(sessionId);
+        llmConnections.delete(sessionId);
+    });
+    
+    // Send initial status
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'Ready to connect STT and LLM services'
+    }));
+});
+
+// STT-only WebSocket (for testing STT independently)
+app.ws('/api/stt-only', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[STT-Only-${sessionId}] New STT-only session started`);
+    
+    const sttClient = new STTClient(sessionId, ws);
+    sttConnections.set(sessionId, sttClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[STT-Only-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect':
+                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
+                    await sttClient.connect(sttUrl);
+                    break;
+                case 'start':
+                    sttClient.sendToSTT({ action: 'start' });
+                    break;
+                case 'stop':
+                    sttClient.sendToSTT({ action: 'stop' });
+                    break;
+                case 'configure':
+                    sttClient.sendToSTT({ action: 'configure', config: data.config });
+                    break;
+                case 'audio_data':
+                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
+                    break;
+            }
+        } catch (error) {
+            console.error(`[STT-Only-${sessionId}] Error:`, error);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log(`[STT-Only-${sessionId}] Session ended`);
+        sttClient.disconnect();
+        sttConnections.delete(sessionId);
+    });
+    
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'STT-only session ready'
+    }));
+});
+
+// LLM-only WebSocket (for testing LLM independently)
+app.ws('/api/llm-only', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[LLM-Only-${sessionId}] New LLM-only session started`);
+    
+    const llmClient = new LLMClient(sessionId, ws);
+    llmConnections.set(sessionId, llmClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[LLM-Only-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect':
+                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
+                    await llmClient.connect(llmUrl);
+                    break;
+                case 'send_message':
+                    if (data.message) {
+                        llmClient.sendMessage(data.message);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error(`[LLM-Only-${sessionId}] Error:`, error);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log(`[LLM-Only-${sessionId}] Session ended`);
+        llmClient.disconnect();
+        llmConnections.delete(sessionId);
+    });
+    
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'LLM-only session ready'
+    }));
+});
+
+// Add REST API endpoints for STT and LLM
+router.get("/api/stt-status", (req, res) => {
+    const activeConnections = Array.from(sttConnections.entries()).map(([sessionId, client]) => ({
+        sessionId,
+        isConnected: client.isConnected,
+        reconnectAttempts: client.reconnectAttempts
+    }));
+    
+    res.status(200).json({
+        totalSessions: sttConnections.size,
+        activeConnections
+    });
+});
+
+router.get("/api/llm-status", (req, res) => {
+    const activeConnections = Array.from(llmConnections.entries()).map(([sessionId, client]) => ({
+        sessionId,
+        isConnected: client.isConnected,
+        historyLength: client.conversationHistory.length
+    }));
+    
+    res.status(200).json({
+        totalSessions: llmConnections.size,
+        activeConnections
+    });
+});
+
+// Add configuration endpoint
+router.get("/api/network-config", (req, res) => {
+    res.status(200).json({
+        server: {
+            host: SERVER_HOST,
+            port: SERVER_PORT
+        },
+        stt: {
+            host: STT_SERVER_HOST,
+            port: STT_SERVER_PORT,
+            enabled: STT_LLM_ENABLED,
+            defaultUrl: `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
+        },
+        llm: {
+            host: LLM_GATEWAY_HOST,
+            port: LLM_GATEWAY_PORT,
+            endpoint: LLM_ENDPOINT,
+            defaultUrl: `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`
+        },
+        websocket: {
+            reconnectAttempts: WS_RECONNECT_ATTEMPTS,
+            reconnectDelay: WS_RECONNECT_DELAY
+        }
+    });
+});
+
+
+// STT + LLM Integration WebSocket
+app.ws('/api/stt-llm-conversation', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[Session-${sessionId}] New STT+LLM conversation started`);
+    
+    // Create STT and LLM clients
+    const sttClient = new STTClient(sessionId, ws);
+    const llmClient = new LLMClient(sessionId, ws);
+    
+    // Store connections
+    sttConnections.set(sessionId, sttClient);
+    llmConnections.set(sessionId, llmClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[Session-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect_stt':
+                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
+                    await sttClient.connect(sttUrl);
+                    break;
+                    
+                case 'connect_llm':
+                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
+                    await llmClient.connect(llmUrl);
+                    break;
+                    
+                case 'start_transcription':
+                    sttClient.sendToSTT({ action: 'start' });
+                    break;
+                    
+                case 'stop_transcription':
+                    sttClient.sendToSTT({ action: 'stop' });
+                    break;
+                    
+                case 'configure_stt':
+                    sttClient.sendToSTT({ action: 'configure', config: data.config });
+                    break;
+                    
+                case 'send_to_llm':
+                    if (data.message) {
+                        llmClient.sendMessage(data.message);
+                    }
+                    break;
+                    
+                case 'audio_data':
+                    // Forward audio data to STT server
+                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
+                    break;
+                    
+                default:
+                    console.warn(`[Session-${sessionId}] Unknown action:`, data.action);
+            }
+            
+        } catch (error) {
+            console.error(`[Session-${sessionId}] Message processing error:`, error);
+            ws.send(JSON.stringify({ 
+                type: 'error', 
+                error: 'Failed to process message: ' + error.message 
+            }));
+        }
+    });
+    
+    // Handle conversation flow - when STT produces complete text, send to LLM
+    const originalSTTSendToFrontend = sttClient.sendToFrontend.bind(sttClient);
+    sttClient.sendToFrontend = (message) => {
+        // Call original method
+        originalSTTSendToFrontend(message);
+        
+        // Check if this is a complete transcription
+        if (message.type === 'stt_message' && 
+            message.data.type === 'complete' && 
+            message.data.text && 
+            message.data.text.trim()) {
+            
+            console.log(`[Session-${sessionId}] Complete transcription received, sending to LLM:`, message.data.text);
+            
+            // Automatically send complete transcription to LLM
+            llmClient.sendMessage(message.data.text.trim());
+        }
+    };
+    
+    ws.on('close', () => {
+        console.log(`[Session-${sessionId}] Conversation ended`);
+        
+        // Clean up connections
+        sttClient.disconnect();
+        llmClient.disconnect();
+        sttConnections.delete(sessionId);
+        llmConnections.delete(sessionId);
+    });
+    
+    ws.on('error', (error) => {
+        console.error(`[Session-${sessionId}] WebSocket error:`, error);
+        
+        // Clean up on error
+        sttClient.disconnect();
+        llmClient.disconnect();
+        sttConnections.delete(sessionId);
+        llmConnections.delete(sessionId);
+    });
+    
+    // Send initial status
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'Ready to connect STT and LLM services'
+    }));
+});
+
+// STT-only WebSocket (for testing STT independently)
+app.ws('/api/stt-only', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[STT-Only-${sessionId}] New STT-only session started`);
+    
+    const sttClient = new STTClient(sessionId, ws);
+    sttConnections.set(sessionId, sttClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[STT-Only-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect':
+                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
+                    await sttClient.connect(sttUrl);
+                    break;
+                case 'start':
+                    sttClient.sendToSTT({ action: 'start' });
+                    break;
+                case 'stop':
+                    sttClient.sendToSTT({ action: 'stop' });
+                    break;
+                case 'configure':
+                    sttClient.sendToSTT({ action: 'configure', config: data.config });
+                    break;
+                case 'audio_data':
+                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
+                    break;
+            }
+        } catch (error) {
+            console.error(`[STT-Only-${sessionId}] Error:`, error);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log(`[STT-Only-${sessionId}] Session ended`);
+        sttClient.disconnect();
+        sttConnections.delete(sessionId);
+    });
+    
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'STT-only session ready'
+    }));
+});
+
+// LLM-only WebSocket (for testing LLM independently)
+app.ws('/api/llm-only', (ws, req) => {
+    const sessionId = Math.random().toString(36).substr(2, 9);
+    console.log(`[LLM-Only-${sessionId}] New LLM-only session started`);
+    
+    const llmClient = new LLMClient(sessionId, ws);
+    llmConnections.set(sessionId, llmClient);
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString());
+            console.log(`[LLM-Only-${sessionId}] Received command:`, data.action);
+            
+            switch(data.action) {
+                case 'connect':
+                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
+                    await llmClient.connect(llmUrl);
+                    break;
+                case 'send_message':
+                    if (data.message) {
+                        llmClient.sendMessage(data.message);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error(`[LLM-Only-${sessionId}] Error:`, error);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log(`[LLM-Only-${sessionId}] Session ended`);
+        llmClient.disconnect();
+        llmConnections.delete(sessionId);
+    });
+    
+    ws.send(JSON.stringify({ 
+        type: 'session_created', 
+        sessionId: sessionId,
+        status: 'LLM-only session ready'
+    }));
+});
+
+// Add REST API endpoints for STT and LLM
+router.get("/api/stt-status", (req, res) => {
+    const activeConnections = Array.from(sttConnections.entries()).map(([sessionId, client]) => ({
+        sessionId,
+        isConnected: client.isConnected,
+        reconnectAttempts: client.reconnectAttempts
+    }));
+    
+    res.status(200).json({
+        totalSessions: sttConnections.size,
+        activeConnections
+    });
+});
+
+router.get("/api/llm-status", (req, res) => {
+    const activeConnections = Array.from(llmConnections.entries()).map(([sessionId, client]) => ({
+        sessionId,
+        isConnected: client.isConnected,
+        historyLength: client.conversationHistory.length
+    }));
+    
+    res.status(200).json({
+        totalSessions: llmConnections.size,
+        activeConnections
+    });
 });

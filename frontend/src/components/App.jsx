@@ -15,7 +15,8 @@ import MoveController from "./pages/MoveController"
 import Puppeteer from "./pages/Puppeteer"
 import Tom from "./pages/Tom"
 import NovaSonicForT from "./pages/NovaSonicForT"
-import AudioStreamTest from "./pages/AudioStreamTest"
+import STTTest from "./pages/STTTest"
+import STTLLMTest from "./pages/STTLLMTest"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -58,8 +59,8 @@ export default function App() {
                 element: <MoveController />
             },
             {
-                path: '/audio-stream-test',
-                element: <AudioStreamTest />
+                path: '/stt-test',
+                element: <STTTest />
             },
             {
                 path: '/puppeteer',
@@ -72,6 +73,10 @@ export default function App() {
             {
                 path: '/test',
                 element: <NovaSonicForT />
+            },
+            {
+                path: '/stt-llm-test',
+                element: <STTLLMTest />
             }
         ])} />
     )
