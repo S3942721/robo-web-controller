@@ -36,8 +36,6 @@ const STT_SERVER_PORT = process.env.STT_SERVER_PORT || 8765;
 const STT_LLM_ENABLED = process.env.STT_LLM_ENABLED === 'true';
 
 const LLM_GATEWAY_HOST = process.env.LLM_GATEWAY_HOST || 'localhost';
-const LLM_GATEWAY_PORT = process.env.LLM_GATEWAY_PORT || 8080;
-const LLM_ENDPOINT = process.env.LLM_ENDPOINT || '/chat';
 
 const WS_RECONNECT_ATTEMPTS = parseInt(process.env.WS_RECONNECT_ATTEMPTS) || 5;
 const WS_RECONNECT_DELAY = parseInt(process.env.WS_RECONNECT_DELAY) || 2000;
@@ -89,36 +87,36 @@ function readSettings() {
 		all_scripts[profile_name] = parseScriptObject(
             JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }))
         );
-		console.log(`Loaded script file: ${file_path}`);
-		console.log('For profile:', profile_name);
+		// console.log(`Loaded script file: ${file_path}`);
+		// console.log('For profile:', profile_name);
 	});
 	scripts = all_scripts[Object.keys(all_scripts)[0]];
 
 	const profiles_path = join(__dirname, 'settings', 'profiles.json');
 	profiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }));
-	console.log(`Loaded profiles file: ${profiles_path}`);
+	// console.log(`Loaded profiles file: ${profiles_path}`);
 	current_profile = profiles[0];
-	console.log('Current profile:', current_profile);
+	// console.log('Current profile:', current_profile);
 
 	const triggers_path = join(__dirname, 'settings', 'triggers.json');
 	triggers = parseTriggers(JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' })));
-	console.log(`Loaded triggers file: ${triggers_path}`);
+	// console.log(`Loaded triggers file: ${triggers_path}`);
 
 	const shortcuts_path = join(__dirname, 'settings', 'shortcuts.json');
 	shortcuts = JSON.parse(readFileSync(shortcuts_path, { encoding: 'utf-8' }));
-	console.log(`Loaded shortcuts file: ${shortcuts_path}`);
+	// console.log(`Loaded shortcuts file: ${shortcuts_path}`);
 
 	const paged_shortcuts_path = join(__dirname, 'settings', 'paged_shortcuts.json');
 	paged_shortcuts = parsePagedShortcuts(JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' })));
-	console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
+	// console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
 
 	const announcements_path = join(__dirname, 'settings', 'announcements.json');
 	announcements = JSON.parse(readFileSync(announcements_path, { encoding: 'utf-8' }));
-	console.log(`Loaded announcements file: ${announcements_path}`);
+	// console.log(`Loaded announcements file: ${announcements_path}`);
 
 	const all_possible_files_path = join(__dirname, 'settings', 'all_possible_files.json');
 	all_possible_files = JSON.parse(readFileSync(all_possible_files_path, { encoding: 'utf-8' }));
-	console.log(`Loaded all possible files: ${all_possible_files_path}`);
+	// console.log(`Loaded all possible files: ${all_possible_files_path}`);
 }
 
 // Initial read of settings files
@@ -126,10 +124,10 @@ readSettings();
 
 const moveConfigPath = join(__dirname, 'settings', 'move_config.json');
 let move_config = {};
-console.log(`Loading move config: ${moveConfigPath}`);
+// console.log(`Loading move config: ${moveConfigPath}`);
 try {
     move_config = JSON.parse(readFileSync(moveConfigPath, { encoding: 'utf-8' }));
-    console.log(`Loaded move config: ${moveConfigPath}`);
+    // console.log(`Loaded move config: ${moveConfigPath}`);
 } catch(err) {
     console.error("Error loading move_config.json:", err);
 }
@@ -138,7 +136,7 @@ const scrollControllersConfigPath = join(__dirname, 'settings', 'scroll_controll
 let scroll_controllers_config = {};
 try {
     scroll_controllers_config = JSON.parse(readFileSync(scrollControllersConfigPath, { encoding: 'utf-8' }));
-    console.log(`Loaded scroll controllers config: ${scrollControllersConfigPath}`);
+    // console.log(`Loaded scroll controllers config: ${scrollControllersConfigPath}`);
 } catch(err) {
     console.error("Error loading scroll_controllers_config.json:", err);
 }
@@ -500,9 +498,8 @@ router.get("/api/network-config", (req, res) => {
         },
         llm: {
             host: LLM_GATEWAY_HOST,
-            port: LLM_GATEWAY_PORT,
-            endpoint: LLM_ENDPOINT,
-            defaultUrl: `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`
+            enabled: true,
+            defaultUrl: LLM_GATEWAY_HOST // Use the full URL from environment
         },
         websocket: {
             reconnectAttempts: WS_RECONNECT_ATTEMPTS,
@@ -595,6 +592,7 @@ class STTClient {
     async connect(sttServerUrl = `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`) {
         try {
             console.log(`[STT-${this.sessionId}] Connecting to STT server: ${sttServerUrl}`);
+            this.sendToFrontend({ type: 'stt_status', status: 'connecting' });
             
             this.sttWs = new WebSocket(sttServerUrl);
             
@@ -628,15 +626,20 @@ class STTClient {
                 // Auto-reconnect logic
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
+                    console.log(`[STT-${this.sessionId}] Scheduling reconnect attempt ${this.reconnectAttempts} in ${this.reconnectDelay * this.reconnectAttempts}ms`);
                     setTimeout(() => {
                         console.log(`[STT-${this.sessionId}] Reconnecting attempt ${this.reconnectAttempts}...`);
                         this.connect(sttServerUrl);
                     }, this.reconnectDelay * this.reconnectAttempts);
+                } else {
+                    console.log(`[STT-${this.sessionId}] Max reconnect attempts reached`);
+                    this.sendToFrontend({ type: 'stt_status', status: 'error', error: 'Max reconnect attempts reached' });
                 }
             });
 
             this.sttWs.on('error', (error) => {
                 console.error(`[STT-${this.sessionId}] STT connection error:`, error);
+                this.isConnected = false;
                 this.sendToFrontend({ type: 'stt_status', status: 'error', error: error.message });
             });
 
@@ -647,10 +650,12 @@ class STTClient {
     }
 
     sendToSTT(message) {
-        if (this.sttWs && this.isConnected) {
+        if (this.sttWs && this.sttWs.readyState === WebSocket.OPEN) {
             this.sttWs.send(JSON.stringify(message));
+            console.log(`[STT-${this.sessionId}] Sent to STT:`, message.action);
         } else {
             console.warn(`[STT-${this.sessionId}] Cannot send to STT - not connected`);
+            this.sendToFrontend({ type: 'stt_status', status: 'error', error: 'STT not connected' });
         }
     }
 
@@ -662,6 +667,7 @@ class STTClient {
 
     disconnect() {
         console.log(`[STT-${this.sessionId}] Disconnecting STT client`);
+        this.reconnectAttempts = this.maxReconnectAttempts; // Stop auto-reconnect
         if (this.sttWs) {
             this.sttWs.close();
             this.sttWs = null;
@@ -678,13 +684,28 @@ class LLMClient {
         this.llmWs = null;
         this.isConnected = false;
         this.conversationHistory = [];
+        this.pendingRequests = new Map(); // Track pending requests with timestamps
+        this.delayStats = {
+            totalRequests: 0,
+            totalDelay: 0,
+            minDelay: Infinity,
+            maxDelay: 0,
+            averageDelay: 0,
+            recentDelays: [] // Keep last 10 delays
+        };
+        // Add server-side timing tracking
+        this.serverTimestamps = new Map(); // requestId -> server timestamp
+        this.firstResponseReceived = new Map(); // requestId -> boolean
     }
 
-    async connect(llmGatewayUrl = `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`) {
+    async connect(llmGatewayUrl) {
         try {
-            console.log(`[LLM-${this.sessionId}] Connecting to LLM gateway: ${llmGatewayUrl}`);
+            // Use the full URL if provided, otherwise construct from environment
+            const finalUrl = llmGatewayUrl || LLM_GATEWAY_HOST;
+            console.log(`[LLM-${this.sessionId}] Connecting to LLM gateway: ${finalUrl}`);
+            this.sendToFrontend({ type: 'llm_status', status: 'connecting' });
             
-            this.llmWs = new WebSocket(llmGatewayUrl);
+            this.llmWs = new WebSocket(finalUrl);
             
             this.llmWs.on('open', () => {
                 console.log(`[LLM-${this.sessionId}] Connected to LLM gateway`);
@@ -695,7 +716,62 @@ class LLMClient {
             this.llmWs.on('message', (data) => {
                 try {
                     const message = JSON.parse(data.toString());
-                    console.log(`[LLM-${this.sessionId}] Received from LLM:`, message.type || 'response');
+                    const serverReceiveTime = Date.now(); // Server-side timestamp
+                    console.log(`[LLM-${this.sessionId}] Received from LLM at server time ${serverReceiveTime}:`, message.type || 'response');
+                    
+                    // Calculate server-side delay for first response
+                    if (message.content || message.response) {
+                        // Find the corresponding request
+                        let matchedRequestId = null;
+                        let serverSendTime = null;
+                        
+                        // Try to match by requestId if provided in response
+                        if (message.requestId && this.serverTimestamps.has(message.requestId)) {
+                            matchedRequestId = message.requestId;
+                            serverSendTime = this.serverTimestamps.get(matchedRequestId);
+                        } else {
+                            // Fall back to finding the oldest pending request
+                            for (const [requestId, timestamp] of this.serverTimestamps.entries()) {
+                                if (!this.firstResponseReceived.get(requestId)) {
+                                    matchedRequestId = requestId;
+                                    serverSendTime = timestamp;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Calculate delay if we found a matching request
+                        if (matchedRequestId && serverSendTime && !this.firstResponseReceived.get(matchedRequestId)) {
+                            const serverDelay = serverReceiveTime - serverSendTime;
+                            this.firstResponseReceived.set(matchedRequestId, true);
+                            this.updateDelayStats(serverDelay);
+                            
+                            console.log(`[LLM-${this.sessionId}] ⏱️  Server-side STT→LLM delay: ${serverDelay}ms (send: ${serverSendTime}, receive: ${serverReceiveTime})`);
+                            
+                            // Send server-side timing info to frontend
+                            this.sendToFrontend({
+                                type: 'server_delay_measurement',
+                                delay: serverDelay,
+                                serverSendTime: serverSendTime,
+                                serverReceiveTime: serverReceiveTime,
+                                requestId: matchedRequestId,
+                                stats: { ...this.delayStats }
+                            });
+                            
+                            // Clean up old timestamps
+                            this.serverTimestamps.delete(matchedRequestId);
+                            this.firstResponseReceived.delete(matchedRequestId);
+                            this.pendingRequests.delete(matchedRequestId);
+                        }
+                    }
+                    
+                    // Add assistant response to history
+                    if (message.content || message.response) {
+                        this.conversationHistory.push({ 
+                            role: 'assistant', 
+                            content: message.content || message.response 
+                        });
+                    }
                     
                     // Forward LLM messages to frontend
                     this.sendToFrontend({
@@ -715,6 +791,7 @@ class LLMClient {
 
             this.llmWs.on('error', (error) => {
                 console.error(`[LLM-${this.sessionId}] LLM connection error:`, error);
+                this.isConnected = false;
                 this.sendToFrontend({ type: 'llm_status', status: 'error', error: error.message });
             });
 
@@ -724,22 +801,35 @@ class LLMClient {
         }
     }
 
-    sendMessage(userMessage) {
-        if (this.llmWs && this.isConnected) {
+    sendMessage(userMessage, sourceInfo = {}) {
+        if (this.llmWs && this.isConnected && this.llmWs.readyState === WebSocket.OPEN) {
+            const serverSendTime = Date.now(); // Server-side timestamp
+            const requestId = `${this.sessionId}-${serverSendTime}`;
+            
+            // Store server-side timestamps
+            this.pendingRequests.set(requestId, serverSendTime);
+            this.serverTimestamps.set(requestId, serverSendTime);
+            this.firstResponseReceived.set(requestId, false);
+            
             // Add to conversation history
             this.conversationHistory.push({ role: 'user', content: userMessage });
             
-            // Send to LLM gateway
+            // Send to LLM gateway - use the format expected by AWS API Gateway
             const llmPayload = {
-                action: 'chat',
-                messages: this.conversationHistory.slice(-10), // Keep last 10 messages
-                sessionId: this.sessionId
+                action: 'completion',
+                history: this.conversationHistory.slice(-10), // Keep last 10 messages
+                requestId: requestId,
+                serverSendTime: serverSendTime // Include server timestamp for debugging
             };
             
-            console.log(`[LLM-${this.sessionId}] Sending to LLM:`, userMessage);
+            console.log(`[LLM-${this.sessionId}] 📤 Sending to LLM at server time ${serverSendTime}: "${userMessage}" (source: ${sourceInfo.source || 'manual'})`);
+            if (sourceInfo.sttCompleteTime) {
+                console.log(`[LLM-${this.sessionId}] 🎤 STT complete time: ${sourceInfo.sttCompleteTime}ms ago`);
+            }
+            
             this.llmWs.send(JSON.stringify(llmPayload));
         } else {
-            console.warn(`[LLM-${this.sessionId}] Cannot send to LLM - not connected`);
+            console.warn(`[LLM-${this.sessionId}] Cannot send to LLM - not connected (state: ${this.llmWs?.readyState})`);
             this.sendToFrontend({ 
                 type: 'llm_message', 
                 data: { type: 'error', error: 'LLM not connected' }
@@ -760,13 +850,17 @@ class LLMClient {
             this.llmWs = null;
         }
         this.isConnected = false;
+        this.pendingRequests.clear();
+        // Clean up server-side tracking
+        this.serverTimestamps.clear();
+        this.firstResponseReceived.clear();
     }
 }
 
 // STT + LLM Integration WebSocket
 app.ws('/api/stt-llm-conversation', (ws, req) => {
     const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[Session-${sessionId}] New STT+LLM conversation started`);
+    console.log(`[Session-${sessionId}] 🚀 New STT+LLM conversation started`);
     
     // Create STT and LLM clients
     const sttClient = new STTClient(sessionId, ws);
@@ -779,35 +873,49 @@ app.ws('/api/stt-llm-conversation', (ws, req) => {
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message.toString());
-            console.log(`[Session-${sessionId}] Received command:`, data.action);
+            console.log(`[Session-${sessionId}] 📨 Received command:`, data.action, data);
             
             switch(data.action) {
                 case 'connect_stt':
-                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
+                    const sttUrl = data.sttServerUrl || `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`;
+                    console.log(`[Session-${sessionId}] Connecting to STT: ${sttUrl}`);
                     await sttClient.connect(sttUrl);
                     break;
                     
                 case 'connect_llm':
-                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
+                    const llmUrl = data.llmGatewayUrl || LLM_GATEWAY_HOST;
+                    console.log(`[Session-${sessionId}] Connecting to LLM: ${llmUrl}`);
                     await llmClient.connect(llmUrl);
                     break;
                     
                 case 'start_transcription':
+                    console.log(`[Session-${sessionId}] Starting transcription`);
                     sttClient.sendToSTT({ action: 'start' });
                     break;
                     
                 case 'stop_transcription':
+                    console.log(`[Session-${sessionId}] Stopping transcription`);
                     sttClient.sendToSTT({ action: 'stop' });
                     break;
                     
                 case 'configure_stt':
+                    console.log(`[Session-${sessionId}] Configuring STT:`, data.config);
                     sttClient.sendToSTT({ action: 'configure', config: data.config });
                     break;
                     
                 case 'send_to_llm':
                     if (data.message) {
-                        llmClient.sendMessage(data.message);
+                        console.log(`[Session-${sessionId}] Sending manual message to LLM:`, data.message);
+                        llmClient.sendMessage(data.message, { source: 'manual' });
                     }
+                    break;
+
+                case 'get_delay_stats':
+                    // Send current delay statistics
+                    ws.send(JSON.stringify({
+                        type: 'delay_stats',
+                        stats: llmClient.getDelayStats()
+                    }));
                     break;
                     
                 case 'audio_data':
@@ -817,6 +925,10 @@ app.ws('/api/stt-llm-conversation', (ws, req) => {
                     
                 default:
                     console.warn(`[Session-${sessionId}] Unknown action:`, data.action);
+                    ws.send(JSON.stringify({ 
+                        type: 'error', 
+                        error: 'Unknown action: ' + data.action
+                    }));
             }
             
         } catch (error) {
@@ -840,10 +952,15 @@ app.ws('/api/stt-llm-conversation', (ws, req) => {
             message.data.text && 
             message.data.text.trim()) {
             
-            console.log(`[Session-${sessionId}] Complete transcription received, sending to LLM:`, message.data.text);
+            const sttCompleteTime = Date.now();
+            console.log(`[Session-${sessionId}] 🎤 Complete transcription received at server time ${sttCompleteTime}, sending to LLM:`, message.data.text);
             
-            // Automatically send complete transcription to LLM
-            llmClient.sendMessage(message.data.text.trim());
+            // Automatically send complete transcription to LLM with server timing info
+            llmClient.sendMessage(message.data.text.trim(), { 
+                source: 'stt',
+                sttCompleteTime: sttCompleteTime,
+                serverTimestamp: sttCompleteTime
+            });
         }
     };
     
@@ -986,266 +1103,8 @@ router.get("/api/llm-status", (req, res) => {
     const activeConnections = Array.from(llmConnections.entries()).map(([sessionId, client]) => ({
         sessionId,
         isConnected: client.isConnected,
-        historyLength: client.conversationHistory.length
-    }));
-    
-    res.status(200).json({
-        totalSessions: llmConnections.size,
-        activeConnections
-    });
-});
-
-// Add configuration endpoint
-router.get("/api/network-config", (req, res) => {
-    res.status(200).json({
-        server: {
-            host: SERVER_HOST,
-            port: SERVER_PORT
-        },
-        stt: {
-            host: STT_SERVER_HOST,
-            port: STT_SERVER_PORT,
-            enabled: STT_LLM_ENABLED,
-            defaultUrl: `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
-        },
-        llm: {
-            host: LLM_GATEWAY_HOST,
-            port: LLM_GATEWAY_PORT,
-            endpoint: LLM_ENDPOINT,
-            defaultUrl: `ws://${LLM_GATEWAY_HOST}:${LLM_GATEWAY_PORT}${LLM_ENDPOINT}`
-        },
-        websocket: {
-            reconnectAttempts: WS_RECONNECT_ATTEMPTS,
-            reconnectDelay: WS_RECONNECT_DELAY
-        }
-    });
-});
-
-
-// STT + LLM Integration WebSocket
-app.ws('/api/stt-llm-conversation', (ws, req) => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[Session-${sessionId}] New STT+LLM conversation started`);
-    
-    // Create STT and LLM clients
-    const sttClient = new STTClient(sessionId, ws);
-    const llmClient = new LLMClient(sessionId, ws);
-    
-    // Store connections
-    sttConnections.set(sessionId, sttClient);
-    llmConnections.set(sessionId, llmClient);
-    
-    ws.on('message', async (message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            console.log(`[Session-${sessionId}] Received command:`, data.action);
-            
-            switch(data.action) {
-                case 'connect_stt':
-                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
-                    await sttClient.connect(sttUrl);
-                    break;
-                    
-                case 'connect_llm':
-                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
-                    await llmClient.connect(llmUrl);
-                    break;
-                    
-                case 'start_transcription':
-                    sttClient.sendToSTT({ action: 'start' });
-                    break;
-                    
-                case 'stop_transcription':
-                    sttClient.sendToSTT({ action: 'stop' });
-                    break;
-                    
-                case 'configure_stt':
-                    sttClient.sendToSTT({ action: 'configure', config: data.config });
-                    break;
-                    
-                case 'send_to_llm':
-                    if (data.message) {
-                        llmClient.sendMessage(data.message);
-                    }
-                    break;
-                    
-                case 'audio_data':
-                    // Forward audio data to STT server
-                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
-                    break;
-                    
-                default:
-                    console.warn(`[Session-${sessionId}] Unknown action:`, data.action);
-            }
-            
-        } catch (error) {
-            console.error(`[Session-${sessionId}] Message processing error:`, error);
-            ws.send(JSON.stringify({ 
-                type: 'error', 
-                error: 'Failed to process message: ' + error.message 
-            }));
-        }
-    });
-    
-    // Handle conversation flow - when STT produces complete text, send to LLM
-    const originalSTTSendToFrontend = sttClient.sendToFrontend.bind(sttClient);
-    sttClient.sendToFrontend = (message) => {
-        // Call original method
-        originalSTTSendToFrontend(message);
-        
-        // Check if this is a complete transcription
-        if (message.type === 'stt_message' && 
-            message.data.type === 'complete' && 
-            message.data.text && 
-            message.data.text.trim()) {
-            
-            console.log(`[Session-${sessionId}] Complete transcription received, sending to LLM:`, message.data.text);
-            
-            // Automatically send complete transcription to LLM
-            llmClient.sendMessage(message.data.text.trim());
-        }
-    };
-    
-    ws.on('close', () => {
-        console.log(`[Session-${sessionId}] Conversation ended`);
-        
-        // Clean up connections
-        sttClient.disconnect();
-        llmClient.disconnect();
-        sttConnections.delete(sessionId);
-        llmConnections.delete(sessionId);
-    });
-    
-    ws.on('error', (error) => {
-        console.error(`[Session-${sessionId}] WebSocket error:`, error);
-        
-        // Clean up on error
-        sttClient.disconnect();
-        llmClient.disconnect();
-        sttConnections.delete(sessionId);
-        llmConnections.delete(sessionId);
-    });
-    
-    // Send initial status
-    ws.send(JSON.stringify({ 
-        type: 'session_created', 
-        sessionId: sessionId,
-        status: 'Ready to connect STT and LLM services'
-    }));
-});
-
-// STT-only WebSocket (for testing STT independently)
-app.ws('/api/stt-only', (ws, req) => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[STT-Only-${sessionId}] New STT-only session started`);
-    
-    const sttClient = new STTClient(sessionId, ws);
-    sttConnections.set(sessionId, sttClient);
-    
-    ws.on('message', async (message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            console.log(`[STT-Only-${sessionId}] Received command:`, data.action);
-            
-            switch(data.action) {
-                case 'connect':
-                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
-                    await sttClient.connect(sttUrl);
-                    break;
-                case 'start':
-                    sttClient.sendToSTT({ action: 'start' });
-                    break;
-                case 'stop':
-                    sttClient.sendToSTT({ action: 'stop' });
-                    break;
-                case 'configure':
-                    sttClient.sendToSTT({ action: 'configure', config: data.config });
-                    break;
-                case 'audio_data':
-                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
-                    break;
-            }
-        } catch (error) {
-            console.error(`[STT-Only-${sessionId}] Error:`, error);
-            ws.send(JSON.stringify({ type: 'error', error: error.message }));
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log(`[STT-Only-${sessionId}] Session ended`);
-        sttClient.disconnect();
-        sttConnections.delete(sessionId);
-    });
-    
-    ws.send(JSON.stringify({ 
-        type: 'session_created', 
-        sessionId: sessionId,
-        status: 'STT-only session ready'
-    }));
-});
-
-// LLM-only WebSocket (for testing LLM independently)
-app.ws('/api/llm-only', (ws, req) => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[LLM-Only-${sessionId}] New LLM-only session started`);
-    
-    const llmClient = new LLMClient(sessionId, ws);
-    llmConnections.set(sessionId, llmClient);
-    
-    ws.on('message', async (message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            console.log(`[LLM-Only-${sessionId}] Received command:`, data.action);
-            
-            switch(data.action) {
-                case 'connect':
-                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
-                    await llmClient.connect(llmUrl);
-                    break;
-                case 'send_message':
-                    if (data.message) {
-                        llmClient.sendMessage(data.message);
-                    }
-                    break;
-            }
-        } catch (error) {
-            console.error(`[LLM-Only-${sessionId}] Error:`, error);
-            ws.send(JSON.stringify({ type: 'error', error: error.message }));
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log(`[LLM-Only-${sessionId}] Session ended`);
-        llmClient.disconnect();
-        llmConnections.delete(sessionId);
-    });
-    
-    ws.send(JSON.stringify({ 
-        type: 'session_created', 
-        sessionId: sessionId,
-        status: 'LLM-only session ready'
-    }));
-});
-
-// Add REST API endpoints for STT and LLM
-router.get("/api/stt-status", (req, res) => {
-    const activeConnections = Array.from(sttConnections.entries()).map(([sessionId, client]) => ({
-        sessionId,
-        isConnected: client.isConnected,
-        reconnectAttempts: client.reconnectAttempts
-    }));
-    
-    res.status(200).json({
-        totalSessions: sttConnections.size,
-        activeConnections
-    });
-});
-
-router.get("/api/llm-status", (req, res) => {
-    const activeConnections = Array.from(llmConnections.entries()).map(([sessionId, client]) => ({
-        sessionId,
-        isConnected: client.isConnected,
-        historyLength: client.conversationHistory.length
+        historyLength: client.conversationHistory.length,
+        delayStats: client.getDelayStats()
     }));
     
     res.status(200).json({
