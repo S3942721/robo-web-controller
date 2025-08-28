@@ -310,73 +310,29 @@ export default function STTLLMTest() {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
                 
-                // Only add to conversation history when the response is finished
-                if (data.isFinished) {
-                    // Accumulate all content chunks
-                    setConversationHistory(prev => {
-                        const lastItem = prev[prev.length - 1];
-                        if (lastItem && lastItem.type === 'assistant' && lastItem.accumulating) {
-                            // Update the last assistant message
-                            return [
-                                ...prev.slice(0, -1),
-                                {
-                                    ...lastItem,
-                                    text: lastItem.text + data.content,
-                                    accumulating: false
-                                }
-                            ];
-                        } else {
-                            // Find existing assistant message or create new one
-                            const existingAssistantIndex = prev.findIndex(item => 
-                                item.type === 'assistant' && item.accumulating
-                            );
-                            
-                            if (existingAssistantIndex >= 0) {
-                                // Update existing assistant message
-                                const updated = [...prev];
-                                updated[existingAssistantIndex] = {
-                                    ...updated[existingAssistantIndex],
-                                    text: updated[existingAssistantIndex].text + data.content,
-                                    accumulating: false
-                                };
-                                return updated;
-                            } else {
-                                // Create new assistant message
-                                return [...prev, {
-                                    text: data.content,
-                                    timestamp: timestamp,
-                                    type: 'assistant',
-                                    accumulating: false
-                                }];
-                            }
-                        }
-                    });
-                } else {
-                    // For streaming responses, accumulate content
-                    setConversationHistory(prev => {
-                        const existingAssistantIndex = prev.findIndex(item => 
-                            item.type === 'assistant' && item.accumulating
-                        );
-                        
-                        if (existingAssistantIndex >= 0) {
-                            // Update existing assistant message
-                            const updated = [...prev];
-                            updated[existingAssistantIndex] = {
-                                ...updated[existingAssistantIndex],
-                                text: updated[existingAssistantIndex].text + data.content
-                            };
-                            return updated;
-                        } else {
-                            // Create new accumulating assistant message
-                            return [...prev, {
-                                text: data.content,
-                                timestamp: timestamp,
-                                type: 'assistant',
-                                accumulating: true
-                            }];
-                        }
-                    });
-                }
+                setConversationHistory(prev => {
+                    // Check if the last item is an accumulating assistant message
+                    const lastItem = prev[prev.length - 1];
+                    
+                    if (lastItem && lastItem.type === 'assistant' && lastItem.accumulating) {
+                        // Update the existing accumulating message
+                        const updated = [...prev];
+                        updated[updated.length - 1] = {
+                            ...lastItem,
+                            text: lastItem.text + data.content,
+                            accumulating: !data.isFinished // Stop accumulating if response is finished
+                        };
+                        return updated;
+                    } else {
+                        // Create a new assistant message entry
+                        return [...prev, {
+                            text: data.content,
+                            timestamp: timestamp,
+                            type: 'assistant',
+                            accumulating: !data.isFinished // Will be false if this is a complete single chunk
+                        }];
+                    }
+                });
                 
                 if (data.isFinished) {
                     setOverallStatus('🤖 AI responded - Ready for your next input');
@@ -385,9 +341,16 @@ export default function STTLLMTest() {
                 }
             }
         } else if (data.content) {
-            // Handle streaming or partial responses
+            // Handle other response formats - create new entry for each response
+            const timestamp = new Date().toLocaleTimeString();
+            setConversationHistory(prev => [...prev, {
+                text: data.content,
+                timestamp: timestamp,
+                type: 'assistant',
+                accumulating: false
+            }]);
             setLLMResponse(prev => prev + (data.content || ''));
-            setOverallStatus('🤖 AI is responding...');
+            setOverallStatus('🤖 AI responded - Ready for your next input');
         } else if (data.error) {
             console.error('❌ LLM Error:', data.error);
             setOverallStatus('❌ LLM Error: ' + data.error);
@@ -819,7 +782,8 @@ export default function STTLLMTest() {
                                         marginBottom: '8px',
                                         backgroundColor: item.type === 'assistant' ? '#f8f9ff' : '#fff8f0',
                                         borderLeft: `4px solid ${item.type === 'assistant' ? '#007bff' : '#ffc107'}`,
-                                        borderRadius: '4px'
+                                        borderRadius: '4px',
+                                        opacity: item.accumulating ? 0.8 : 1.0 // Slightly fade accumulating messages
                                     }}
                                 >
                                     <div style={{ 
@@ -830,6 +794,7 @@ export default function STTLLMTest() {
                                     }}>
                                         {item.type === 'assistant' ? '🤖 AI Assistant' : '👤 You'}
                                         {item.manual && <span style={{ color: '#6c757d' }}> (manual)</span>}
+                                        {item.accumulating && <span style={{ color: '#999', fontSize: '12px' }}> (streaming...)</span>}
                                     </div>
                                     <div style={{ fontSize: '16px', marginBottom: '4px' }}>
                                         "{item.text}"
