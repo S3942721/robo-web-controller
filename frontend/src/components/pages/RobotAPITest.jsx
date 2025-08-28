@@ -55,6 +55,9 @@ export default function RobotAPITest() {
                 case 'script':
                     result = await robotAPI.executeScript(message, selectedRobot || null);
                     break;
+                case 'conversation-response':
+                    result = await robotAPI.sendConversationResponse(message, selectedRobot || null);
+                    break;
                 case 'shortcut':
                     result = await robotAPI.executeShortcut(message, selectedRobot || null);
                     break;
@@ -213,6 +216,7 @@ export default function RobotAPITest() {
                             style={{ width: '100%', padding: '8px', marginTop: '5px' }}
                         >
                             <option value="script">Script</option>
+                            <option value="conversation-response">Conversation Response</option>
                             <option value="shortcut">Shortcut</option>
                             <option value="trigger">Trigger (JSON)</option>
                             <option value="announcement">Announcement</option>
