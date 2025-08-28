@@ -18,6 +18,7 @@ export default function Controller() {
                 <a href="/scripts" style={{ marginRight: '15px', color: '#007bff' }}>📜 Scripts</a>
                 <a href="/shortcuts" style={{ marginRight: '15px', color: '#007bff' }}>⌨️ Shortcuts</a>
                 <a href="/move-control" style={{ marginRight: '15px', color: '#007bff' }}>🎮 Move Control</a>
+                <a href="/robot-api-test" style={{ marginRight: '15px', color: '#007bff' }}>🤖 Robot API Test</a>
                 <a href="/upload-json" style={{ color: '#007bff' }}>📤 Upload Settings</a>
             </div>
             <MoveController />

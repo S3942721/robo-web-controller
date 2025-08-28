@@ -17,6 +17,7 @@ import Tom from "./pages/Tom"
 import NovaSonicForT from "./pages/NovaSonicForT"
 import STTTest from "./pages/STTTest"
 import STTLLMTest from "./pages/STTLLMTest"
+import RobotAPITest from "./pages/RobotAPITest"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -77,6 +78,10 @@ export default function App() {
             {
                 path: '/stt-llm-test',
                 element: <STTLLMTest />
+            },
+            {
+                path: '/robot-api-test',
+                element: <RobotAPITest />
             }
         ])} />
     )
