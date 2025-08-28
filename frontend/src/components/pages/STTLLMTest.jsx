@@ -35,9 +35,14 @@ export default function STTLLMTest() {
     // Add state for LLM chunk processor
     const [sendToRobot, setSendToRobot] = useState(true);
     const [targetRobot, setTargetRobot] = useState('Haku');
-    // const [chunkProcessorStatus, setChunkProcessorStatus] = useState('disconnected');
     const [chunkConfig, setChunkConfig] = useState(null);
-    const chunkProcessorRef = useRef(null);
+
+    // Add state for buffer management
+    const [bufferStatus, setBufferStatus] = useState(null);
+    const [currentLLMSession, setCurrentLLMSession] = useState(null);
+
+    // Add session ID tracking
+    const sessionIdRef = useRef(null);
 
     useEffect(() => {
         // Load network configuration from server
@@ -51,6 +56,10 @@ export default function STTLLMTest() {
                 console.error('Failed to load network config:', err);
                 setOverallStatus('❌ Failed to load configuration');
             });
+
+        // Generate session ID when component mounts or when starting new conversation
+        sessionIdRef.current = `stt-llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('Generated session ID:', sessionIdRef.current);
 
         return () => {
             disconnect();
@@ -296,6 +305,7 @@ export default function STTLLMTest() {
         }
     };
 
+    // Track LLM session ID from responses
     const handleLLMMessage = (data) => {
         console.log('🤖 Processing LLM data:', data);
         
@@ -318,9 +328,9 @@ export default function STTLLMTest() {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
                 
-                // Send to robot if enabled - use Robot API directly
+                // Send to robot if enabled - use Robot API directly with session ID
                 if (sendToRobot && data.content.trim()) {
-                    sendLLMResponseToRobot(data.content.trim(), data.isFinished);
+                    sendLLMResponseToRobot(data.content.trim(), data.isFinished, data.sessionId || sessionIdRef.current);
                 }
                 
                 setConversationHistory(prev => {
@@ -349,9 +359,9 @@ export default function STTLLMTest() {
                 
                 if (data.isFinished) {
                     setOverallStatus('🤖 AI responded - Ready for your next input');
-                    // Send final chunk marker
+                    // Send final chunk marker with session ID
                     if (sendToRobot) {
-                        sendLLMResponseToRobot('', true);
+                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current);
                     }
                 } else {
                     setOverallStatus('🤖 AI is responding...');
@@ -361,9 +371,9 @@ export default function STTLLMTest() {
             // Handle other response formats - create new entry for each response
             const timestamp = new Date().toLocaleTimeString();
             
-            // Send to robot if enabled
+            // Send to robot if enabled with session ID
             if (sendToRobot && data.content.trim()) {
-                sendLLMResponseToRobot(data.content.trim(), true); // Assume single chunk responses are finished
+                sendLLMResponseToRobot(data.content.trim(), true, sessionIdRef.current); // Assume single chunk responses are finished
             }
             
             setConversationHistory(prev => [...prev, {
@@ -382,19 +392,20 @@ export default function STTLLMTest() {
         }
     };
 
-    // Remove the chunk processor connection code and use Robot API directly
-    const sendLLMResponseToRobot = async (content, isFinished = false) => {
+    // Updated function to include session ID
+    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null) => {
         if (!sendToRobot || !targetRobot) {
             console.log('🤖 Robot integration disabled or no target robot selected');
             return;
         }
 
         try {
-            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API:`, content);
+            const effectiveSessionId = sessionId || sessionIdRef.current;
+            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}):`, content);
             console.log(`🤖 Response chunk finished: ${isFinished}`);
             
-            // Use Robot API to send conversation response directly
-            const result = await robotAPI.sendConversationResponse(content, targetRobot);
+            // Use Robot API to send conversation response with session ID
+            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId);
             
             if (result.success) {
                 console.log(`✅ LLM response sent to robot ${targetRobot} successfully`);
@@ -409,7 +420,16 @@ export default function STTLLMTest() {
         }
     };
 
-    // Delay statistics update function
+    // Add function to generate new session when starting a new conversation
+    const startNewSession = () => {
+        const newSessionId = `stt-llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        sessionIdRef.current = newSessionId;
+        console.log('Started new session:', newSessionId);
+        setConversationHistory([]);
+        setOverallStatus('🔄 New session started - Ready for your input');
+    };
+
+        // Delay statistics update function
     const updateDelayStats = (delay) => {
         setDelayStats(prev => {
             const newStats = {
@@ -489,16 +509,9 @@ export default function STTLLMTest() {
             llmWsRef.current = null;
         }
         
-        // Close chunk processor connection
-        // if (chunkProcessorRef.current) {
-        //     chunkProcessorRef.current.close();
-        //     chunkProcessorRef.current = null;
-        // }
-        
         setSessionId('');
         setSTTStatus('disconnected');
         setLLMStatus('disconnected');
-        // setChunkProcessorStatus('disconnected');
         setOverallStatus('Disconnected');
     };
 
@@ -573,9 +586,95 @@ export default function STTLLMTest() {
         setOverallStatus('🔗 Connecting services...');
     };
 
+    // Buffer management functions
+    const flushBuffer = async () => {
+        if (!currentLLMSession) {
+            setOverallStatus('❌ No active LLM session to flush');
+            return;
+        }
+
+        try {
+            console.log('🚿 Flushing buffer for session:', currentLLMSession);
+            const result = await robotAPI.flushBuffer(currentLLMSession, targetRobot);
+            
+            if (result.success) {
+                setOverallStatus(`✅ Buffer flushed: ${result.message}`);
+                updateBufferStatus();
+            } else {
+                setOverallStatus(`❌ Flush failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to flush buffer:', error);
+            setOverallStatus('❌ Failed to flush buffer');
+        }
+    };
+
+    const clearBuffer = async () => {
+        if (!currentLLMSession) {
+            setOverallStatus('❌ No active LLM session to clear');
+            return;
+        }
+
+        try {
+            console.log('🗑️ Clearing buffer for session:', currentLLMSession);
+            const result = await robotAPI.clearBuffer(currentLLMSession);
+            
+            if (result.success) {
+                setOverallStatus(`✅ Buffer cleared: ${result.message}`);
+                updateBufferStatus();
+            } else {
+                setOverallStatus(`❌ Clear failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to clear buffer:', error);
+            setOverallStatus('❌ Failed to clear buffer');
+        }
+    };
+
+    const forceProcessBuffer = async () => {
+        if (!currentLLMSession) {
+            setOverallStatus('❌ No active LLM session to process');
+            return;
+        }
+
+        try {
+            console.log('⚡ Force processing buffer for session:', currentLLMSession);
+            const result = await robotAPI.forceProcessBuffer(currentLLMSession, targetRobot);
+            
+            if (result.success) {
+                setOverallStatus(`✅ Force processed: ${result.message}`);
+                updateBufferStatus();
+            } else {
+                setOverallStatus(`❌ Force process failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to force process buffer:', error);
+            setOverallStatus('❌ Failed to force process buffer');
+        }
+    };
+
+    const updateBufferStatus = async () => {
+        if (!currentLLMSession) return;
+
+        try {
+            const status = await robotAPI.getBufferStatus(currentLLMSession);
+            setBufferStatus(status);
+        } catch (error) {
+            console.error('Failed to get buffer status:', error);
+        }
+    };
+
+    // Update buffer status periodically when session is active
+    useEffect(() => {
+        if (currentLLMSession) {
+            const interval = setInterval(updateBufferStatus, 2000);
+            return () => clearInterval(interval);
+        }
+    }, [currentLLMSession]);
+
     return (
         <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-            <h2>🎙️💬 STT+LLM Conversation Test (Direct Connection)</h2>
+            <h2>🎙️💬 Speech-to-Text + LLM Test</h2>
             
             {/* Connection Configuration */}
             <div style={{ 
@@ -937,6 +1036,100 @@ export default function STTLLMTest() {
                     </div>
                 )}
             </div>
+
+            {/* Buffer Management Section */}
+            {currentLLMSession && (
+                <div style={{ 
+                    marginBottom: '20px', 
+                    padding: '15px', 
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px'
+                }}>
+                    <h4>🔧 Buffer Management</h4>
+                    <p><strong>Session ID:</strong> {currentLLMSession}</p>
+                    
+                    {bufferStatus && bufferStatus.exists && (
+                        <div style={{ marginBottom: '15px' }}>
+                            <p><strong>Buffer Length:</strong> {bufferStatus.bufferLength} characters</p>
+                            <p><strong>Chunk Mode:</strong> {bufferStatus.chunkMode}</p>
+                            <p><strong>Target Robot:</strong> {bufferStatus.targetRobot}</p>
+                            <p><strong>Is Empty:</strong> {bufferStatus.isEmpty ? 'Yes' : 'No'}</p>
+                            {bufferStatus.bufferContent && (
+                                <div style={{ 
+                                    marginTop: '10px',
+                                    padding: '10px',
+                                    backgroundColor: '#e9ecef',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '12px'
+                                }}>
+                                    <strong>Buffer Content:</strong><br />
+                                    "{bufferStatus.bufferContent}"
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button 
+                            onClick={flushBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🚿 Flush Buffer
+                        </button>
+                        
+                        <button 
+                            onClick={clearBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🗑️ Clear Buffer
+                        </button>
+                        
+                        <button 
+                            onClick={forceProcessBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#fd7e14',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            ⚡ Force Process
+                        </button>
+                        
+                        <button 
+                            onClick={updateBufferStatus}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🔄 Refresh Status
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Instructions */}
             <div style={{ 

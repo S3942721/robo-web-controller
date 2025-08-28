@@ -37,20 +37,30 @@ class RobotAPIClient {
     }
 
     /**
-     * Send a message to a robot via the API
+     *  Send a conversation response with session support
      */
-    async sendMessage(message, robot = null, type = 'api') {
+    async sendConversationResponse(message, robot = null, sessionId = null) {
+        return this.sendMessage(message, robot, 'conversation-response', sessionId);
+    }
+
+    /**
+     * Send a message to a robot via the API with session support
+     */
+    async sendMessage(message, robot = null, type = 'api', sessionId = null) {
         try {
+            const requestBody = {
+                message,
+                robot,
+                type,
+                sessionId
+            };
+            
             const response = await fetch(`${this.baseUrl}/api/robot-send`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    message,
-                    robot,
-                    type
-                })
+                body: JSON.stringify(requestBody)
             });
             return await response.json();
         } catch (error) {
@@ -64,13 +74,6 @@ class RobotAPIClient {
      */
     async executeScript(script, robot = null) {
         return this.sendMessage(script, robot, 'script');
-    }
-
-    /**
-     *  Send a conversation response
-     */
-    async sendConversationResponse(responseData, robot = null) {
-        return this.sendMessage(responseData, robot, 'conversation-response');
     }
 
     /**
@@ -106,6 +109,107 @@ class RobotAPIClient {
      */
     async executeAnnouncement(announcement, robot = null) {
         return this.sendMessage(announcement, robot, 'announcement');
+    }
+
+    /**
+     * Flush buffer for a specific session
+     */
+    async flushBuffer(sessionId, targetRobot = 'Haku') {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/flush/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ targetRobot })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to flush buffer:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Clear buffer for a specific session
+     */
+    async clearBuffer(sessionId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/clear/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to clear buffer:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get buffer status for a specific session
+     */
+    async getBufferStatus(sessionId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/status/${sessionId}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get buffer status:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all buffer statuses
+     */
+    async getAllBufferStatuses() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/status`);
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to get all buffer statuses:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Force process buffer for a specific session
+     */
+    async forceProcessBuffer(sessionId, targetRobot = 'Haku') {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/force-process/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ targetRobot })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to force process buffer:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update chunk mode for a specific session
+     */
+    async updateSessionChunkMode(sessionId, chunkMode) {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/robot-buffer/update-mode/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ chunkMode })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to update chunk mode:', error);
+            throw error;
+        }
     }
 }
 

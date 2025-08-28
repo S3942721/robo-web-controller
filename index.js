@@ -1004,7 +1004,7 @@ router.get("/api/robot-history/:robot?", (req, res) => {
 
 // Add Robot API message sending endpoint
 router.post("/api/robot-send", (req, res) => {
-    const { message, robot, type = 'api' } = req.body;
+    const { message, robot, type = 'api', sessionId } = req.body;
     
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
@@ -1015,6 +1015,7 @@ router.post("/api/robot-send", (req, res) => {
         type: type,
         message: message,
         robot: robot || '',
+        sessionId: sessionId,
         timestamp: Date.now(),
         source: 'api'
     };
@@ -1026,4 +1027,77 @@ router.post("/api/robot-send", (req, res) => {
         message: sent ? 'Message sent successfully' : 'Message queued (no active connections)',
         messageData
     });
+});
+
+// Add Robot API buffer management endpoints
+router.post("/api/robot-buffer/flush/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    const { targetRobot } = req.body;
+    
+    const result = robotAPI.flushBuffer(sessionId, targetRobot);
+    
+    if (result.success) {
+        res.status(200).json(result);
+    } else {
+        res.status(404).json(result);
+    }
+});
+
+router.post("/api/robot-buffer/clear/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    
+    const result = robotAPI.clearBuffer(sessionId);
+    
+    if (result.success) {
+        res.status(200).json(result);
+    } else {
+        res.status(404).json(result);
+    }
+});
+
+router.get("/api/robot-buffer/status/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    
+    const status = robotAPI.getBufferStatus(sessionId);
+    
+    if (status.exists) {
+        res.status(200).json(status);
+    } else {
+        res.status(404).json(status);
+    }
+});
+
+router.get("/api/robot-buffer/status", (req, res) => {
+    const statuses = robotAPI.getAllBufferStatuses();
+    res.status(200).json(statuses);
+});
+
+router.post("/api/robot-buffer/force-process/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    const { targetRobot } = req.body;
+    
+    const result = robotAPI.forceProcessBuffer(sessionId, targetRobot);
+    
+    if (result.success) {
+        res.status(200).json(result);
+    } else {
+        res.status(404).json(result);
+    }
+});
+
+router.post("/api/robot-buffer/update-mode/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    const { chunkMode } = req.body;
+    
+    if (!chunkMode) {
+        return res.status(400).json({ error: 'chunkMode is required' });
+    }
+    
+    const result = robotAPI.updateSessionChunkMode(sessionId, chunkMode);
+    
+    if (result.success) {
+        res.status(200).json(result);
+    } else {
+        res.status(400).json(result);
+    }
 });
