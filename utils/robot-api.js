@@ -37,25 +37,51 @@ class RobotAPI extends EventEmitter {
         };
         this.defaultRobotName = process.env.DEFAULT_ROBOT_NAME || 'unknown';
         
+        // Session-based chunk buffering - track sessions separately from LLM sessions
+        this.chunkBuffers = new Map(); // sessionId -> { buffer, lastChunkTime, robot }
+        this.CHUNK_TIMEOUT = 2000; // Send buffer if no new chunks for 2 seconds
+        this.BUFFER_CHECK_INTERVAL = 500; // Check buffers every 500ms
+        
         console.log('[RobotAPI] Initialized with identification method:', this.identificationMethod);
         console.log('[RobotAPI] Robot IP mappings:', this.robotIPs);
         console.log('[RobotAPI] LLM chunk processing mode:', LLM_CHUNK_MODE);
         
         this.setupDefaultHandlers();
         this.setupCleanupInterval();
+        this.startBufferMonitoring();
     }
 
     setupDefaultHandlers() {
         // Add middleware for LLM conversation responses
         this.addMiddleware((direction, message) => {
             if (direction === 'outgoing' && message.type === 'conversation-response') {
-                console.log(`[RobotAPI] 🗣️ Processing LLM conversation response: "${message.message?.substring(0, 100)}${message.message?.length > 100 ? '...' : ''}"`);
+                console.log(`[RobotAPI] 🗣️ Processing LLM conversation response: "${message.message?.substring(0, 50)}${message.message?.length > 50 ? '...' : ''}"`);
                 console.log(`[RobotAPI] 📊 Response details - robot: ${message.robot}, source: ${message.source || 'unknown'}, sessionId: ${message.sessionId || 'none'}`);
                 
                 // Validate the message content
                 if (!message.message || !message.message.trim()) {
                     console.warn(`[RobotAPI] ⚠️ Empty conversation response message - blocking`);
                     return null; // Block empty messages
+                }
+                
+                // Don't re-process messages that already came from chunk buffer
+                if (message.source === 'chunk-buffer') {
+                    console.log(`[RobotAPI] ✅ Message from chunk buffer - sending directly without re-buffering`);
+                    // Update robot status but don't buffer again
+                    this.updateRobotStatus(message.robot, 'speaking', {
+                        messageLength: message.message.length,
+                        source: message.source,
+                        timestamp: message.timestamp
+                    });
+                    return message; // Send directly without buffering
+                }
+                
+                // Only buffer messages from API calls (not from chunk buffer)
+                if (message.source === 'api' && message.sessionId) {
+                    console.log(`[RobotAPI] 📥 Intercepting chunk for buffering: "${message.message}"`);
+                    this.addToChunkBuffer(message.sessionId, message.message, message.robot);
+                    console.log(`[RobotAPI] Message blocked by middleware:`, message);
+                    return null; // Block the original message since we're buffering it
                 }
                 
                 // Log chunk characteristics for debugging
@@ -109,6 +135,346 @@ class RobotAPI extends EventEmitter {
         this.cleanupInterval = setInterval(() => {
             this.cleanupInactiveConnections();
         }, 30000); // Clean up every 30 seconds
+    }
+
+    startBufferMonitoring() {
+        setInterval(() => {
+            this.checkStaleBuffers();
+        }, this.BUFFER_CHECK_INTERVAL);
+    }
+
+    checkStaleBuffers() {
+        const now = Date.now();
+        for (const [sessionId, bufferInfo] of this.chunkBuffers.entries()) {
+            if (bufferInfo.buffer.trim() && (now - bufferInfo.lastChunkTime) > this.CHUNK_TIMEOUT) {
+                console.log(`[RobotAPI] 🕒 Buffer timeout for session ${sessionId}, flushing: "${bufferInfo.buffer}"`);
+                this.flushChunkBuffer(sessionId);
+            }
+        }
+    }
+
+    /**
+     * Add content to chunk buffer for session-based buffering
+     */
+    addToChunkBuffer(sessionId, content, targetRobot = 'Haku') {
+        if (!this.chunkBuffers.has(sessionId)) {
+            this.chunkBuffers.set(sessionId, {
+                buffer: '',
+                lastChunkTime: Date.now(),
+                robot: targetRobot
+            });
+        }
+
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        bufferInfo.buffer += content;
+        bufferInfo.lastChunkTime = Date.now();
+        bufferInfo.robot = targetRobot;
+
+        console.log(`[RobotAPI] 📝 Added to buffer ${sessionId}: "${content}" (total: ${bufferInfo.buffer.length} chars)`);
+        // console.log(`[RobotAPI] 📋 Complete buffer for ${sessionId}: "${bufferInfo.buffer}"`);
+        
+        // Check if we should send the buffer
+        this.processChunkBuffer(sessionId, false);
+    }
+
+    /**
+     * Check if a chunk of text is safe to send to the robot.
+     * It's safe if all ^...() and {...} patterns are complete.
+     */
+    canSendChunkToRobot(chunk) {
+        // Check for balanced braces
+        let braceCount = 0;
+        for (const char of chunk) {
+            if (char === '{') braceCount++;
+            if (char === '}') braceCount--;
+            if (braceCount < 0) return false; // Unmatched closing brace
+        }
+        if (braceCount > 0) return false; // Unmatched opening brace
+
+        // Check for ^...() patterns. A '^' must be followed by a closing ')'
+        let caretIndex = chunk.lastIndexOf('^');
+        if (caretIndex !== -1) {
+            // If a caret exists, check if a corresponding ')' exists after it.
+            // This is a simplification. It assumes no nested parentheses in commands.
+            if (chunk.indexOf(')', caretIndex) === -1) {
+                return false; // Unmatched caret
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks if a string consists only of valid, complete patterns.
+     */
+    isOnlyPatterns(text) {
+        if (!text || !text.trim()) return false;
+
+        // Regex for ^...() patterns, allowing for nested parentheses.
+        const caretPattern = /\^[\w\d_]+\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)/g;
+        // Regex for {...} patterns, simplified for JavaScript compatibility.
+        const bracePattern = /\{[^{}]*\}/g;
+
+        let remainingText = text.trim();
+        
+        // Remove all occurrences of both patterns
+        remainingText = remainingText.replace(caretPattern, '').trim();
+        remainingText = remainingText.replace(bracePattern, '').trim();
+
+        // If nothing is left, it was only patterns
+        return remainingText.length === 0;
+    }
+
+    /**
+     * Process chunk buffer to extract complete sentences with pattern boundaries
+     */
+    processChunkBuffer(sessionId, isFinished = false) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo || !bufferInfo.buffer) return;
+
+        let buffer = bufferInfo.buffer;
+        const sentenceMarkers = ['.', '!', '?'];
+
+        // First, process complete sentences
+        for (let i = 0; i < buffer.length; i++) {
+            if (sentenceMarkers.includes(buffer[i])) {
+                const potentialChunk = buffer.substring(0, i + 1);
+                if (this.canSendChunkToRobot(potentialChunk)) {
+                    console.log(`[RobotAPI] 🚀 Found sendable sentence for session ${sessionId}: "${potentialChunk}"`);
+                    this.flushChunkBufferWithContent(sessionId, potentialChunk);
+                    
+                    // Update buffer and reset search
+                    buffer = buffer.substring(potentialChunk.length);
+                    bufferInfo.buffer = buffer;
+                    i = -1; // Restart loop from the beginning of the new buffer
+                }
+            }
+        }
+        
+        // After sentence processing, check the remainder of the buffer
+        const remainingBuffer = buffer.trim();
+        if (remainingBuffer.length > 0) {
+            // Condition 1: The entire remaining buffer is ONLY patterns and is safe to send
+            if (this.isOnlyPatterns(remainingBuffer) && this.canSendChunkToRobot(remainingBuffer)) {
+                console.log(`[RobotAPI] 🚀 Found sendable pattern-only chunk for session ${sessionId}: "${remainingBuffer}"`);
+                this.flushChunkBuffer(sessionId); // Flush the entire remaining buffer
+            }
+            // Condition 2: The stream is finished, flush whatever is left
+            else if (isFinished) {
+                console.log(`[RobotAPI] 🏁 Stream finished, flushing remaining buffer for session ${sessionId}: "${remainingBuffer}"`);
+                this.flushChunkBuffer(sessionId);
+            }
+        }
+    }
+
+    /**
+     * Flush chunk buffer with specific content
+     */
+    flushChunkBufferWithContent(sessionId, content) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo) {
+            return {
+                success: false,
+                message: `No buffer found for session ${sessionId}`,
+                content: ''
+            };
+        }
+
+        const targetRobot = bufferInfo.robot;
+
+        console.log(`[RobotAPI] 🗣️ Sending buffered response: "${content}"`);
+
+        // Send the content to robot with chunk-buffer source to avoid re-processing
+        const messageData = {
+            cmd: 'req-execute',
+            type: 'conversation-response',
+            message: content,
+            robot: targetRobot,
+            source: 'chunk-buffer', // CRITICAL: Mark as chunk-buffer to prevent re-processing
+            sessionId: sessionId,
+            timestamp: Date.now()
+        };
+
+        const sent = this.sendMessage(messageData, targetRobot);
+        
+        return {
+            success: true,
+            message: `Sent ${content.length} characters to robot ${targetRobot}`,
+            content: content,
+            sent: sent
+        };
+    }
+
+    /**
+     * Flush chunk buffer and send to robot
+     */
+    flushChunkBuffer(sessionId) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo || !bufferInfo.buffer.trim()) {
+            return {
+                success: false,
+                message: `No buffer found for session ${sessionId}`,
+                content: ''
+            };
+        }
+
+        const content = bufferInfo.buffer.trim();
+        const targetRobot = bufferInfo.robot;
+
+        console.log(`[RobotAPI] 🚀 Flushing buffer for session ${sessionId} to robot ${targetRobot}: "${content}"`);
+
+        // Send the buffered content to robot with chunk-buffer source to avoid re-processing
+        const messageData = {
+            cmd: 'req-execute',
+            type: 'conversation-response',
+            message: content,
+            robot: targetRobot,
+            source: 'chunk-buffer', // CRITICAL: Mark as chunk-buffer to prevent re-processing
+            sessionId: sessionId,
+            timestamp: Date.now()
+        };
+
+        const sent = this.sendMessage(messageData, targetRobot);
+        
+        // Clear the buffer
+        this.chunkBuffers.delete(sessionId);
+        
+        return {
+            success: true,
+            message: `Flushed ${content.length} characters to robot ${targetRobot}`,
+            content: content,
+            sent: sent
+        };
+    }
+
+    /**
+     * Flushes the remaining buffer, typically at the end of a stream.
+     */
+    flushRemainingBuffer(sessionId) {
+        console.log(`[RobotAPI] Flushing remaining buffer for session ${sessionId} due to end of stream.`);
+        this.processChunkBuffer(sessionId, true);
+        // Ensure buffer is cleared if processChunkBuffer didn't flush
+        if (this.chunkBuffers.has(sessionId)) {
+            this.flushChunkBuffer(sessionId);
+        }
+    }
+
+    /**
+     * Clear chunk buffer without sending
+     */
+    clearChunkBuffer(sessionId) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo) {
+            return { success: false, message: 'No buffer found' };
+        }
+
+        const content = bufferInfo.buffer;
+        this.chunkBuffers.delete(sessionId);
+        
+        console.log(`[RobotAPI] 🗑️ Cleared buffer for session ${sessionId}: "${content}"`);
+        
+        return {
+            success: true,
+            message: `Cleared ${content.length} characters`,
+            content: content
+        };
+    }
+
+    /**
+     * Get chunk buffer status
+     */
+    getChunkBufferStatus(sessionId) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo) {
+            return { exists: false, message: 'No buffer found' };
+        }
+
+        return {
+            exists: true,
+            sessionId: sessionId,
+            bufferLength: bufferInfo.buffer.length,
+            content: bufferInfo.buffer,
+            lastChunkTime: bufferInfo.lastChunkTime,
+            robot: bufferInfo.robot,
+            age: Date.now() - bufferInfo.lastChunkTime
+        };
+    }
+
+    /**
+     * Get all chunk buffer statuses
+     */
+    getAllChunkBufferStatuses() {
+        const statuses = {};
+        for (const [sessionId, bufferInfo] of this.chunkBuffers.entries()) {
+            statuses[sessionId] = {
+                bufferLength: bufferInfo.buffer.length,
+                content: bufferInfo.buffer.substring(0, 100) + (bufferInfo.buffer.length > 100 ? '...' : ''),
+                lastChunkTime: bufferInfo.lastChunkTime,
+                robot: bufferInfo.robot,
+                age: Date.now() - bufferInfo.lastChunkTime
+            };
+        }
+        return {
+            totalBuffers: this.chunkBuffers.size,
+            buffers: statuses
+        };
+    }
+
+    /**
+     * Force process chunk buffer regardless of completion state
+     */
+    forceProcessChunkBuffer(sessionId, targetRobot) {
+        const bufferInfo = this.chunkBuffers.get(sessionId);
+        if (!bufferInfo) {
+            return { success: false, message: 'No buffer found' };
+        }
+
+        if (targetRobot) {
+            bufferInfo.robot = targetRobot;
+        }
+
+        return this.flushChunkBuffer(sessionId);
+    }
+
+    // Add compatibility methods for the endpoints
+    flushBuffer(sessionId, targetRobot) {
+        return this.flushChunkBuffer(sessionId);
+    }
+
+    clearBuffer(sessionId) {
+        return this.clearChunkBuffer(sessionId);
+    }
+
+    getBufferStatus(sessionId) {
+        return this.getChunkBufferStatus(sessionId);
+    }
+
+    getAllBufferStatuses() {
+        return this.getAllChunkBufferStatuses();
+    }
+
+    forceProcessBuffer(sessionId, targetRobot) {
+        return this.forceProcessChunkBuffer(sessionId, targetRobot);
+    }
+
+    updateSessionChunkMode(sessionId, chunkMode) {
+        const session = this.llmSessions.get(sessionId);
+        if (!session) {
+            return { success: false, message: 'Session not found' };
+        }
+        
+        const oldMode = session.chunkMode;
+        session.chunkMode = chunkMode;
+        
+        console.log(`[RobotAPI] Updated chunk mode for session ${sessionId}: ${oldMode} → ${chunkMode}`);
+        
+        return {
+            success: true,
+            message: `Updated chunk mode from ${oldMode} to ${chunkMode}`,
+            sessionId: sessionId,
+            oldMode: oldMode,
+            newMode: chunkMode
+        };
     }
 
     generateSocketId() {
@@ -207,7 +573,7 @@ class RobotAPI extends EventEmitter {
      * Send a message to a specific robot or all robots
      */
     sendMessage(messageData, targetRobot = null) {
-        const { cmd, type, message, robot } = messageData;
+        const { cmd, type, message, robot, sessionId } = messageData;
         
         // Apply middleware before sending
         let processedMessage = this.applyMiddleware('outgoing', messageData);
@@ -477,7 +843,8 @@ class RobotAPI extends EventEmitter {
     }
 
     /**
-     * Process LLM response chunks for robot speech
+     * Process LLM chunk for robot speech
+     * Now groups incoming chunks in buffer and only sends to robot when a safe boundary is reached.
      */
     processLLMChunk(sessionId, content, isFinished = false, targetRobot = 'Haku') {
         console.log(`[RobotAPI] 🔄 Processing LLM chunk for session ${sessionId}: content=${content ? content.length : 0} chars, finished=${isFinished}, robot=${targetRobot}`);
@@ -489,35 +856,69 @@ class RobotAPI extends EventEmitter {
                 chunkMode: LLM_CHUNK_MODE,
                 targetRobot: targetRobot
             });
-            console.log(`[RobotAPI] 📝 Created new LLM session ${sessionId} with mode: ${LLM_CHUNK_MODE}`);
         }
-        
         const session = this.llmSessions.get(sessionId);
-        
+
         // Add new content to buffer
         if (content) {
             session.speechBuffer += content;
-            console.log(`[RobotAPI] 📝 Added ${content.length} chars to session ${sessionId} buffer. Total: ${session.speechBuffer.length} chars`);
-            console.log(`[RobotAPI] 📄 Current buffer: "${session.speechBuffer.substring(0, 200)}${session.speechBuffer.length > 200 ? '...' : ''}"`);
         }
-        
-        // Process based on chunk mode
+
+        // Only send to robot when a safe boundary is reached
         switch (session.chunkMode) {
             case 'raw':
-                this.processRawChunks(sessionId, content, isFinished);
+                // For raw, send immediately (legacy, not recommended)
+                if (content && content.trim()) {
+                    this.sendSpeechToRobot(content.trim(), sessionId);
+                }
+                if (isFinished && session.speechBuffer.trim()) {
+                    this.sendSpeechToRobot(session.speechBuffer.trim(), sessionId);
+                    session.speechBuffer = '';
+                }
                 break;
             case 'pattern':
-                this.processPatternPreservingChunks(sessionId, content, isFinished);
+                // Send only when buffer contains complete ^...() or {...}
+                while (true) {
+                    const safeChunk = this.extractSafePatternChunk(sessionId);
+                    if (safeChunk) {
+                        this.sendSpeechToRobot(safeChunk, sessionId);
+                        session.speechBuffer = session.speechBuffer.substring(safeChunk.length);
+                    } else {
+                        break;
+                    }
+                }
+                if (isFinished && session.speechBuffer.trim()) {
+                    this.sendSpeechToRobot(session.speechBuffer.trim(), sessionId);
+                    session.speechBuffer = '';
+                }
                 break;
             case 'smart':
             default:
-                this.processSmartChunks(sessionId, content, isFinished);
+                // Send only when buffer contains a complete sentence and safe patterns
+                while (true) {
+                    const smartChunks = this.extractSmartChunks(sessionId);
+                    if (smartChunks.length > 0) {
+                        for (const chunk of smartChunks) {
+                            this.sendSpeechToRobot(chunk, sessionId);
+                            // Remove sent chunk from buffer
+                            const idx = session.speechBuffer.indexOf(chunk);
+                            if (idx !== -1) {
+                                session.speechBuffer = session.speechBuffer.substring(idx + chunk.length);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if (isFinished && session.speechBuffer.trim()) {
+                    this.sendSpeechToRobot(session.speechBuffer.trim(), sessionId);
+                    session.speechBuffer = '';
+                }
                 break;
         }
-        
+
         // Clean up finished session
         if (isFinished) {
-            console.log(`[RobotAPI] 🏁 Session ${sessionId} finished - cleaning up`);
             this.llmSessions.delete(sessionId);
         }
     }
@@ -711,33 +1112,6 @@ class RobotAPI extends EventEmitter {
         }
         
         return safeChunk || session.speechBuffer.substring(0, LLM_MIN_CHUNK_LENGTH);
-    }
-
-    /**
-     * Check if a chunk can be safely sent to robot (doesn't split important patterns)
-     */
-    canSendChunkToRobot(chunk) {
-        if (!chunk || !chunk.trim()) return false;
-        
-        // Count occurrences of special characters
-        const openBraces = (chunk.match(/{/g) || []).length;
-        const closeBraces = (chunk.match(/}/g) || []).length;
-        const carets = (chunk.match(/\^/g) || []).length;
-        const closeParens = (chunk.match(/\)/g) || []).length;
-        
-        // Check if braces are balanced
-        const bracesBalanced = openBraces === closeBraces;
-        
-        // Check if caret patterns are complete
-        const caretPatternsComplete = carets === closeParens;
-        
-        // Additional check: ensure we don't have orphaned ^ without (
-        const openPatterns = (chunk.match(/\^[^)]*$/g) || []).length;
-        const hasOrphanedPattern = openPatterns > 0;
-        
-        const isSafe = bracesBalanced && caretPatternsComplete && !hasOrphanedPattern;
-        
-        return isSafe;
     }
 
     /**

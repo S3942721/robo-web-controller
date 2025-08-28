@@ -66,7 +66,7 @@ export default function RobotAPITest() {
                         const triggerData = JSON.parse(message);
                         result = await robotAPI.sendTrigger(triggerData, selectedRobot || null);
                     } catch (e) {
-                        result = { success: false, error: 'Invalid JSON for trigger data' };
+                        result = { success: false, error: 'Invalid JSON for trigger data: ' + e.message };
                     }
                     break;
                 default:
