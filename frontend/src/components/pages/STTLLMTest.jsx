@@ -311,7 +311,7 @@ export default function STTLLMTest() {
         
         if (data.action === 'completion') {
             // Check if this is the first response chunk with content
-            if (data.content && data.content.trim() && sttCompleteTimeRef.current) {
+            if (data.content && sttCompleteTimeRef.current) {
                 const responseTime = Date.now();
                 const delay = responseTime - sttCompleteTimeRef.current;
                 
@@ -324,13 +324,13 @@ export default function STTLLMTest() {
                 sttCompleteTimeRef.current = null;
             }
             
-            if (data.content && data.content.trim()) {
+            if (data.content) {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
                 
                 // Send to robot if enabled - use Robot API directly with session ID
-                if (sendToRobot && data.content.trim()) {
-                    sendLLMResponseToRobot(data.content.trim(), data.isFinished, data.sessionId || sessionIdRef.current);
+                if (sendToRobot && data.content) {
+                    sendLLMResponseToRobot(data.content, data.isFinished, data.sessionId || sessionIdRef.current);
                 }
                 
                 setConversationHistory(prev => {
@@ -372,8 +372,8 @@ export default function STTLLMTest() {
             const timestamp = new Date().toLocaleTimeString();
             
             // Send to robot if enabled with session ID
-            if (sendToRobot && data.content.trim()) {
-                sendLLMResponseToRobot(data.content.trim(), true, sessionIdRef.current); // Assume single chunk responses are finished
+            if (sendToRobot && data.content) {
+                sendLLMResponseToRobot(data.content, true, sessionIdRef.current); // Assume single chunk responses are finished
             }
             
             setConversationHistory(prev => [...prev, {

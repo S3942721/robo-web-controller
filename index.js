@@ -269,7 +269,7 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 						const messageData = {
 							cmd: 'req-execute',
 							type: 'conversation-response',
-							message: data.content.trim(),
+							message: data.content,
 							robot: 'Haku',
 							source: 'nova-sonic',
 							timestamp: Date.now()
@@ -782,7 +782,7 @@ class LLMClient {
                         
                         // Process content for robot speech using Robot API
                         const content = message.content || message.response;
-                        if (content && content.trim()) {
+                        if (content) {
                             console.log(`[LLM-${this.sessionId}] 📝 Processing LLM content via Robot API: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
                             robotAPI.processLLMChunk(this.sessionId, content, message.isFinished || false, 'Haku');
                         }

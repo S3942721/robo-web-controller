@@ -252,8 +252,8 @@ class RobotAPI extends EventEmitter {
         }
         
         // After sentence processing, check the remainder of the buffer
-        const remainingBuffer = buffer.trim();
-        if (remainingBuffer.length > 0) {
+        const remainingBuffer = buffer; // Use the buffer directly, don't trim here
+        if (remainingBuffer.trim().length > 0) {
             // Condition 1: The entire remaining buffer is ONLY patterns and is safe to send
             if (this.isOnlyPatterns(remainingBuffer) && this.canSendChunkToRobot(remainingBuffer)) {
                 console.log(`[RobotAPI] 🚀 Found sendable pattern-only chunk for session ${sessionId}: "${remainingBuffer}"`);
@@ -296,6 +296,11 @@ class RobotAPI extends EventEmitter {
         };
 
         const sent = this.sendMessage(messageData, targetRobot);
+
+        // Update the buffer by removing the sent content // TODO: Evaluate if this is needed
+        if (bufferInfo.buffer.startsWith(content)) {
+            bufferInfo.buffer = bufferInfo.buffer.substring(content.length);
+        }
         
         return {
             success: true,
@@ -310,7 +315,7 @@ class RobotAPI extends EventEmitter {
      */
     flushChunkBuffer(sessionId) {
         const bufferInfo = this.chunkBuffers.get(sessionId);
-        if (!bufferInfo || !bufferInfo.buffer.trim()) {
+        if (!bufferInfo || !bufferInfo.buffer) {
             return {
                 success: false,
                 message: `No buffer found for session ${sessionId}`,
@@ -318,7 +323,7 @@ class RobotAPI extends EventEmitter {
             };
         }
 
-        const content = bufferInfo.buffer.trim();
+        const content = bufferInfo.buffer;
         const targetRobot = bufferInfo.robot;
 
         console.log(`[RobotAPI] 🚀 Flushing buffer for session ${sessionId} to robot ${targetRobot}: "${content}"`);
