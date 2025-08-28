@@ -12,8 +12,11 @@ app.use(require("body-parser").json())
 app.use(require("cors")())
 require('express-ws')(app)
 
+// Import the Robot API
+const robotAPI = require('./utils/robot-api');
+
 // variables
-let sendSockets = [];
+let sendSockets = []; // Keep for backward compatibility
 let sendWebSockets = [];
 
 let current_profile = {};
@@ -209,16 +212,8 @@ app.ws('/api/sync', (ws, req)=>{
 				}
 				break;
 			case 'req-execute':
-				sendSockets.forEach(s => {
-					const replaced = JSON.stringify({ cmd, type, message, robot })
-						.normalize('NFKC')
-						.replace(/[“”]/g, '"')
-						.replace(/[‘’]/g, "'")
-						.replace(/…/g, '...')
-						.replace(/[^\x00-\x7F]/g, "");
-					s(replaced);
-					console.log("Sent to socket:", replaced);
-				});
+				// Use Robot API instead of direct socket calls
+				robotAPI.sendMessage({ cmd, type, message, robot }, robot);
 				break;
 		}
 	})
@@ -529,21 +524,26 @@ const server = net.createServer((socket) => {
 		socket.write(message);
 	}
 
-	sendSockets.push(sendSocket)
+	// Register with Robot API
+	const socketId = robotAPI.registerConnection(sendSocket);
+	
+	// Keep in legacy array for compatibility
+	sendSockets.push(sendSocket);
 
 	socket.on('data', (data) => {
-		const data_str = data.toString();
-		console.log('Received:', data_str);
-		if(data_str === 'SHUTDOWN') socket.write('SHUTDOWN_PONG')
+		// Handle with Robot API
+		robotAPI.handleIncomingData(socketId, data);
 	});
 
 	socket.on('end', () => {
-		sendSockets = sendSockets.filter(e=>e!==sendSocket)
+		robotAPI.unregisterConnection(socketId);
+		sendSockets = sendSockets.filter(e => e !== sendSocket);
 		console.log('Client disconnected');
 	});
 
 	socket.on('error', (err) => {
-		sendSockets = sendSockets.filter(e=>e!==sendSocket)
+		robotAPI.unregisterConnection(socketId);
+		sendSockets = sendSockets.filter(e => e !== sendSocket);
 		console.error('Socket error:', err);
 	});
 });
@@ -1291,5 +1291,57 @@ router.get("/api/llm-status", (req, res) => {
     res.status(200).json({
         totalSessions: llmConnections.size,
         activeConnections
+    });
+});
+
+// Add Robot API status endpoint
+router.get("/api/robot-status", (req, res) => {
+    res.status(200).json(robotAPI.getStatus());
+});
+
+// Add Robot API message history endpoint
+router.get("/api/robot-history/:robot?", (req, res) => {
+    const robot = req.params.robot || req.query.robot;
+    const limit = parseInt(req.query.limit) || 100;
+    
+    if (robot) {
+        const history = robotAPI.getMessageHistory(robot, limit);
+        res.status(200).json({ robot, history });
+    } else {
+        // Get all robot histories
+        const allHistories = {};
+        const status = robotAPI.getStatus();
+        
+        for (const robotName of new Set(status.connections.map(c => c.robot).filter(Boolean))) {
+            allHistories[robotName] = robotAPI.getMessageHistory(robotName, limit);
+        }
+        
+        res.status(200).json(allHistories);
+    }
+});
+
+// Add Robot API message sending endpoint
+router.post("/api/robot-send", (req, res) => {
+    const { message, robot, type = 'api' } = req.body;
+    
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    const messageData = {
+        cmd: 'api-execute',
+        type: type,
+        message: message,
+        robot: robot || '',
+        timestamp: Date.now(),
+        source: 'api'
+    };
+    
+    const sent = robotAPI.sendMessage(messageData, robot);
+    
+    res.status(200).json({
+        success: sent,
+        message: sent ? 'Message sent successfully' : 'Message queued (no active connections)',
+        messageData
     });
 });
