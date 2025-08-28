@@ -420,34 +420,6 @@ export default function STTLLMTest() {
         }
     };
 
-    // Add function to generate new session when starting a new conversation
-    const startNewSession = () => {
-        const newSessionId = `stt-llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        sessionIdRef.current = newSessionId;
-        console.log('Started new session:', newSessionId);
-        setConversationHistory([]);
-        setOverallStatus('🔄 New session started - Ready for your input');
-    };
-
-        // Delay statistics update function
-    const updateDelayStats = (delay) => {
-        setDelayStats(prev => {
-            const newStats = {
-                totalRequests: prev.totalRequests + 1,
-                totalDelay: prev.totalDelay + delay,
-                minDelay: prev.minDelay === 0 ? delay : Math.min(prev.minDelay, delay),
-                maxDelay: Math.max(prev.maxDelay, delay),
-                recentDelays: [...prev.recentDelays.slice(-9), delay] // Keep last 10
-            };
-            newStats.averageDelay = newStats.totalDelay / newStats.totalRequests;
-            
-            setLastDelay(delay);
-            setOverallStatus(`🤖 AI responded in ${delay}ms - Ready for your next input`);
-            
-            return newStats;
-        });
-    };
-
     const sendToLLM = (message) => {
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
