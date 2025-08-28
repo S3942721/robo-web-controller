@@ -67,6 +67,13 @@ class RobotAPIClient {
     }
 
     /**
+     *  Send a conversation response
+     */
+    async sendConversationResponse(responseData, robot = null) {
+        return this.sendMessage(responseData, robot, 'conversation-response');
+    }
+
+    /**
      * Send a trigger command
      */
     async sendTrigger(triggerData, robot = null) {

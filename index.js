@@ -254,36 +254,52 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 					// Check if the content contains an interrupted flag
 					let shouldSendToRobot = true;
 					try {
-						// Look for JSON-like content with interrupted flag
 						if (data.content.includes('"interrupted"') && data.content.includes('true')) {
 							console.log('🚫 Message contains interrupted flag, not sending to robot:', data.content);
 							shouldSendToRobot = false;
 						}
 					} catch (error) {
-						// If there's an error parsing, default to sending (safer option)
 						console.warn('Error checking for interrupted flag:', error);
 					}
 					
 					if (shouldSendToRobot) {
-						console.log('🗣️ Sending Nova AI response to Haku for speech:', data.content);
+						console.log('🗣️ Sending Nova AI response to Haku via Robot API:', data.content);
 						
-						// Send to robot via socket connection (same as script execution)
-						sendSockets.forEach(s => {
-							const speechCommand = JSON.stringify({ 
-								cmd: 'req-execute',
-								type: 'conversation-response', 
-								message: data.content.trim(), 
-								robot: 'Haku' 
-							})
-							.normalize('NFKC')
-							.replace(/[""]/g, '"')
-							.replace(/['']/g, "'")
-							.replace(/…/g, '...')
-							.replace(/[^\x00-\x7F]/g, "");
+						// Use Robot API for Nova Sonic responses
+						const messageData = {
+							cmd: 'req-execute',
+							type: 'conversation-response',
+							message: data.content.trim(),
+							robot: 'Haku',
+							source: 'nova-sonic',
+							timestamp: Date.now()
+						};
+						
+						const sent = robotAPI.sendMessage(messageData, 'Haku');
+						
+						if (sent) {
+							console.log("✅ Nova AI response sent via Robot API successfully");
+						} else {
+							console.log("⚠️ Nova AI response queued (no active robot connections)");
 							
-							s(speechCommand);
-							console.log("Sent Nova AI response to Haku socket:", speechCommand);
-						});
+							// Fallback to legacy socket system for Nova Sonic
+							sendSockets.forEach(s => {
+								const speechCommand = JSON.stringify({ 
+									cmd: 'req-execute',
+									type: 'conversation-response', 
+									message: data.content.trim(), 
+									robot: 'Haku' 
+								})
+								.normalize('NFKC')
+								.replace(/[""]/g, '"')
+								.replace(/['']/g, "'")
+								.replace(/…/g, '...')
+								.replace(/[^\x00-\x7F]/g, "");
+								
+								s(speechCommand);
+								console.log("Fallback - sent Nova AI response via legacy socket:", speechCommand);
+							});
+						}
 					}
 				} else if (data.role === 'USER') {
 					console.log('👤 User input detected, not sending to robot:', data.content);
@@ -518,14 +534,17 @@ app.listen(SERVER_PORT, SERVER_HOST, () => {
 const net = require('net');
 
 const server = net.createServer((socket) => {
-	console.log('Client connected');
+	console.log('Client connected from:', socket.remoteAddress, ':', socket.remotePort);
 
 	function sendSocket(message) {
 		socket.write(message);
 	}
 
-	// Register with Robot API
-	const socketId = robotAPI.registerConnection(sendSocket);
+	// Register with Robot API, including socket info for identification
+	const socketId = robotAPI.registerConnection(sendSocket, {
+		remoteAddress: socket.remoteAddress,
+		remotePort: socket.remotePort
+	});
 	
 	// Keep in legacy array for compatibility
 	sendSockets.push(sendSocket);
@@ -695,10 +714,6 @@ class LLMClient {
         };
         this.serverTimestamps = new Map();
         this.firstResponseReceived = new Map();
-        
-        // Add chunk buffering for robot speech
-        this.speechBuffer = '';
-        this.pendingRobotChunks = [];
     }
 
     async connect(llmGatewayUrl) {
@@ -721,7 +736,7 @@ class LLMClient {
                     const serverReceiveTime = Date.now();
                     console.log(`[LLM-${this.sessionId}] Received from LLM at server time ${serverReceiveTime}:`, message.type || 'response');
                     
-                    // Calculate server-side delay for first response
+                    // Handle delay calculation
                     if (message.content || message.response) {
                         let matchedRequestId = null;
                         let serverSendTime = null;
@@ -765,20 +780,16 @@ class LLMClient {
                             this.pendingRequests.delete(matchedRequestId);
                         }
                         
-                        // Process content for robot speech with detailed logging
+                        // Process content for robot speech using Robot API
                         const content = message.content || message.response;
                         if (content && content.trim()) {
-                            console.log(`[LLM-${this.sessionId}] 📝 Processing LLM content chunk (${content.length} chars): "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
-                            console.log(`[LLM-${this.sessionId}] 🤖 isFinished flag: ${message.isFinished || false}`);
-                            console.log(`[LLM-${this.sessionId}] 📊 Current speech buffer size: ${this.speechBuffer.length} chars`);
-                            
-                            this.processSpeechForRobot(content, message.isFinished || false);
+                            console.log(`[LLM-${this.sessionId}] 📝 Processing LLM content via Robot API: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`);
+                            robotAPI.processLLMChunk(this.sessionId, content, message.isFinished || false, 'Haku');
                         }
                         
-                        // Handle end of response
                         if (message.isFinished) {
-                            console.log(`[LLM-${this.sessionId}] ✅ LLM response finished - processing final chunks`);
-                            this.processSpeechForRobot('', true); // Send any remaining buffered content
+                            console.log(`[LLM-${this.sessionId}] ✅ LLM response finished`);
+                            robotAPI.processLLMChunk(this.sessionId, '', true, 'Haku');
                         }
                     }
                     
@@ -823,10 +834,6 @@ class LLMClient {
             const serverSendTime = Date.now();
             const requestId = `${this.sessionId}-${serverSendTime}`;
             
-            // Clear speech buffer for new conversation turn
-            this.speechBuffer = '';
-            this.pendingRobotChunks = [];
-            
             // Store server-side timestamps
             this.pendingRequests.set(requestId, serverSendTime);
             this.serverTimestamps.set(requestId, serverSendTime);
@@ -854,171 +861,10 @@ class LLMClient {
         }
     }
 
-    // Process and potentially send buffered speech to robot
-    processSpeechForRobot(newContent, isFinished = false) {
-        console.log(`[LLM-${this.sessionId}] 🔄 processSpeechForRobot called - newContent: ${newContent ? newContent.length : 0} chars, isFinished: ${isFinished}`);
-        
-        if (!newContent && !isFinished) {
-            console.log(`[LLM-${this.sessionId}] ⚠️ No new content and not finished - skipping processing`);
-            return;
+    sendToFrontend(message) {
+        if (this.frontendWs && this.frontendWs.readyState === 1) {
+            this.frontendWs.send(JSON.stringify(message));
         }
-        
-        // Add new content to buffer
-        if (newContent) {
-            this.speechBuffer += newContent;
-            console.log(`[LLM-${this.sessionId}] 📝 Added ${newContent.length} chars to speech buffer. Total buffer size: ${this.speechBuffer.length} chars`);
-            console.log(`[LLM-${this.sessionId}] 📄 Current buffer content: "${this.speechBuffer.substring(0, 200)}${this.speechBuffer.length > 200 ? '...' : ''}"`);
-        }
-        
-        if (isFinished) {
-            // If this is the final chunk, send everything remaining
-            if (this.speechBuffer.trim()) {
-                console.log(`[LLM-${this.sessionId}] 🏁 Final chunk - sending remaining buffer (${this.speechBuffer.length} chars)`);
-                console.log(`[LLM-${this.sessionId}] 🗣️ Final speech content: "${this.speechBuffer}"`);
-                this.sendSpeechToRobot(this.speechBuffer.trim());
-                this.speechBuffer = '';
-            } else {
-                console.log(`[LLM-${this.sessionId}] 🏁 Final chunk - but buffer is empty`);
-            }
-            return;
-        }
-        
-        console.log(`[LLM-${this.sessionId}] 🔍 Analyzing buffer for safe extraction points...`);
-        
-        // Try to extract complete chunks that can be safely sent
-        let remainingBuffer = this.speechBuffer;
-        let extractedChunks = [];
-        
-        // Look for complete sentences or safe breakpoints
-        const sentences = remainingBuffer.split(/([.!?]\s+)/);
-        let currentChunk = '';
-        
-        console.log(`[LLM-${this.sessionId}] 📊 Split into ${sentences.length} sentence fragments`);
-        
-        for (let i = 0; i < sentences.length; i++) {
-            const sentence = sentences[i];
-            const testChunk = currentChunk + sentence;
-            
-            console.log(`[LLM-${this.sessionId}] 🧪 Testing chunk ${i}: "${testChunk}" (${testChunk.length} chars)`);
-            
-            // Check if this chunk is safe to send
-            if (this.canSendChunkToRobot(testChunk)) {
-                currentChunk = testChunk;
-                console.log(`[LLM-${this.sessionId}] ✅ Chunk ${i} is safe to include`);
-                
-                // If we hit a sentence boundary and have meaningful content, extract it
-                if (sentence.match(/[.!?]\s+/) && currentChunk.trim().length > 10) {
-                    console.log(`[LLM-${this.sessionId}] 🎯 Found complete sentence boundary - extracting chunk: "${currentChunk.trim()}"`);
-                    extractedChunks.push(currentChunk.trim());
-                    currentChunk = '';
-                }
-            } else {
-                console.log(`[LLM-${this.sessionId}] ⚠️ Chunk ${i} would break patterns - waiting for more content`);
-                // This chunk would break patterns, so we need to wait for more content
-                break;
-            }
-        }
-        
-        console.log(`[LLM-${this.sessionId}] 📤 Extracted ${extractedChunks.length} safe chunks for robot speech`);
-        
-        // Send any complete chunks we found
-        for (const chunk of extractedChunks) {
-            if (chunk.trim()) {
-                console.log(`[LLM-${this.sessionId}] 🗣️ Sending speech chunk to robot (${chunk.length} chars): "${chunk}"`);
-                this.sendSpeechToRobot(chunk);
-                
-                // Remove sent content from buffer
-                const chunkIndex = this.speechBuffer.indexOf(chunk);
-                if (chunkIndex !== -1) {
-                    const beforeRemoval = this.speechBuffer.length;
-                    this.speechBuffer = this.speechBuffer.substring(chunkIndex + chunk.length).trim();
-                    console.log(`[LLM-${this.sessionId}] 🧹 Removed sent chunk from buffer. Buffer size: ${beforeRemoval} → ${this.speechBuffer.length} chars`);
-                } else {
-                    console.log(`[LLM-${this.sessionId}] ⚠️ Could not find sent chunk in buffer for removal`);
-                }
-            }
-        }
-        
-        console.log(`[LLM-${this.sessionId}] 📊 Processing complete. Remaining buffer: ${this.speechBuffer.length} chars`);
-        if (this.speechBuffer.length > 0) {
-            console.log(`[LLM-${this.sessionId}] 📄 Remaining buffer content: "${this.speechBuffer.substring(0, 100)}${this.speechBuffer.length > 100 ? '...' : ''}"`);
-        }
-    }
-
-    // Check if a chunk can be safely send to robot (doesn't split important patterns)
-    canSendChunkToRobot(chunk) {
-        // Count occurrences of special characters
-        const openBraces = (chunk.match(/{/g) || []).length;
-        const closeBraces = (chunk.match(/}/g) || []).length;
-        const carets = (chunk.match(/\^/g) || []).length;
-        const closeParens = (chunk.match(/\)/g) || []).length;
-        
-        // Check if braces are balanced
-        const bracesBalanced = openBraces === closeBraces;
-        
-        // Check if caret patterns are complete
-        // This is a simplified check - assumes each ^ should have a corresponding )
-        const caretPatternsComplete = carets === closeParens;
-        
-        console.log(`[LLM-${this.sessionId}] 🔍 Pattern analysis for chunk: braces {${openBraces}/${closeBraces}} balanced=${bracesBalanced}, carets ^${carets}/)${closeParens} complete=${caretPatternsComplete}`);
-        
-        const isSafe = bracesBalanced && caretPatternsComplete;
-        console.log(`[LLM-${this.sessionId}] ${isSafe ? '✅' : '❌'} Chunk safety check: ${isSafe ? 'SAFE' : 'UNSAFE'}`);
-        
-        return isSafe;
-    }
-
-    // Send speech chunk to robot via socket connection
-    sendSpeechToRobot(text) {
-        if (!text || !text.trim()) {
-            console.log(`[LLM-${this.sessionId}] ⚠️ Attempted to send empty text to robot - skipping`);
-            return;
-        }
-        
-        console.log(`[LLM-${this.sessionId}] 🤖 Preparing to send speech to robot: "${text}"`);
-        console.log(`[LLM-${this.sessionId}] 📊 Speech details - length: ${text.length} chars, trimmed length: ${text.trim().length} chars`);
-        
-        try {
-            // Send to robot via socket connection (same as script execution)
-            sendSockets.forEach((s, index) => {
-                const speechCommand = JSON.stringify({ 
-                    cmd: 'req-execute',
-                    type: 'SayChunk', 
-                    message: text.trim(), 
-                    robot: 'Haku' // Default to Haku, could be configurable
-                })
-                .normalize('NFKC')
-                .replace(/[""]/g, '"')
-                .replace(/['']/g, "'")
-                .replace(/…/g, '...')
-                .replace(/[^\x00-\x7F]/g, "");
-                
-                console.log(`[LLM-${this.sessionId}] 📡 Sending to socket ${index}: ${speechCommand}`);
-                s(speechCommand);
-            });
-            
-            console.log(`[LLM-${this.sessionId}] ✅ Speech sent to ${sendSockets.length} socket(s) successfully`);
-            
-        } catch (error) {
-            console.error(`[LLM-${this.sessionId}] ❌ Error sending speech to robot:`, error);
-        }
-    }
-
-    updateDelayStats(delay) {
-        this.delayStats.totalRequests++;
-        this.delayStats.totalDelay += delay;
-        this.delayStats.minDelay = Math.min(this.delayStats.minDelay, delay);
-        this.delayStats.maxDelay = Math.max(this.delayStats.maxDelay, delay);
-        this.delayStats.averageDelay = this.delayStats.totalDelay / this.delayStats.totalRequests;
-        
-        this.delayStats.recentDelays.push(delay);
-        if (this.delayStats.recentDelays.length > 10) {
-            this.delayStats.recentDelays.shift();
-        }
-    }
-
-    getDelayStats() {
-        return { ...this.delayStats };
     }
 
     disconnect() {
@@ -1031,81 +877,49 @@ class LLMClient {
         this.pendingRequests.clear();
         this.serverTimestamps.clear();
         this.firstResponseReceived.clear();
-        
-        // Clear speech buffers
-        this.speechBuffer = '';
-        this.pendingRobotChunks = [];
     }
 }
 
-// STT + LLM Integration WebSocket
-app.ws('/api/stt-llm-conversation', (ws, req) => {
+// Add LLM Chunk Processing WebSocket endpoint
+app.ws('/api/llm-chunk-processor', (ws, req) => {
     const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[Session-${sessionId}] 🚀 New STT+LLM conversation started`);
+    console.log(`[LLM-Processor-${sessionId}] New LLM chunk processing session started`);
     
-    // Create STT and LLM clients
-    const sttClient = new STTClient(sessionId, ws);
-    const llmClient = new LLMClient(sessionId, ws);
-    
-    // Store connections
-    sttConnections.set(sessionId, sttClient);
-    llmConnections.set(sessionId, llmClient);
-    
-    ws.on('message', async (message) => {
+    ws.on('message', (message) => {
         try {
             const data = JSON.parse(message.toString());
-            console.log(`[Session-${sessionId}] 📨 Received command:`, data.action, data);
+            console.log(`[LLM-Processor-${sessionId}] Received command:`, data.action);
             
             switch(data.action) {
-                case 'connect_stt':
-                    const sttUrl = data.sttServerUrl || `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`;
-                    console.log(`[Session-${sessionId}] Connecting to STT: ${sttUrl}`);
-                    await sttClient.connect(sttUrl);
-                    break;
+                case 'process_chunk':
+                    const { content, isFinished, targetRobot } = data;
+                    console.log(`[LLM-Processor-${sessionId}] Processing chunk: content=${content?.length || 0} chars, finished=${isFinished}, robot=${targetRobot}`);
                     
-                case 'connect_llm':
-                    const llmUrl = data.llmGatewayUrl || LLM_GATEWAY_HOST;
-                    console.log(`[Session-${sessionId}] Connecting to LLM: ${llmUrl}`);
-                    await llmClient.connect(llmUrl);
-                    break;
+                    robotAPI.processLLMChunk(sessionId, content, isFinished, targetRobot || 'Haku');
                     
-                case 'start_transcription':
-                    console.log(`[Session-${sessionId}] Starting transcription`);
-                    sttClient.sendToSTT({ action: 'start' });
-                    break;
-                    
-                case 'stop_transcription':
-                    console.log(`[Session-${sessionId}] Stopping transcription`);
-                    sttClient.sendToSTT({ action: 'stop' });
-                    break;
-                    
-                case 'configure_stt':
-                    console.log(`[Session-${sessionId}] Configuring STT:`, data.config);
-                    sttClient.sendToSTT({ action: 'configure', config: data.config });
-                    break;
-                    
-                case 'send_to_llm':
-                    if (data.message) {
-                        console.log(`[Session-${sessionId}] Sending manual message to LLM:`, data.message);
-                        llmClient.sendMessage(data.message, { source: 'manual' });
-                    }
-                    break;
-
-                case 'get_delay_stats':
-                    // Send current delay statistics
+                    // Send acknowledgment
                     ws.send(JSON.stringify({
-                        type: 'delay_stats',
-                        stats: llmClient.getDelayStats()
+                        type: 'chunk_processed',
+                        sessionId: sessionId,
+                        success: true
                     }));
                     break;
                     
-                case 'audio_data':
-                    // Forward audio data to STT server
-                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
+                case 'get_config':
+                    // Send current configuration
+                    ws.send(JSON.stringify({
+                        type: 'config',
+                        config: {
+                            chunkMode: LLM_CHUNK_MODE,
+                            minChunkLength: LLM_MIN_CHUNK_LENGTH,
+                            maxBufferSize: LLM_MAX_BUFFER_SIZE,
+                            sentenceMarkers: LLM_SENTENCE_MARKERS
+                        }
+                    }));
                     break;
                     
                 default:
-                    console.warn(`[Session-${sessionId}] Unknown action:`, data.action);
+                    console.warn(`[LLM-Processor-${sessionId}] Unknown action:`, data.action);
                     ws.send(JSON.stringify({ 
                         type: 'error', 
                         error: 'Unknown action: ' + data.action
@@ -1113,7 +927,7 @@ app.ws('/api/stt-llm-conversation', (ws, req) => {
             }
             
         } catch (error) {
-            console.error(`[Session-${sessionId}] Message processing error:`, error);
+            console.error(`[LLM-Processor-${sessionId}] Message processing error:`, error);
             ws.send(JSON.stringify({ 
                 type: 'error', 
                 error: 'Failed to process message: ' + error.message 
@@ -1121,148 +935,16 @@ app.ws('/api/stt-llm-conversation', (ws, req) => {
         }
     });
     
-    // Handle conversation flow - when STT produces complete text, send to LLM
-    const originalSTTSendToFrontend = sttClient.sendToFrontend.bind(sttClient);
-    sttClient.sendToFrontend = (message) => {
-        // Call original method
-        originalSTTSendToFrontend(message);
-        
-        // Check if this is a complete transcription
-        if (message.type === 'stt_message' && 
-            message.data.type === 'complete' && 
-            message.data.text && 
-            message.data.text.trim()) {
-            
-            const sttCompleteTime = Date.now();
-            console.log(`[Session-${sessionId}] 🎤 Complete transcription received at server time ${sttCompleteTime}, sending to LLM:`, message.data.text);
-            
-            // Automatically send complete transcription to LLM with server timing info
-            llmClient.sendMessage(message.data.text.trim(), { 
-                source: 'stt',
-                sttCompleteTime: sttCompleteTime,
-                serverTimestamp: sttCompleteTime
-            });
-        }
-    };
-    
     ws.on('close', () => {
-        console.log(`[Session-${sessionId}] Conversation ended`);
-        
-        // Clean up connections
-        sttClient.disconnect();
-        llmClient.disconnect();
-        sttConnections.delete(sessionId);
-        llmConnections.delete(sessionId);
-    });
-    
-    ws.on('error', (error) => {
-        console.error(`[Session-${sessionId}] WebSocket error:`, error);
-        
-        // Clean up on error
-        sttClient.disconnect();
-        llmClient.disconnect();
-        sttConnections.delete(sessionId);
-        llmConnections.delete(sessionId);
-    });
-    
-    // Send initial status
-    ws.send(JSON.stringify({ 
-        type: 'session_created', 
-        sessionId: sessionId,
-        status: 'Ready to connect STT and LLM services'
-    }));
-});
-
-// STT-only WebSocket (for testing STT independently)
-app.ws('/api/stt-only', (ws, req) => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[STT-Only-${sessionId}] New STT-only session started`);
-    
-    const sttClient = new STTClient(sessionId, ws);
-    sttConnections.set(sessionId, sttClient);
-    
-    ws.on('message', async (message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            console.log(`[STT-Only-${sessionId}] Received command:`, data.action);
-            
-            switch(data.action) {
-                case 'connect':
-                    const sttUrl = data.sttServerUrl || 'ws://localhost:8765';
-                    await sttClient.connect(sttUrl);
-                    break;
-                case 'start':
-                    sttClient.sendToSTT({ action: 'start' });
-                    break;
-                case 'stop':
-                    sttClient.sendToSTT({ action: 'stop' });
-                    break;
-                case 'configure':
-                    sttClient.sendToSTT({ action: 'configure', config: data.config });
-                    break;
-                case 'audio_data':
-                    sttClient.sendToSTT({ action: 'audio_data', data: data.data });
-                    break;
-            }
-        } catch (error) {
-            console.error(`[STT-Only-${sessionId}] Error:`, error);
-            ws.send(JSON.stringify({ type: 'error', error: error.message }));
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log(`[STT-Only-${sessionId}] Session ended`);
-        sttClient.disconnect();
-        sttConnections.delete(sessionId);
+        console.log(`[LLM-Processor-${sessionId}] Session ended`);
+        // Clean up any remaining session data in Robot API
+        robotAPI.processLLMChunk(sessionId, '', true);
     });
     
     ws.send(JSON.stringify({ 
         type: 'session_created', 
         sessionId: sessionId,
-        status: 'STT-only session ready'
-    }));
-});
-
-// LLM-only WebSocket (for testing LLM independently)
-app.ws('/api/llm-only', (ws, req) => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    console.log(`[LLM-Only-${sessionId}] New LLM-only session started`);
-    
-    const llmClient = new LLMClient(sessionId, ws);
-    llmConnections.set(sessionId, llmClient);
-    
-    ws.on('message', async (message) => {
-        try {
-            const data = JSON.parse(message.toString());
-            console.log(`[LLM-Only-${sessionId}] Received command:`, data.action);
-            
-            switch(data.action) {
-                case 'connect':
-                    const llmUrl = data.llmGatewayUrl || 'ws://localhost:8080/chat';
-                    await llmClient.connect(llmUrl);
-                    break;
-                case 'send_message':
-                    if (data.message) {
-                        llmClient.sendMessage(data.message);
-                    }
-                    break;
-            }
-        } catch (error) {
-            console.error(`[LLM-Only-${sessionId}] Error:`, error);
-            ws.send(JSON.stringify({ type: 'error', error: error.message }));
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log(`[LLM-Only-${sessionId}] Session ended`);
-        llmClient.disconnect();
-        llmConnections.delete(sessionId);
-    });
-    
-    ws.send(JSON.stringify({ 
-        type: 'session_created', 
-        sessionId: sessionId,
-        status: 'LLM-only session ready'
+        status: 'LLM chunk processor ready'
     }));
 });
 

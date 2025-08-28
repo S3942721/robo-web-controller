@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import robotAPI from '../../utils/robotAPI';
 
 export default function STTLLMTest() {
     const [sessionId, setSessionId] = useState('');
@@ -30,6 +31,13 @@ export default function STTLLMTest() {
     // Add client-side delay tracking
     const [pendingRequests, setPendingRequests] = useState(new Map());
     const sttCompleteTimeRef = useRef(null);
+
+    // Add state for LLM chunk processor
+    const [sendToRobot, setSendToRobot] = useState(true);
+    const [targetRobot, setTargetRobot] = useState('Haku');
+    // const [chunkProcessorStatus, setChunkProcessorStatus] = useState('disconnected');
+    const [chunkConfig, setChunkConfig] = useState(null);
+    const chunkProcessorRef = useRef(null);
 
     useEffect(() => {
         // Load network configuration from server
@@ -310,6 +318,11 @@ export default function STTLLMTest() {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
                 
+                // Send to robot if enabled - use Robot API directly
+                if (sendToRobot && data.content.trim()) {
+                    sendLLMResponseToRobot(data.content.trim(), data.isFinished);
+                }
+                
                 setConversationHistory(prev => {
                     // Check if the last item is an accumulating assistant message
                     const lastItem = prev[prev.length - 1];
@@ -320,7 +333,7 @@ export default function STTLLMTest() {
                         updated[updated.length - 1] = {
                             ...lastItem,
                             text: lastItem.text + data.content,
-                            accumulating: !data.isFinished // Stop accumulating if response is finished
+                            accumulating: !data.isFinished
                         };
                         return updated;
                     } else {
@@ -329,13 +342,17 @@ export default function STTLLMTest() {
                             text: data.content,
                             timestamp: timestamp,
                             type: 'assistant',
-                            accumulating: !data.isFinished // Will be false if this is a complete single chunk
+                            accumulating: !data.isFinished
                         }];
                     }
                 });
                 
                 if (data.isFinished) {
                     setOverallStatus('🤖 AI responded - Ready for your next input');
+                    // Send final chunk marker
+                    if (sendToRobot) {
+                        sendLLMResponseToRobot('', true);
+                    }
                 } else {
                     setOverallStatus('🤖 AI is responding...');
                 }
@@ -343,6 +360,12 @@ export default function STTLLMTest() {
         } else if (data.content) {
             // Handle other response formats - create new entry for each response
             const timestamp = new Date().toLocaleTimeString();
+            
+            // Send to robot if enabled
+            if (sendToRobot && data.content.trim()) {
+                sendLLMResponseToRobot(data.content.trim(), true); // Assume single chunk responses are finished
+            }
+            
             setConversationHistory(prev => [...prev, {
                 text: data.content,
                 timestamp: timestamp,
@@ -359,7 +382,34 @@ export default function STTLLMTest() {
         }
     };
 
-    // Add delay statistics update function
+    // Remove the chunk processor connection code and use Robot API directly
+    const sendLLMResponseToRobot = async (content, isFinished = false) => {
+        if (!sendToRobot || !targetRobot) {
+            console.log('🤖 Robot integration disabled or no target robot selected');
+            return;
+        }
+
+        try {
+            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API:`, content);
+            console.log(`🤖 Response chunk finished: ${isFinished}`);
+            
+            // Use Robot API to send conversation response directly
+            const result = await robotAPI.sendConversationResponse(content, targetRobot);
+            
+            if (result.success) {
+                console.log(`✅ LLM response sent to robot ${targetRobot} successfully`);
+                setOverallStatus(prev => prev + ' (sent to robot)');
+            } else {
+                console.warn(`⚠️ LLM response queued for robot ${targetRobot}:`, result.message);
+                setOverallStatus(prev => prev + ' (queued for robot)');
+            }
+        } catch (error) {
+            console.error(`❌ Failed to send LLM response to robot ${targetRobot}:`, error);
+            setOverallStatus(prev => prev + ' (robot send failed)');
+        }
+    };
+
+    // Delay statistics update function
     const updateDelayStats = (delay) => {
         setDelayStats(prev => {
             const newStats = {
@@ -439,9 +489,16 @@ export default function STTLLMTest() {
             llmWsRef.current = null;
         }
         
+        // Close chunk processor connection
+        // if (chunkProcessorRef.current) {
+        //     chunkProcessorRef.current.close();
+        //     chunkProcessorRef.current = null;
+        // }
+        
         setSessionId('');
         setSTTStatus('disconnected');
         setLLMStatus('disconnected');
+        // setChunkProcessorStatus('disconnected');
         setOverallStatus('Disconnected');
     };
 
