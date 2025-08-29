@@ -388,6 +388,8 @@ export default function STTLLMTest() {
                     // Send final chunk marker with session ID
                     if (sendToRobot) {
                         sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current);
+                        // Flush any remaining buffer content
+                        flushBuffer(data.sessionId || sessionIdRef.current);
                     }
                 } else {
                     setOverallStatus('🤖 AI is responding...');
@@ -589,25 +591,31 @@ export default function STTLLMTest() {
     };
 
     // Buffer management functions
-    const flushBuffer = async () => {
-        if (!currentLLMSession) {
-            setOverallStatus('❌ No active LLM session to flush');
+    const flushBuffer = async (sessionId) => {
+        const a_sessionId = sessionId || currentLLMSession;
+        if (!a_sessionId) {
+            console.warn('Cannot flush buffer, no session ID available');
             return;
         }
 
         try {
-            console.log('🚿 Flushing buffer for session:', currentLLMSession);
-            const result = await robotAPI.flushBuffer(currentLLMSession, targetRobot);
-            
+            console.log(`Flushing remaining buffer for session: ${a_sessionId}`);
+            const response = await fetch(`/api/robot-buffer/flush-remaining/${a_sessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetRobot: targetRobot })
+            });
+            const result = await response.json();
             if (result.success) {
-                setOverallStatus(`✅ Buffer flushed: ${result.message}`);
-                updateBufferStatus();
+                console.log('Buffer flushed successfully:', result);
+                setOverallStatus(prev => prev + ' (buffer flushed)');
             } else {
-                setOverallStatus(`❌ Flush failed: ${result.error}`);
+                console.warn('Failed to flush buffer:', result);
+                setOverallStatus(prev => prev + ' (buffer flush failed)');
             }
         } catch (error) {
-            console.error('Failed to flush buffer:', error);
-            setOverallStatus('❌ Failed to flush buffer');
+            console.error('Error flushing buffer:', error);
+            setOverallStatus(prev => prev + ' (buffer flush error)');
         }
     };
 
