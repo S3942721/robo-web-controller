@@ -1055,6 +1055,17 @@ router.post("/api/robot-buffer/clear/:sessionId", (req, res) => {
     }
 });
 
+router.post("/api/robot-buffer/flush-remaining/:sessionId", (req, res) => {
+    const { sessionId } = req.params;
+    const { targetRobot } = req.body;
+    const result = robotAPI.flushRemainingBuffer(sessionId, targetRobot);
+    if (result.success) {
+        res.status(200).json(result);
+    } else {
+        res.status(404).json(result);
+    }
+});
+
 router.get("/api/robot-buffer/status/:sessionId", (req, res) => {
     const { sessionId } = req.params;
     
