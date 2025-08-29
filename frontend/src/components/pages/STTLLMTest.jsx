@@ -305,6 +305,32 @@ export default function STTLLMTest() {
         }
     };
 
+    const updateDelayStats = (delay) => {
+        setLastDelay(delay);
+        setDelayStats(prevStats => {
+            const newTotalRequests = prevStats.totalRequests + 1;
+            const newAverageDelay = ((prevStats.averageDelay * prevStats.totalRequests) + delay) / newTotalRequests;
+            const newMinDelay = prevStats.minDelay === 0 ? delay : Math.min(prevStats.minDelay, delay);
+            const newMaxDelay = Math.max(prevStats.maxDelay, delay);
+            const newRecentDelays = [...prevStats.recentDelays, delay].slice(-10);
+
+            return {
+                totalRequests: newTotalRequests,
+                averageDelay: newAverageDelay,
+                minDelay: newMinDelay,
+                maxDelay: newMaxDelay,
+                recentDelays: newRecentDelays
+            };
+        });
+    };
+
+    const handleDelayMeasurement = (data) => {
+        console.log('Received delay measurement from server:', data);
+        if (data.delay) {
+            updateDelayStats(data.delay);
+        }
+    };
+
     // Track LLM session ID from responses
     const handleLLMMessage = (data) => {
         console.log('🤖 Processing LLM data:', data);
@@ -433,7 +459,11 @@ export default function STTLLMTest() {
             const llmPayload = {
                 action: 'completion',
                 history: [
-                    ...conversationHistory.slice(-8), // Keep last 8 messages for context
+                    // Map conversation history to the correct format
+                    ...conversationHistory.slice(-8).map(item => ({
+                        role: item.type === 'user' ? 'user' : 'assistant',
+                        content: item.text
+                    })),
                     { role: 'user', content: message }
                 ]
             };
