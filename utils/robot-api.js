@@ -1,4 +1,7 @@
 const EventEmitter = require('events');
+const fs = require('fs');
+const path = require('path');
+const WebSocket = require('ws');
 
 // Add LLM chunk processing configuration
 const LLM_CHUNK_MODE = process.env.LLM_CHUNK_MODE || 'smart';
@@ -42,13 +45,28 @@ class RobotAPI extends EventEmitter {
         this.CHUNK_TIMEOUT = 2000; // Send buffer if no new chunks for 2 seconds
         this.BUFFER_CHECK_INTERVAL = 500; // Check buffers every 500ms
         
+        // Robot status system
+        this.statusConfig = null;
+        this.triggersConfig = null;
+        this.scrollConfig = null;
+        this.detailedRobotStatus = new Map(); // robot -> detailed status object
+        this.statusUpdateCallbacks = new Map(); // robot -> callback functions
+        
         console.log('[RobotAPI] Initialized with identification method:', this.identificationMethod);
         console.log('[RobotAPI] Robot IP mappings:', this.robotIPs);
         console.log('[RobotAPI] LLM chunk processing mode:', LLM_CHUNK_MODE);
         
+        // STT WebSocket connection
+        this.sttWebSocket = null;
+        this.sttReconnectTimeout = null;
+        this.sttHost = process.env.STT_SERVER_HOST || 'localhost';
+        this.sttPort = process.env.STT_SERVER_PORT || 8765;
+        
+        this.loadStatusConfiguration();
         this.setupDefaultHandlers();
         this.setupCleanupInterval();
         this.startBufferMonitoring();
+        this.initializeSTTConnection();
     }
 
     setupDefaultHandlers() {
@@ -128,6 +146,55 @@ class RobotAPI extends EventEmitter {
             console.log(`[RobotAPI] 🔴 Shutdown command received from ${robot || 'unknown'} (${socketId})`);
             this.handleShutdownCommand(socketId);
         });
+
+        // Handler for robot status updates
+        this.onMessageType('status-update', (message, socketId, robot) => {
+            console.log(`[RobotAPI] 📊 Status update received from ${robot || 'unknown'}`);
+            if (message.status) {
+                this.handleRobotStatusUpdate(robot, message.status);
+            }
+        });
+
+        // Handler for robot heartbeat
+        this.onMessageType('heartbeat', (message, socketId, robot) => {
+            const heartbeatData = {
+                last_heartbeat: Date.now(),
+                connection_quality: message.signal_strength || 100
+            };
+            if (message.uptime) heartbeatData.uptime = message.uptime;
+            this.updateDetailedRobotStatus(robot, heartbeatData);
+        });
+
+        // Handler for robot speaking state changes
+        this.onMessageType('speaking-state', (message, socketId, robot) => {
+            const isSpeaking = message.speaking || false;
+            const wasSpeaking = this.getRobotStatus(robot)?.speaking || false;
+            
+            const speakingUpdate = {
+                speaking: isSpeaking,
+                current_behavior: isSpeaking ? 'speaking' : 'idle'
+            };
+            if (message.session_id) {
+                speakingUpdate.conversation_session_id = message.session_id;
+            }
+            this.updateDetailedRobotStatus(robot, speakingUpdate);
+            
+            // STT Control Logic
+            if (isSpeaking && !wasSpeaking) {
+                // Robot started speaking - pause STT
+                console.log(`[RobotAPI] 🎤 Robot ${robot} started speaking - pausing STT`);
+                this.pauseSTTProcessing();
+            } else if (!isSpeaking && wasSpeaking) {
+                // Robot stopped speaking - resume STT
+                console.log(`[RobotAPI] 🎤 Robot ${robot} stopped speaking - resuming STT`);
+                this.resumeSTTProcessing();
+                
+                // Handle session-specific cleanup
+                if (message.session_id) {
+                    this.handleSpeakingFinished(robot, message.session_id);
+                }
+            }
+        });
     }
 
     setupCleanupInterval() {
@@ -141,6 +208,507 @@ class RobotAPI extends EventEmitter {
         setInterval(() => {
             this.checkStaleBuffers();
         }, this.BUFFER_CHECK_INTERVAL);
+    }
+
+    /**
+     * Load status configuration from JSON files
+     */
+    loadStatusConfiguration() {
+        try {
+            const statusConfigPath = path.join(__dirname, '..', 'settings', 'robot_status_config.json');
+            
+            if (fs.existsSync(statusConfigPath)) {
+                this.statusConfig = JSON.parse(fs.readFileSync(statusConfigPath, 'utf8'));
+                console.log('[RobotAPI] Status configuration loaded');
+            } else {
+                console.warn('[RobotAPI] ⚠️ Status configuration file not found');
+            }
+
+            // Load signal configurations for validation
+            this.loadSignalConfigs();
+        } catch (error) {
+            console.error('[RobotAPI] ❌ Failed to load status configuration:', error);
+        }
+    }
+
+    /**
+     * Load trigger and scroll controller configs for signal validation
+     */
+    loadSignalConfigs() {
+        try {
+            // Load triggers config
+            const triggersPath = path.join(__dirname, '..', 'settings', 'triggers.json');
+            if (fs.existsSync(triggersPath)) {
+                this.triggersConfig = JSON.parse(fs.readFileSync(triggersPath, 'utf8'));
+                console.log('[RobotAPI] ✅ Triggers configuration loaded');
+            } else {
+                console.warn('[RobotAPI] ⚠️ Triggers config file not found');
+                this.triggersConfig = {};
+            }
+
+            // Load scroll controllers config
+            const scrollPath = path.join(__dirname, '..', 'settings', 'scroll_controllers_config.json');
+            if (fs.existsSync(scrollPath)) {
+                this.scrollConfig = JSON.parse(fs.readFileSync(scrollPath, 'utf8'));
+                console.log('[RobotAPI] ✅ Scroll controllers configuration loaded');
+            } else {
+                console.warn('[RobotAPI] ⚠️ Scroll controllers config file not found');
+                this.scrollConfig = {};
+            }
+        } catch (error) {
+            console.error('[RobotAPI] ❌ Failed to load signal configurations:', error);
+            this.triggersConfig = {};
+            this.scrollConfig = {};
+        }
+    }
+
+    /**
+     * Initialize status for a robot based on configuration
+     */
+    initializeRobotStatus(robotName) {
+        if (!this.statusConfig) {
+            console.warn(`[RobotAPI] Cannot initialize status for ${robotName} - no configuration loaded`);
+            return;
+        }
+
+        const status = {};
+        
+        // Add base status definitions
+        for (const [key, config] of Object.entries(this.statusConfig.statusDefinitions)) {
+            status[key] = config.default;
+        }
+        
+        // Apply robot-specific overrides and additions
+        if (this.statusConfig.robotSpecific?.[robotName]) {
+            const robotConfig = this.statusConfig.robotSpecific[robotName];
+            
+            // Apply overrides
+            if (robotConfig.statusOverrides) {
+                for (const [key, override] of Object.entries(robotConfig.statusOverrides)) {
+                    if (status.hasOwnProperty(key) && override.default !== undefined) {
+                        status[key] = override.default;
+                    }
+                }
+            }
+            
+            // Add additional status fields
+            if (robotConfig.additionalStatus) {
+                for (const [key, config] of Object.entries(robotConfig.additionalStatus)) {
+                    status[key] = config.default;
+                }
+            }
+        }
+        
+        // Add metadata
+        status._metadata = {
+            lastUpdate: Date.now(),
+            robotName: robotName,
+            initialized: true
+        };
+        
+        this.detailedRobotStatus.set(robotName, status);
+        console.log(`[RobotAPI] ✅ Status initialized for ${robotName} with ${Object.keys(status).length - 1} fields`);
+        
+        // Emit status initialization event
+        this.emit('statusInitialized', { robot: robotName, status });
+    }
+
+    /**
+     * Update robot status field(s)
+     */
+    updateDetailedRobotStatus(robotName, updates) {
+        if (!this.detailedRobotStatus.has(robotName)) {
+            this.initializeRobotStatus(robotName);
+        }
+        
+        const currentStatus = this.detailedRobotStatus.get(robotName);
+        const previousValues = {};
+        const changedFields = [];
+        
+        // Process updates
+        for (const [key, value] of Object.entries(updates)) {
+            if (currentStatus[key] !== value) {
+                previousValues[key] = currentStatus[key];
+                currentStatus[key] = value;
+                changedFields.push(key);
+            }
+        }
+        
+        if (changedFields.length > 0) {
+            // Update metadata
+            currentStatus._metadata.lastUpdate = Date.now();
+            
+            console.log(`[RobotAPI] 📊 Status updated for ${robotName}:`, changedFields.map(field => `${field}: ${previousValues[field]} → ${currentStatus[field]}`).join(', '));
+            
+            // Check for critical values
+            this.checkCriticalStatusValues(robotName, currentStatus, changedFields);
+            
+            // Emit status change event
+            this.emit('statusChanged', { 
+                robot: robotName, 
+                changedFields, 
+                previousValues, 
+                currentStatus: { ...currentStatus }
+            });
+            
+            // Call registered callbacks
+            const callback = this.statusUpdateCallbacks.get(robotName);
+            if (callback) {
+                try {
+                    callback(changedFields, currentStatus, previousValues);
+                } catch (error) {
+                    console.error(`[RobotAPI] ❌ Status callback error for ${robotName}:`, error);
+                }
+            }
+        }
+        
+        return currentStatus;
+    }
+
+    /**
+     * Get current status for a robot
+     */
+    getRobotStatus(robotName) {
+        if (!this.detailedRobotStatus.has(robotName)) {
+            this.initializeRobotStatus(robotName);
+        }
+        return { ...this.detailedRobotStatus.get(robotName) };
+    }
+
+    /**
+     * Get status for all robots
+     */
+    getAllRobotStatus() {
+        const allStatus = {};
+        for (const [robotName, status] of this.detailedRobotStatus.entries()) {
+            allStatus[robotName] = { ...status };
+        }
+        return allStatus;
+    }
+
+    /**
+     * Check for critical status values and emit warnings
+     */
+    checkCriticalStatusValues(robotName, status, changedFields) {
+        if (!this.statusConfig) return;
+        
+        for (const field of changedFields) {
+            const fieldConfig = this.statusConfig.statusDefinitions[field];
+            
+            if (!fieldConfig) continue;
+            
+            const value = status[field];
+            
+            // Check critical threshold
+            if (fieldConfig.critical_threshold !== undefined) {
+                if ((fieldConfig.max !== undefined && value >= fieldConfig.critical_threshold) ||
+                    (fieldConfig.min !== undefined && value <= fieldConfig.critical_threshold)) {
+                    console.error(`[RobotAPI] 🚨 CRITICAL: ${robotName} ${field} is ${value} (threshold: ${fieldConfig.critical_threshold})`);
+                    this.emit('criticalStatus', { robot: robotName, field, value, threshold: fieldConfig.critical_threshold });
+                }
+            }
+            
+            // Check warning threshold
+            if (fieldConfig.warning_threshold !== undefined) {
+                if ((fieldConfig.max !== undefined && value >= fieldConfig.warning_threshold) ||
+                    (fieldConfig.min !== undefined && value <= fieldConfig.warning_threshold)) {
+                    console.warn(`[RobotAPI] ⚠️ WARNING: ${robotName} ${field} is ${value} (threshold: ${fieldConfig.warning_threshold})`);
+                    this.emit('warningStatus', { robot: robotName, field, value, threshold: fieldConfig.warning_threshold });
+                }
+            }
+        }
+    }
+
+    /**
+     * Register a callback for status updates for a specific robot
+     */
+    onRobotStatusUpdate(robotName, callback) {
+        this.statusUpdateCallbacks.set(robotName, callback);
+    }
+
+    /**
+     * Handle incoming status update from robot
+     */
+    handleRobotStatusUpdate(robotName, statusUpdate) {
+        console.log(`[RobotAPI] 📨 Received status update from ${robotName}:`, statusUpdate);
+        
+        // Validate and process the status update
+        const validatedUpdate = this.validateStatusUpdate(statusUpdate);
+        if (Object.keys(validatedUpdate).length > 0) {
+            this.updateDetailedRobotStatus(robotName, validatedUpdate);
+        }
+    }
+
+    /**
+     * Validate incoming status update against configuration
+     */
+    validateStatusUpdate(statusUpdate) {
+        const validated = {};
+        
+        for (const [key, value] of Object.entries(statusUpdate)) {
+            // Check if it's a defined status field
+            const fieldConfig = this.statusConfig?.statusDefinitions?.[key];
+            
+            if (fieldConfig) {
+                // Validate against status config
+                if (!this.validateFieldValue(key, value, fieldConfig)) {
+                    continue;
+                }
+                validated[key] = value;
+            } else {
+                // Check if it's a signal field (from triggers or scroll controllers)
+                const signalValidation = this.validateSignalField(key, value);
+                if (signalValidation.valid) {
+                    validated[key] = value;
+                } else {
+                    console.warn(`[RobotAPI] ⚠️ ${signalValidation.reason}`);
+                }
+            }
+        }
+        
+        return validated;
+    }
+
+    /**
+     * Validate field value against configuration
+     */
+    validateFieldValue(key, value, fieldConfig) {
+        // Type validation
+        if (fieldConfig.type === 'boolean' && typeof value !== 'boolean') {
+            console.warn(`[RobotAPI] ⚠️ Invalid type for ${key}: expected boolean, got ${typeof value}`);
+            return false;
+        }
+        
+        if (fieldConfig.type === 'number' && typeof value !== 'number') {
+            console.warn(`[RobotAPI] ⚠️ Invalid type for ${key}: expected number, got ${typeof value}`);
+            return false;
+        }
+        
+        if (fieldConfig.type === 'string' && typeof value !== 'string') {
+            console.warn(`[RobotAPI] ⚠️ Invalid type for ${key}: expected string, got ${typeof value}`);
+            return false;
+        }
+        
+        // Range validation for numbers
+        if (fieldConfig.type === 'number') {
+            if (fieldConfig.min !== undefined && value < fieldConfig.min) {
+                console.warn(`[RobotAPI] ⚠️ Value ${value} for ${key} below minimum ${fieldConfig.min}`);
+                return false;
+            }
+            if (fieldConfig.max !== undefined && value > fieldConfig.max) {
+                console.warn(`[RobotAPI] ⚠️ Value ${value} for ${key} above maximum ${fieldConfig.max}`);
+                return false;
+            }
+        }
+        
+        // Allowed values validation
+        if (fieldConfig.allowed_values && !fieldConfig.allowed_values.includes(value)) {
+            console.warn(`[RobotAPI] ⚠️ Invalid value ${value} for ${key}: allowed values are ${fieldConfig.allowed_values.join(', ')}`);
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Validate signal field from triggers or scroll controllers
+     */
+    validateSignalField(key, value) {
+        try {
+            // Check triggers from loaded config
+            if (this.triggersConfig) {
+                for (const robotConfig of Object.values(this.triggersConfig)) {
+                    for (const trigger of Object.values(robotConfig)) {
+                        if (trigger.Signal === key) {
+                            // Trigger signals should be boolean
+                            if (typeof value !== 'boolean') {
+                                return { valid: false, reason: `Signal ${key} should be boolean, got ${typeof value}` };
+                            }
+                            return { valid: true };
+                        }
+                    }
+                }
+            }
+
+            // Check scroll controllers from loaded config
+            if (this.scrollConfig) {
+                for (const robotConfig of Object.values(this.scrollConfig)) {
+                    for (const scroll of Object.values(robotConfig)) {
+                        if (scroll.signal === key) {
+                            // Scroll controller signals should be numbers
+                            if (typeof value !== 'number') {
+                                return { valid: false, reason: `Signal ${key} should be number, got ${typeof value}` };
+                            }
+                            // Validate range if specified
+                            if (scroll.min !== undefined && value < scroll.min) {
+                                return { valid: false, reason: `Signal ${key} value ${value} below minimum ${scroll.min}` };
+                            }
+                            if (scroll.max !== undefined && value > scroll.max) {
+                                return { valid: false, reason: `Signal ${key} value ${value} above maximum ${scroll.max}` };
+                            }
+                            return { valid: true };
+                        }
+                    }
+                }
+            }
+
+            // Check if this is a robot-generated status field from the status config
+            if (this.statusConfig?.statusDefinitions?.[key]) {
+                // Allow robot-generated status fields without validation
+                return { valid: true };
+            }
+
+            return { valid: false, reason: `Unknown status field: ${key}` };
+        } catch (error) {
+            console.error(`[RobotAPI] Error validating signal field ${key}:`, error);
+            return { valid: false, reason: `Validation error for ${key}` };
+        }
+    }
+
+    /**
+     * Handle when robot finishes speaking - notifies STT to flush buffer
+     */
+    handleSpeakingFinished(robotName, sessionId) {
+        console.log(`[RobotAPI] 🎤 Robot ${robotName} finished speaking (session: ${sessionId})`);
+        
+        // Update robot status
+        this.updateDetailedRobotStatus(robotName, {
+            listening: true,
+            stt_buffer_state: 'ready',
+            current_behavior: 'listening'
+        });
+        
+        // Emit event for STT integration
+        this.emit('robotFinishedSpeaking', { 
+            robot: robotName, 
+            sessionId,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * Initialize STT WebSocket connection
+     */
+    initializeSTTConnection() {
+        if (this.sttWebSocket && this.sttWebSocket.readyState === WebSocket.OPEN) {
+            return; // Already connected
+        }
+
+        const sttUrl = `ws://${this.sttHost}:${this.sttPort}`;
+        console.log(`[RobotAPI] 🔌 Connecting to STT server at ${sttUrl}`);
+
+        try {
+            this.sttWebSocket = new WebSocket(sttUrl);
+
+            this.sttWebSocket.on('open', () => {
+                console.log('[RobotAPI] ✅ STT WebSocket connected');
+                // Clear any reconnect timeout
+                if (this.sttReconnectTimeout) {
+                    clearTimeout(this.sttReconnectTimeout);
+                    this.sttReconnectTimeout = null;
+                }
+            });
+
+            this.sttWebSocket.on('message', (data) => {
+                try {
+                    const message = JSON.parse(data);
+                    console.log('[RobotAPI] 📥 STT message received:', message);
+                } catch (error) {
+                    console.error('[RobotAPI] ❌ Failed to parse STT message:', error);
+                }
+            });
+
+            this.sttWebSocket.on('close', () => {
+                console.log('[RobotAPI] � STT WebSocket disconnected, attempting reconnect...');
+                this.sttWebSocket = null;
+                this.scheduleSTTReconnect();
+            });
+
+            this.sttWebSocket.on('error', (error) => {
+                console.error('[RobotAPI] ❌ STT WebSocket error:', error);
+                this.sttWebSocket = null;
+                this.scheduleSTTReconnect();
+            });
+
+        } catch (error) {
+            console.error('[RobotAPI] ❌ Failed to create STT WebSocket:', error);
+            this.scheduleSTTReconnect();
+        }
+    }
+
+    /**
+     * Schedule STT WebSocket reconnection
+     */
+    scheduleSTTReconnect() {
+        if (this.sttReconnectTimeout) {
+            return; // Already scheduled
+        }
+
+        this.sttReconnectTimeout = setTimeout(() => {
+            this.sttReconnectTimeout = null;
+            this.initializeSTTConnection();
+        }, 5000); // Reconnect after 5 seconds
+    }
+
+    /**
+     * Send command to STT server
+     */
+    sendSTTCommand(action, additionalData = {}) {
+        if (!this.sttWebSocket || this.sttWebSocket.readyState !== WebSocket.OPEN) {
+            console.warn(`[RobotAPI] ⚠️ STT WebSocket not connected, cannot send ${action} command`);
+            return false;
+        }
+
+        const command = {
+            type: 'control',
+            action: action,
+            timestamp: Date.now(),
+            ...additionalData
+        };
+
+        try {
+            this.sttWebSocket.send(JSON.stringify(command));
+            console.log(`[RobotAPI] 📤 STT command sent: ${action}`);
+            return true;
+        } catch (error) {
+            console.error(`[RobotAPI] ❌ Failed to send STT command ${action}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Pause STT processing (called when robot starts speaking)
+     */
+    pauseSTTProcessing() {
+        console.log('[RobotAPI] ⏸️ Pausing STT processing - robot is speaking');
+        return this.sendSTTCommand('pause');
+    }
+
+    /**
+     * Resume STT processing (called when robot stops speaking)
+     */
+    resumeSTTProcessing() {
+        console.log('[RobotAPI] ▶️ Resuming STT processing - robot finished speaking');
+        return this.sendSTTCommand('resume');
+    }
+
+    /**
+     * Handle robot identification from incoming messages
+     */
+    updateRobotIdentification(socketId, robotName) {
+        const connection = this.connections.get(socketId);
+        if (connection && connection.robot === 'pending') {
+            connection.robot = robotName;
+            console.log(`[RobotAPI] ✅ Robot identified via message: ${robotName} (${socketId})`);
+            
+            // Initialize status for newly identified robot
+            this.initializeRobotStatus(robotName);
+            
+            // Process any queued messages
+            this.processQueuedMessages(robotName);
+            
+            this.emit('robotIdentified', { socketId, robot: robotName });
+        }
     }
 
     checkStaleBuffers() {
@@ -519,8 +1087,9 @@ class RobotAPI extends EventEmitter {
         
         console.log(`[RobotAPI] Registered connection ${socketId} for robot: ${robotName} (${remoteAddress}:${remotePort})`);
         
-        // If robot was identified, send queued messages
+        // Initialize status for identified robots
         if (robotName !== 'pending' && robotName !== this.defaultRobotName) {
+            this.initializeRobotStatus(robotName);
             this.processQueuedMessages(robotName);
         }
         
@@ -1184,12 +1753,35 @@ class RobotAPI extends EventEmitter {
         // Update general status
         currentStatus.lastActivity = currentTime;
         
-        if (event === 'speaking' || event === 'spoke') {
-            currentStatus.messageCount++;
-            currentStatus.lastMessage = data;
+        // Update specific fields based on event
+        if (event === 'speaking' && data) {
+            currentStatus.speaking = true;
+            currentStatus.lastSpeakTime = currentTime;
+            
+            // Also update detailed status if available
+            if (this.detailedRobotStatus.has(robot)) {
+                this.updateDetailedRobotStatus(robot, {
+                    speaking: true,
+                    current_behavior: 'speaking'
+                });
+            }
+        } else if (event === 'spoke') {
+            currentStatus.speaking = false;
+            
+            // Also update detailed status if available
+            if (this.detailedRobotStatus.has(robot)) {
+                this.updateDetailedRobotStatus(robot, {
+                    speaking: false,
+                    current_behavior: 'idle'
+                });
+            }
         }
         
+        // Store updated status
         this.robotStatus.set(robot, currentStatus);
+        
+        // Emit legacy status event
+        this.emit('robotStatusUpdate', { robot, event, data, status: currentStatus });
     }
 
     cleanupInactiveConnections() {
@@ -1207,6 +1799,38 @@ class RobotAPI extends EventEmitter {
     handleShutdownCommand(socketId) {
         console.log(`[RobotAPI] Handling shutdown command for connection: ${socketId}`);
         this.unregisterConnection(socketId);
+    }
+
+    /**
+     * Cleanup method for graceful shutdown
+     */
+    cleanup() {
+        console.log('[RobotAPI] 🧹 Cleaning up resources...');
+        
+        // Clear reconnect timeout
+        if (this.sttReconnectTimeout) {
+            clearTimeout(this.sttReconnectTimeout);
+            this.sttReconnectTimeout = null;
+        }
+        
+        // Close STT WebSocket connection
+        if (this.sttWebSocket) {
+            this.sttWebSocket.close();
+            this.sttWebSocket = null;
+        }
+        
+        // Clear intervals
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        if (this.bufferCheckInterval) {
+            clearInterval(this.bufferCheckInterval);
+            this.bufferCheckInterval = null;
+        }
+        
+        console.log('[RobotAPI] ✅ Cleanup completed');
     }
 }
 

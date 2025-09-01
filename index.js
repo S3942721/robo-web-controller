@@ -15,6 +15,67 @@ require('express-ws')(app)
 // Import the Robot API
 const robotAPI = require('./utils/robot-api');
 
+// Set up robot status event listeners
+robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
+    console.log(`[Server] 🎤 Robot ${robot} finished speaking, session ${sessionId} - notifying STT`);
+    
+    // Notify all STT WebSocket clients to flush buffer
+    sendWebSockets.forEach(ws => {
+        try {
+            ws.send(JSON.stringify({
+                cmd: 'stt-flush-buffer',
+                sessionId: sessionId,
+                robot: robot,
+                timestamp: timestamp
+            }));
+        } catch (error) {
+            console.error('[Server] Failed to notify STT client:', error);
+        }
+    });
+});
+
+robotAPI.on('statusChanged', ({ robot, changedFields, currentStatus }) => {
+    console.log(`[Server] 📊 Status changed for ${robot}:`, changedFields);
+    
+    // Broadcast status changes to frontend
+    sendWebSockets.forEach(ws => {
+        try {
+            ws.send(JSON.stringify({
+                cmd: 'robot-status-update',
+                robot: robot,
+                changedFields: changedFields,
+                status: currentStatus
+            }));
+        } catch (error) {
+            console.error('[Server] Failed to broadcast status update:', error);
+        }
+    });
+});
+
+robotAPI.on('criticalStatus', ({ robot, field, value, threshold }) => {
+    console.error(`[Server] 🚨 CRITICAL STATUS: ${robot} ${field} = ${value} (threshold: ${threshold})`);
+    
+    // Broadcast critical alerts
+    sendWebSockets.forEach(ws => {
+        try {
+            ws.send(JSON.stringify({
+                cmd: 'robot-critical-alert',
+                robot: robot,
+                field: field,
+                value: value,
+                threshold: threshold,
+                timestamp: Date.now()
+            }));
+        } catch (error) {
+            console.error('[Server] Failed to broadcast critical alert:', error);
+        }
+    });
+});
+
+robotAPI.on('warningStatus', ({ robot, field, value, threshold }) => {
+    console.warn(`[Server] ⚠️ WARNING STATUS: ${robot} ${field} = ${value} (threshold: ${threshold})`);
+});
+
 // variables
 let sendSockets = []; // Keep for backward compatibility
 let sendWebSockets = [];
@@ -519,11 +580,6 @@ router.get("/api/network-config", (req, res) => {
     });
 });
 
-// normal setup
-router.get("*", (req, res)=>{
-    res.sendFile(join(__dirname, 'dist', 'index.html'));
-})
-
 app.use('/', router);
 
 app.listen(SERVER_PORT, SERVER_HOST, () => {
@@ -981,6 +1037,40 @@ router.get("/api/robot-status", (req, res) => {
     res.status(200).json(robotAPI.getStatus());
 });
 
+// Enhanced robot status endpoints
+router.get("/api/robot-status/detailed", (req, res) => {
+    const robot = req.query.robot;
+    if (robot) {
+        res.status(200).json(robotAPI.getRobotStatus(robot));
+    } else {
+        res.status(200).json(robotAPI.getAllRobotStatus());
+    }
+});
+
+router.get("/api/robot-status/config", (req, res) => {
+    res.status(200).json({
+        statusConfig: robotAPI.statusConfig,
+        triggersConfig: robotAPI.triggersConfig,
+        scrollConfig: robotAPI.scrollConfig
+    });
+});
+
+router.post("/api/robot-status/update/:robot", (req, res) => {
+    const robot = req.params.robot;
+    const updates = req.body;
+    
+    if (!robot || !updates) {
+        return res.status(400).json({ error: "Robot name and updates are required" });
+    }
+    
+    try {
+        const updatedStatus = robotAPI.updateDetailedRobotStatus(robot, updates);
+        res.status(200).json({ success: true, status: updatedStatus });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Add Robot API message history endpoint
 router.get("/api/robot-history/:robot?", (req, res) => {
     const robot = req.params.robot || req.query.robot;
@@ -1111,4 +1201,9 @@ router.post("/api/robot-buffer/update-mode/:sessionId", (req, res) => {
     } else {
         res.status(400).json(result);
     }
+});
+
+// Catch-all route for serving the frontend - MUST BE LAST
+router.get("*", (req, res)=>{
+    res.sendFile(join(__dirname, 'dist', 'index.html'));
 });

@@ -6,6 +6,7 @@ import ShortCuts from "./ShortCuts"
 import ScrollControllers from "../ScrollControllers"
 import SelectAnnouncements from "../SelectAnnouncements"
 import MoveController from "./MoveController"
+import RobotStatusMonitor from "../RobotStatusMonitor"
 
 export default function Controller() {
     return (
@@ -27,6 +28,7 @@ export default function Controller() {
             <ShortCuts />
             <PreDefinedScripts />
             <ScrollControllers />
+            <RobotStatusMonitor />
         </div>
     )
 }

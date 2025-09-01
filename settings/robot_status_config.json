@@ -1,0 +1,151 @@
+{
+  "statusDefinitions": {
+    "speaking": {
+      "type": "boolean",
+      "default": false,
+      "description": "Robot is currently speaking/producing audio output",
+      "category": "communication",
+      "affects": ["stt_listening"]
+    },
+    "listening": {
+      "type": "boolean", 
+      "default": false,
+      "description": "Robot is actively listening for speech input",
+      "category": "communication",
+      "affects": ["speaking"]
+    },
+    "moving": {
+      "type": "boolean",
+      "default": false,
+      "description": "Robot is currently executing movement commands",
+      "category": "movement"
+    },
+    "battery_level": {
+      "type": "number",
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "unit": "percentage",
+      "description": "Current battery charge level",
+      "category": "hardware",
+      "critical_threshold": 20,
+      "warning_threshold": 30
+    },
+    "cpu_usage": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "unit": "percentage",
+      "description": "Current CPU usage",
+      "category": "performance",
+      "warning_threshold": 80,
+      "critical_threshold": 95
+    },
+    "memory_usage": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "unit": "percentage",
+      "description": "Current memory usage",
+      "category": "performance",
+      "warning_threshold": 85,
+      "critical_threshold": 95
+    },
+    "temperature": {
+      "type": "number",
+      "default": 25,
+      "min": -40,
+      "max": 100,
+      "unit": "celsius",
+      "description": "Internal temperature",
+      "category": "hardware",
+      "warning_threshold": 70,
+      "critical_threshold": 80
+    },
+    "connection_quality": {
+      "type": "number",
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "unit": "percentage",
+      "description": "Network connection quality",
+      "category": "connectivity",
+      "warning_threshold": 50,
+      "critical_threshold": 20
+    },
+    "last_heartbeat": {
+      "type": "timestamp",
+      "default": null,
+      "description": "Last heartbeat received from robot",
+      "category": "connectivity"
+    },
+    "error_count": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "description": "Number of errors in current session",
+      "category": "diagnostics"
+    },
+    "uptime": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "unit": "seconds",
+      "description": "Robot uptime in seconds",
+      "category": "diagnostics"
+    },
+    "current_behavior": {
+      "type": "string",
+      "default": "idle",
+      "description": "Current behavior or action being executed",
+      "category": "behavior",
+      "allowed_values": ["idle", "speaking", "listening", "moving", "greeting", "conversation", "error"]
+    },
+    "face_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether a face is currently detected",
+      "category": "perception"
+    },
+    "face_count": {
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "description": "Number of faces currently detected",
+      "category": "perception"
+    },
+    "conversation_session_id": {
+      "type": "string",
+      "default": null,
+      "description": "Current conversation session ID",
+      "category": "communication"
+    },
+    "stt_buffer_state": {
+      "type": "string",
+      "default": "ready",
+      "description": "Speech-to-text buffer state",
+      "category": "communication",
+      "allowed_values": ["ready", "listening", "processing", "full", "error"]
+    }
+  },
+  "robotSpecific": {
+    "Haku": {
+      "statusOverrides": {
+        "battery_level": {
+          "default": 100,
+          "critical_threshold": 15
+        }
+      }
+    },
+    "Bandit": {
+      "statusOverrides": {
+        "battery_level": {
+          "default": 100,
+          "critical_threshold": 25
+        }
+      }
+    }
+  }
+}
