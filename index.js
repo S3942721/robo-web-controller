@@ -73,7 +73,80 @@ robotAPI.on('criticalStatus', ({ robot, field, value, threshold }) => {
 });
 
 robotAPI.on('warningStatus', ({ robot, field, value, threshold }) => {
-    console.warn(`[Server] ⚠️ WARNING STATUS: ${robot} ${field} = ${value} (threshold: ${threshold})`);
+    console.warn(`[RobotAPI] ⚠️ WARNING: Robot ${robot} ${field} is ${value} (threshold: ${threshold})`);
+    
+    // Broadcast warning to frontend connections if needed
+    sendWebSockets.forEach(ws => {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'robot-warning',
+                robot: robot,
+                field: field,
+                value: value,
+                threshold: threshold,
+                timestamp: Date.now()
+            }));
+        }
+    });
+});
+
+// Turn-taking violation event handler
+robotAPI.on('turnTakingViolation', ({ type, robot, sessionId, message, timestamp }) => {
+    console.error(`[TurnTaking] 🚨 VIOLATION: ${type}`);
+    console.error(`[TurnTaking] Details: robot=${robot}, session=${sessionId}, message="${message}", time=${new Date(timestamp).toISOString()}`);
+    
+    // Broadcast turn-taking violation to frontend connections
+    sendWebSockets.forEach(ws => {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'turn-taking-violation',
+                violationType: type,
+                robot: robot,
+                sessionId: sessionId,
+                message: message,
+                timestamp: timestamp
+            }));
+        }
+    });
+});
+
+// Handle STT complete messages and forward to LLM
+robotAPI.on('sttMessage', async ({ type, text, timestamp, confidence }) => {
+    if (type === 'complete' && text && STT_LLM_ENABLED) {
+        console.log(`[Server] 🎤 Received STT complete message: "${text}" - forwarding to LLM`);
+        
+        try {
+            // Get the default robot for LLM responses
+            const targetRobot = 'Haku'; // TODO: Make this configurable or dynamic
+            
+            // Create a new session ID for this conversation
+            const sessionId = Math.random().toString(36).substring(2);
+            console.log(`[Server] 🆔 Generated session ID: ${sessionId} for STT message from robot ${targetRobot}`);
+            
+            // Forward to LLM conversation endpoint
+            const llmResponse = await fetch(`http://localhost:${SERVER_PORT}/api/conversation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: text,
+                    robot: targetRobot,
+                    sessionId: sessionId,
+                    source: 'stt-server'
+                })
+            });
+            
+            if (!llmResponse.ok) {
+                console.error(`[Server] ❌ LLM request failed: ${llmResponse.status} ${llmResponse.statusText}`);
+            } else {
+                console.log(`[Server] ✅ STT message "${text}" successfully forwarded to LLM`);
+            }
+            
+        } catch (error) {
+            console.error('[Server] ❌ Failed to forward STT message to LLM:', error);
+        }
+    }
 });
 
 // variables
@@ -1117,6 +1190,56 @@ router.post("/api/robot-send", (req, res) => {
         message: sent ? 'Message sent successfully' : 'Message queued (no active connections)',
         messageData
     });
+});
+
+// Robot API conversation response endpoint with proper chunking and turn-taking
+router.post("/api/robot-conversation", (req, res) => {
+    const { message, robot, sessionId, isFinished = false, isFirstChunk = false } = req.body;
+    
+    if (!message && !isFinished) {
+        return res.status(400).json({ error: 'Message is required unless marking finished' });
+    }
+    
+    if (!sessionId) {
+        return res.status(400).json({ error: 'Session ID is required for conversation responses' });
+    }
+    
+    const targetRobot = robot || 'Haku';
+    
+    try {
+        // Use the robot API's conversation response handler which includes proper chunking
+        const result = robotAPI.handleConversationResponse(
+            message, 
+            targetRobot, 
+            sessionId, 
+            isFinished, 
+            isFirstChunk
+        );
+        
+        if (result.success) {
+            res.status(200).json({
+                success: true,
+                message: result.message,
+                buffered: result.buffered,
+                llmActive: result.llmActive,
+                sessionId: sessionId,
+                contentLength: result.contentLength
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: result.error,
+                sessionId: sessionId
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error in conversation endpoint:', error);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            details: error.message 
+        });
+    }
 });
 
 // Add Robot API buffer management endpoints

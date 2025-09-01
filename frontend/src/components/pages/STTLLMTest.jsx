@@ -43,6 +43,12 @@ export default function STTLLMTest() {
 
     // Add session ID tracking
     const sessionIdRef = useRef(null);
+    const isFirstChunkRef = useRef(new Set()); // Track which sessions are expecting their first chunk
+
+    // Add turn-taking state tracking
+    const [turnTakingViolations, setTurnTakingViolations] = useState([]);
+    const [robotSpeaking, setRobotSpeaking] = useState(false);
+    const [llmActive, setLLMActive] = useState(false);
 
     useEffect(() => {
         // Load network configuration from server
@@ -57,12 +63,60 @@ export default function STTLLMTest() {
                 setOverallStatus('❌ Failed to load configuration');
             });
 
+        // Set up WebSocket connection for robot status updates
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const statusWs = new WebSocket(`${wsProtocol}//${wsHost}/websocket`);
+        
+        statusWs.onopen = () => {
+            console.log('📡 Connected to status WebSocket');
+        };
+        
+        statusWs.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Handle robot status updates
+                if (data.type === 'robot-status-update') {
+                    if (data.robot === targetRobot && data.field === 'speaking') {
+                        console.log(`🔄 Robot ${data.robot} speaking state: ${data.value}`);
+                        setRobotSpeaking(data.value);
+                    }
+                }
+                
+                // Handle turn-taking violations
+                if (data.type === 'turn-taking-violation') {
+                    console.error('🚨 Turn-taking violation received:', data);
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: data.violationType,
+                        robot: data.robot,
+                        sessionId: data.sessionId,
+                        message: data.message,
+                        timestamp: data.timestamp
+                    }]);
+                    
+                    // Update status to show violation
+                    setOverallStatus(`🚨 Turn-taking violation: ${data.violationType}`);
+                }
+            } catch (error) {
+                console.error('Failed to parse WebSocket message:', error);
+            }
+        };
+        
+        statusWs.onclose = () => {
+            console.log('📡 Status WebSocket disconnected');
+        };
+
         // Generate session ID when component mounts or when starting new conversation
         sessionIdRef.current = `stt-llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         console.log('Generated session ID:', sessionIdRef.current);
+        
+        // Mark this session as expecting its first chunk
+        isFirstChunkRef.current.add(sessionIdRef.current);
 
         return () => {
             disconnect();
+            statusWs.close();
         };
     }, []);
 
@@ -242,6 +296,10 @@ export default function STTLLMTest() {
         // Generate a simple session ID for tracking
         const newSessionId = Math.random().toString(36).substr(2, 9);
         setSessionId(newSessionId);
+        sessionIdRef.current = newSessionId;
+        
+        // Mark this session as expecting its first chunk
+        isFirstChunkRef.current.add(newSessionId);
         
         // Connect to STT first
         await connectSTT();
@@ -252,11 +310,53 @@ export default function STTLLMTest() {
         
         switch(data.type) {
             case 'partial':
+                // Check turn-taking rules before processing
+                if (robotSpeaking) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT partial while robot is speaking!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_partial_while_robot_speaking',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                if (llmActive) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT partial while LLM is active!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_partial_while_llm_active',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
                 setCurrentTranscription(data.text || '');
                 setOverallStatus('🎤 Listening... (partial result)');
                 break;
                 
             case 'complete':
+                // Check turn-taking rules before processing
+                if (robotSpeaking) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT complete while robot is speaking!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_complete_while_robot_speaking',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                if (llmActive) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT complete while LLM is active!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_complete_while_llm_active',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
                 if (data.text && data.text.trim()) {
                     console.log('✅ Complete transcription:', data.text);
                     
@@ -274,7 +374,7 @@ export default function STTLLMTest() {
                     setOverallStatus('✅ Transcription complete - sending to AI');
                     
                     // Automatically send to LLM
-                    sendToLLM(data.text.trim());
+                    sendToLLM(data.text);
                 }
                 break;
                 
@@ -354,9 +454,23 @@ export default function STTLLMTest() {
                 console.log('✅ LLM response received:', data.content);
                 const timestamp = new Date().toLocaleTimeString();
                 
+                // Track LLM state
+                if (!data.isFinished) {
+                    setLLMActive(true);
+                }
+                
+                // Check if this is the first chunk for this session
+                const sessionId = data.sessionId || sessionIdRef.current;
+                const isFirstChunk = isFirstChunkRef.current.has(sessionId);
+                
                 // Send to robot if enabled - use Robot API directly with session ID
                 if (sendToRobot && data.content) {
-                    sendLLMResponseToRobot(data.content, data.isFinished, data.sessionId || sessionIdRef.current);
+                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk);
+                    
+                    // Remove from first chunk tracking after sending
+                    if (isFirstChunk) {
+                        isFirstChunkRef.current.delete(sessionId);
+                    }
                 }
                 
                 setConversationHistory(prev => {
@@ -384,10 +498,11 @@ export default function STTLLMTest() {
                 });
                 
                 if (data.isFinished) {
+                    setLLMActive(false);
                     setOverallStatus('🤖 AI responded - Ready for your next input');
                     // Send final chunk marker with session ID
                     if (sendToRobot) {
-                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current);
+                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false);
                         // Flush any remaining buffer content
                         flushBuffer(data.sessionId || sessionIdRef.current);
                     }
@@ -399,9 +514,13 @@ export default function STTLLMTest() {
             // Handle other response formats - create new entry for each response
             const timestamp = new Date().toLocaleTimeString();
             
+            // Track LLM state
+            setLLMActive(true);
+            
             // Send to robot if enabled with session ID
             if (sendToRobot && data.content) {
-                sendLLMResponseToRobot(data.content, true, sessionIdRef.current); // Assume single chunk responses are finished
+                sendLLMResponseToRobot(data.content, true, sessionIdRef.current, false); // Assume single chunk responses are finished
+                setLLMActive(false);
             }
             
             setConversationHistory(prev => [...prev, {
@@ -415,13 +534,14 @@ export default function STTLLMTest() {
         } else if (data.error) {
             console.error('❌ LLM Error:', data.error);
             setOverallStatus('❌ LLM Error: ' + data.error);
+            setLLMActive(false);
         } else {
             console.log('🤖 Other LLM message:', data);
         }
     };
 
-    // Updated function to include session ID
-    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null) => {
+    // Updated function to include session ID and turn-taking
+    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null, isFirstChunk = false) => {
         if (!sendToRobot || !targetRobot) {
             console.log('🤖 Robot integration disabled or no target robot selected');
             return;
@@ -430,10 +550,10 @@ export default function STTLLMTest() {
         try {
             const effectiveSessionId = sessionId || sessionIdRef.current;
             console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}):`, content);
-            console.log(`🤖 Response chunk finished: ${isFinished}`);
+            console.log(`🤖 Response chunk finished: ${isFinished}, isFirstChunk: ${isFirstChunk}`);
             
-            // Use Robot API to send conversation response with session ID
-            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId);
+            // Use Robot API conversation endpoint with turn-taking support
+            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId, isFinished, isFirstChunk);
             
             if (result.success) {
                 console.log(`✅ LLM response sent to robot ${targetRobot} successfully`);
@@ -441,6 +561,11 @@ export default function STTLLMTest() {
             } else {
                 console.warn(`⚠️ LLM response queued for robot ${targetRobot}:`, result.message);
                 setOverallStatus(prev => prev + ' (queued for robot)');
+            }
+            
+            // Log turn-taking state
+            if (result.llmActive !== undefined) {
+                console.log(`🔄 LLM session active: ${result.llmActive}`);
             }
         } catch (error) {
             console.error(`❌ Failed to send LLM response to robot ${targetRobot}:`, error);

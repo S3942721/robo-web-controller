@@ -52,6 +52,15 @@ class RobotAPI extends EventEmitter {
         this.detailedRobotStatus = new Map(); // robot -> detailed status object
         this.statusUpdateCallbacks = new Map(); // robot -> callback functions
         
+        // Turn-taking control system
+        this.conversationSessions = new Map(); // sessionId -> { robot, llmActive, robotSpeaking, sttAllowed }
+        this.sttPaused = false;
+        this.sttTemporarilyDisabled = false;
+        this.llmActiveSessions = new Set(); // Track active LLM sessions
+        
+        // Session ID inference for robots - track most recent session per robot
+        this.robotLastSessionId = new Map(); // robot -> sessionId
+        
         console.log('[RobotAPI] Initialized with identification method:', this.identificationMethod);
         console.log('[RobotAPI] Robot IP mappings:', this.robotIPs);
         console.log('[RobotAPI] LLM chunk processing mode:', LLM_CHUNK_MODE);
@@ -91,6 +100,7 @@ class RobotAPI extends EventEmitter {
                         source: message.source,
                         timestamp: message.timestamp
                     });
+                    
                     return message; // Send directly without buffering
                 }
                 
@@ -147,11 +157,32 @@ class RobotAPI extends EventEmitter {
             this.handleShutdownCommand(socketId);
         });
 
+        // Handler for robot identification messages
+        this.onMessageType('robot-identify', (message, socketId, robot) => {
+            console.log(`[RobotAPI] Robot identification message from ${robot || 'unknown'} (${socketId}):`, JSON.stringify(message, null, 2));
+            
+            // Update robot status to indicate successful identification
+            if (robot && robot !== 'pending') {
+                this.updateDetailedRobotStatus(robot, {
+                    last_identification: Date.now(),
+                    connection_status: 'identified'
+                });
+                
+                console.log(`[RobotAPI] ✅ Robot ${robot} successfully identified and status initialized`);
+            }
+        });
+
         // Handler for robot status updates
         this.onMessageType('status-update', (message, socketId, robot) => {
-            console.log(`[RobotAPI] 📊 Status update received from ${robot || 'unknown'}`);
-            if (message.status) {
-                this.handleRobotStatusUpdate(robot, message.status);
+            console.log(`[RobotAPI] 📊 Status update received from ${robot || 'unknown'}:`, JSON.stringify(message, null, 2));
+            
+            // Extract status data from message.message or message.status or direct from message
+            const statusData = message.message || message.status || message;
+            
+            if (statusData && typeof statusData === 'object') {
+                this.handleRobotStatusUpdate(robot, statusData);
+            } else {
+                console.warn(`[RobotAPI] ⚠️ No valid status data found in status-update message from ${robot}`);
             }
         });
 
@@ -167,31 +198,77 @@ class RobotAPI extends EventEmitter {
 
         // Handler for robot speaking state changes
         this.onMessageType('speaking-state', (message, socketId, robot) => {
-            const isSpeaking = message.speaking || false;
+            console.log(`[RobotAPI] Speaking state message from ${robot}:`, JSON.stringify(message, null, 2));
+            
+            // Extract speaking state from message.message or direct from message
+            const isSpeaking = message.message?.speaking ?? message.speaking ?? false;
             const wasSpeaking = this.getRobotStatus(robot)?.speaking || false;
+            const providedSessionId = message.session_id || message.message?.session_id;
+            
+            // Infer session ID if not provided by robot
+            const sessionId = this.inferSessionIdForRobot(robot, providedSessionId);
+            
+            console.log(`[RobotAPI] Speaking state change for ${robot}: ${wasSpeaking} → ${isSpeaking} (session: ${sessionId})`);
+            
+            // Turn-taking validation
+            if (!isSpeaking && wasSpeaking && sessionId) {
+                // Robot stopped speaking - check if LLM is still active
+                if (this.llmActiveSessions.has(sessionId)) {
+                    console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Robot ${robot} stopped speaking but LLM session ${sessionId} is still active!`);
+                    this.emit('turnTakingViolation', {
+                        type: 'robot_finished_while_llm_active',
+                        robot,
+                        sessionId,
+                        timestamp: Date.now()
+                    });
+                }
+            }
             
             const speakingUpdate = {
                 speaking: isSpeaking,
                 current_behavior: isSpeaking ? 'speaking' : 'idle'
             };
-            if (message.session_id) {
-                speakingUpdate.conversation_session_id = message.session_id;
+            if (sessionId) {
+                speakingUpdate.conversation_session_id = sessionId;
             }
             this.updateDetailedRobotStatus(robot, speakingUpdate);
             
-            // STT Control Logic
+            // Update conversation session state
+            if (sessionId) {
+                this.updateConversationSession(sessionId, robot, { robotSpeaking: isSpeaking });
+            }
+            
+            // STT Control Logic - Always pause/resume regardless of session ID
             if (isSpeaking && !wasSpeaking) {
-                // Robot started speaking - pause STT
-                console.log(`[RobotAPI] 🎤 Robot ${robot} started speaking - pausing STT`);
+                // Robot started speaking - pause STT immediately
+                console.log(`[RobotAPI] 🎤 Robot ${robot} started speaking - pausing STT immediately`);
                 this.pauseSTTProcessing();
+                
+                // Also set a flag to ignore STT messages for a brief moment
+                this.sttTemporarilyDisabled = true;
+                setTimeout(() => {
+                    this.sttTemporarilyDisabled = false;
+                }, 1000); // 1 second buffer // TODO: Verify if this is still needed
+                
             } else if (!isSpeaking && wasSpeaking) {
-                // Robot stopped speaking - resume STT
-                console.log(`[RobotAPI] 🎤 Robot ${robot} stopped speaking - resuming STT`);
-                this.resumeSTTProcessing();
+                // Robot stopped speaking - only resume STT if turn-taking rules allow it
+                console.log(`[RobotAPI] 🎤 Robot ${robot} stopped speaking - checking if STT can be resumed`);
+                
+                // Check if turn-taking rules allow STT resumption
+                const canResume = this.checkSTTResumption(sessionId, robot);
+                if (canResume) {
+                    // Add delay to avoid picking up tail end of robot speech
+                    console.log(`[RobotAPI] 🎤 Resuming STT after ${robot} finished speaking (turn-taking rules satisfied)`);
+                    this.resumeSTTProcessing();
+                    this.sttTemporarilyDisabled = false;
+                } else {
+                    console.log(`[RobotAPI] ⏸️ Robot ${robot} stopped speaking but turn-taking rules prevent STT resumption`);
+                    // Don't resume STT - wait for proper turn-taking signal
+                }
                 
                 // Handle session-specific cleanup
-                if (message.session_id) {
-                    this.handleSpeakingFinished(robot, message.session_id);
+                if (sessionId) {
+                    this.handleSpeakingFinished(robot, sessionId);
                 }
             }
         });
@@ -613,13 +690,16 @@ class RobotAPI extends EventEmitter {
                 try {
                     const message = JSON.parse(data);
                     console.log('[RobotAPI] 📥 STT message received:', message);
+                    
+                    // Handle STT messages with turn-taking validation
+                    this.handleSTTMessage(message);
                 } catch (error) {
                     console.error('[RobotAPI] ❌ Failed to parse STT message:', error);
                 }
             });
 
             this.sttWebSocket.on('close', () => {
-                console.log('[RobotAPI] � STT WebSocket disconnected, attempting reconnect...');
+                console.log('[RobotAPI] STT WebSocket disconnected, attempting reconnect...');
                 this.sttWebSocket = null;
                 this.scheduleSTTReconnect();
             });
@@ -668,7 +748,7 @@ class RobotAPI extends EventEmitter {
 
         try {
             this.sttWebSocket.send(JSON.stringify(command));
-            console.log(`[RobotAPI] 📤 STT command sent: ${action}`);
+            console.log(`[RobotAPI] 📤 STT command sent: ${action}`, command);
             return true;
         } catch (error) {
             console.error(`[RobotAPI] ❌ Failed to send STT command ${action}:`, error);
@@ -681,6 +761,7 @@ class RobotAPI extends EventEmitter {
      */
     pauseSTTProcessing() {
         console.log('[RobotAPI] ⏸️ Pausing STT processing - robot is speaking');
+        this.sttPaused = true;
         return this.sendSTTCommand('pause');
     }
 
@@ -689,7 +770,218 @@ class RobotAPI extends EventEmitter {
      */
     resumeSTTProcessing() {
         console.log('[RobotAPI] ▶️ Resuming STT processing - robot finished speaking');
+        this.sttPaused = false;
         return this.sendSTTCommand('resume');
+    }
+
+    /**
+     * Turn-taking management: Update conversation session state
+     */
+    updateConversationSession(sessionId, robot, updates) {
+        if (!this.conversationSessions.has(sessionId)) {
+            this.conversationSessions.set(sessionId, {
+                robot: robot,
+                llmActive: false,
+                robotSpeaking: false,
+                sttAllowed: true,
+                startTime: Date.now()
+            });
+        }
+
+        const session = this.conversationSessions.get(sessionId);
+        Object.assign(session, updates);
+        
+        // Track this as the most recent session for this robot
+        if (robot) {
+            this.robotLastSessionId.set(robot, sessionId);
+            console.log(`[RobotAPI] 📝 Tracked session ${sessionId} as most recent for robot ${robot}`);
+        }
+        
+        console.log(`[RobotAPI] 🔄 Updated conversation session ${sessionId}:`, session);
+        
+        // Emit session state change
+        this.emit('conversationSessionUpdate', {
+            sessionId,
+            ...session,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * Turn-taking management: Start LLM session
+     */
+    startLLMSession(sessionId, robot) {
+        console.log(`[RobotAPI] 🤖 Starting LLM session ${sessionId} for robot ${robot}`);
+        
+        this.llmActiveSessions.add(sessionId);
+        this.updateConversationSession(sessionId, robot, { 
+            llmActive: true,
+            sttAllowed: false 
+        });
+        
+        // Pause STT while LLM is processing
+        this.pauseSTTProcessing();
+    }
+
+    /**
+     * Turn-taking management: End LLM session
+     */
+    endLLMSession(sessionId) {
+        console.log(`[RobotAPI] 🤖 Ending LLM session ${sessionId}`);
+        
+        this.llmActiveSessions.delete(sessionId);
+        
+        if (this.conversationSessions.has(sessionId)) {
+            this.updateConversationSession(sessionId, null, { 
+                llmActive: false
+            });
+            
+            // Note: STT resumption will be handled by robot speaking state changes only
+            console.log(`[RobotAPI] 🎤 LLM session ${sessionId} ended - STT resumption will be handled by robot speaking state`);
+        }
+    }
+
+    /**
+     * Turn-taking management: Check if STT can be resumed
+     * NOTE: This method only validates turn-taking rules but does NOT resume STT.
+     * STT resumption should only happen when robot speaking state changes to false.
+     */
+    checkSTTResumption(sessionId, robot) {
+        if (!sessionId) {
+            console.log('[RobotAPI] 🎤 No session ID provided - STT resumption will be handled by robot speaking state');
+            return true; // Allow resumption when robot speaking state changes
+        }
+
+        const session = this.conversationSessions.get(sessionId);
+        if (!session) {
+            console.log(`[RobotAPI] 🎤 No session found for ${sessionId} - STT resumption will be handled by robot speaking state`);
+            return true; // Allow resumption when robot speaking state changes
+        }
+
+        const canResumeSTT = !session.robotSpeaking && !session.llmActive;
+        
+        console.log(`[RobotAPI] 🎤 STT resumption check for session ${sessionId}: robotSpeaking=${session.robotSpeaking}, llmActive=${session.llmActive}, canResume=${canResumeSTT}`);
+        
+        if (canResumeSTT) {
+            console.log(`[RobotAPI] ✅ Turn-taking rules satisfied - STT can be resumed when robot stops speaking`);
+            this.updateConversationSession(sessionId, robot, { sttAllowed: true });
+            return true; // Allow resumption when robot speaking state changes
+        } else {
+            console.log(`[RobotAPI] ⏸️ Turn-taking rules not satisfied - STT should remain paused`);
+            this.updateConversationSession(sessionId, robot, { sttAllowed: false });
+            return false; // Prevent resumption even when robot stops speaking
+        }
+    }
+
+    /**
+     * Infer session ID for robot messages when not provided
+     */
+    inferSessionIdForRobot(robot, providedSessionId = null) {
+        if (providedSessionId) {
+            // Session ID was provided, use it
+            return providedSessionId;
+        }
+        
+        // No session ID provided, try to infer from robot's last session
+        const lastSessionId = this.robotLastSessionId.get(robot);
+        if (lastSessionId) {
+            console.log(`[RobotAPI] 💡 Inferred session ID ${lastSessionId} for robot ${robot} (no session ID provided)`);
+            return lastSessionId;
+        }
+        
+        console.log(`[RobotAPI] ❓ No session ID provided and no previous session found for robot ${robot}`);
+        return null;
+    }
+
+    /**
+     * Turn-taking management: Handle STT message with validation
+     */
+    validateSTTMessage(message, sessionId) {
+        // Check if STT is paused globally
+        if (this.sttPaused) {
+            console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while globally paused!`);
+            this.emit('turnTakingViolation', {
+                type: 'stt_message_while_paused',
+                sessionId,
+                message: message.text?.substring(0, 50),
+                timestamp: Date.now()
+            });
+            return false;
+        }
+
+        // Check if STT is temporarily disabled (during LLM conversation startup)
+        if (this.sttTemporarilyDisabled) {
+            console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while temporarily disabled for LLM conversation!`);
+            this.emit('turnTakingViolation', {
+                type: 'stt_message_while_temporarily_disabled',
+                sessionId,
+                message: message.text?.substring(0, 50),
+                timestamp: Date.now()
+            });
+            return false;
+        }
+
+        // Check session-specific rules
+        if (sessionId && this.conversationSessions.has(sessionId)) {
+            const session = this.conversationSessions.get(sessionId);
+            
+            if (session.robotSpeaking) {
+                console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while robot ${session.robot} is speaking (session: ${sessionId})!`);
+                this.emit('turnTakingViolation', {
+                    type: 'stt_message_while_robot_speaking',
+                    robot: session.robot,
+                    sessionId,
+                    message: message.text?.substring(0, 50),
+                    timestamp: Date.now()
+                });
+                return false;
+            }
+
+            if (session.llmActive) {
+                console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while LLM is active (session: ${sessionId})!`);
+                this.emit('turnTakingViolation', {
+                    type: 'stt_message_while_llm_active',
+                    sessionId,
+                    message: message.text?.substring(0, 50),
+                    timestamp: Date.now()
+                });
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Handle STT messages with turn-taking validation
+     */
+    handleSTTMessage(message) {
+        // Extract session ID if available
+        const sessionId = message.sessionId || message.session_id;
+        
+        // For transcription messages (partial or complete), validate turn-taking
+        if (message.type === 'partial' || message.type === 'complete' || 
+            message.type === 'partial_transcript' || message.type === 'complete_transcript') {
+            if (!this.validateSTTMessage(message, sessionId)) {
+                console.log(`[RobotAPI] 🚫 Ignoring STT message due to turn-taking violation: "${message.text?.substring(0, 50)}"`);
+                return; // Ignore the message
+            }
+        }
+        
+        // Process valid STT messages
+        console.log(`[RobotAPI] ✅ Processing valid STT message: ${message.type}`);
+        
+        // Special handling for complete transcripts
+        if (message.type === 'complete') {
+            console.log(`[RobotAPI] 🎯 Complete STT transcript received: "${message.text}"`);
+            if (!message.text || message.text.trim().length === 0) {
+                console.log(`[RobotAPI] ⚠️ Empty transcript - skipping`);
+                return;
+            }
+        }
+        
+        // Forward to any registered STT message handlers
+        this.emit('sttMessage', message);
     }
 
     /**
@@ -733,7 +1025,7 @@ class RobotAPI extends EventEmitter {
             });
         }
 
-        const bufferInfo = this.chunkBuffers.get(sessionId);
+        const bufferInfo = this.chunkBuffers.get(sessionId);        
         bufferInfo.buffer += content;
         bufferInfo.lastChunkTime = Date.now();
         bufferInfo.robot = targetRobot;
@@ -748,6 +1040,7 @@ class RobotAPI extends EventEmitter {
     /**
      * Check if a chunk of text is safe to send to the robot.
      * It's safe if all ^...() and {...} patterns are complete.
+     * Special rule: ^start(...) commands require sentence-ending punctuation to be sendable.
      */
     canSendChunkToRobot(chunk) {
         // Check for balanced braces
@@ -767,6 +1060,18 @@ class RobotAPI extends EventEmitter {
             if (chunk.indexOf(')', caretIndex) === -1) {
                 return false; // Unmatched caret
             }
+        }
+
+        // Special rule: Check for ^start(...) commands
+        const startCommandRegex = /\^start\([^)]*\)/;
+        if (startCommandRegex.test(chunk)) {
+            // If the chunk contains a ^start(...) command, it must also contain sentence-ending punctuation
+            const sentenceEndingRegex = new RegExp(`[${LLM_SENTENCE_MARKERS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`);
+            if (!sentenceEndingRegex.test(chunk)) {
+                console.log(`[RobotAPI] 🚫 Chunk contains ^start(...) but no sentence ending - holding back: "${chunk}"`);
+                return false; // ^start(...) without sentence ending is not sendable
+            }
+            console.log(`[RobotAPI] ✅ Chunk contains ^start(...) with sentence ending - safe to send: "${chunk}"`);
         }
 
         return true;
@@ -807,6 +1112,7 @@ class RobotAPI extends EventEmitter {
         for (let i = 0; i < buffer.length; i++) {
             if (sentenceMarkers.includes(buffer[i])) {
                 const potentialChunk = buffer.substring(0, i + 1);
+                console.log(`[RobotAPI] 🔍 Evaluating potential chunk for session ${sessionId}: "${potentialChunk}"`);
                 if (this.canSendChunkToRobot(potentialChunk)) {
                     console.log(`[RobotAPI] 🚀 Found sendable sentence for session ${sessionId}: "${potentialChunk}"`);
                     this.flushChunkBufferWithContent(sessionId, potentialChunk);
@@ -1178,6 +1484,15 @@ class RobotAPI extends EventEmitter {
 
         let sent = false;
         
+        // **PROACTIVE STT PAUSING** - Pause STT before sending conversation responses
+        // This prevents the robot from hearing itself during LLM conversations
+        if (processedMessage.type === 'conversation-response' && 
+            processedMessage.source !== 'manual' && 
+            !this.sttPaused) {
+            console.log(`[RobotAPI] 🎤 Proactively pausing STT before sending LLM response to prevent feedback`);
+            this.pauseSTTProcessing();
+        }
+        
         // Send to specific robot or all robots
         for (const [socketId, connection] of this.connections) {
             const shouldSend = !finalRobot || 
@@ -1231,6 +1546,8 @@ class RobotAPI extends EventEmitter {
             // Try to parse as JSON
             const message = JSON.parse(data.toString());
             
+            console.log(`[RobotAPI] Raw message received from ${connection.robot || 'unknown'} (${socketId}):`, JSON.stringify(message, null, 2));
+            
             // Apply middleware
             const processedMessage = this.applyMiddleware('incoming', message);
             if (!processedMessage) {
@@ -1246,6 +1563,7 @@ class RobotAPI extends EventEmitter {
             
             // Try to identify robot from message if pending
             if (connection.robot === 'pending' && processedMessage.robot) {
+                console.log(`[RobotAPI] Updating robot identification from 'pending' to '${processedMessage.robot}' for ${socketId}`);
                 this.updateRobotIdentification(socketId, processedMessage.robot);
             }
             
@@ -1261,6 +1579,7 @@ class RobotAPI extends EventEmitter {
             
         } catch (error) {
             console.warn(`[RobotAPI] Failed to parse incoming data as JSON:`, error.message);
+            console.warn(`[RobotAPI] Raw data:`, data.toString());
             // Handle as raw data if needed
             this.emit('rawDataReceived', { data, socketId, robot: connection.robot });
         }
@@ -1307,13 +1626,21 @@ class RobotAPI extends EventEmitter {
      * Call registered message handlers
      */
     callMessageHandlers(message, socketId, robot) {
-        const handler = this.messageHandlers.get(message.type);
+        // Use type field first, fallback to cmd field for compatibility
+        const messageType = message.type || message.cmd;
+
+        console.log(`[RobotAPI] Processing message type '${messageType}' from ${robot || 'unknown'} (${socketId})`);
+
+        const handler = this.messageHandlers.get(messageType);
         if (handler) {
             try {
+                console.log(`[RobotAPI] Found handler for message type '${messageType}'`);
                 handler(message, socketId, robot);
             } catch (error) {
-                console.error(`[RobotAPI] Message handler error for type ${message.type}:`, error);
+                console.error(`[RobotAPI] ❌ Message handler error for type ${messageType}:`, error);
             }
+        } else {
+            console.warn(`[RobotAPI] ⚠️ No handler found for message type '${messageType}' from ${robot}`);
         }
     }
 
@@ -1799,6 +2126,73 @@ class RobotAPI extends EventEmitter {
     handleShutdownCommand(socketId) {
         console.log(`[RobotAPI] Handling shutdown command for connection: ${socketId}`);
         this.unregisterConnection(socketId);
+    }
+
+    /**
+     * Handle LLM conversation response with proper chunking and buffering
+     * This is the primary method for handling LLM responses that need chunking
+     */
+    handleConversationResponse(content, targetRobot = 'Haku', sessionId, isFinished = false, isFirstChunk = false) {
+        console.log(`[RobotAPI] 🗣️ Processing conversation response for ${targetRobot} (session: ${sessionId})`);
+        console.log(`[RobotAPI] 📝 Content: "${content}", finished: ${isFinished}, firstChunk: ${isFirstChunk}`);
+        
+        // Validate session ID
+        if (!sessionId) {
+            console.error('[RobotAPI] ❌ Session ID is required for conversation responses');
+            return {
+                success: false,
+                error: 'Session ID is required',
+                buffered: false
+            };
+        }
+        
+        // Handle LLM session management for turn-taking
+        if (isFirstChunk && sessionId) {
+            console.log(`[RobotAPI] 🚀 Starting LLM session for first chunk: ${sessionId}`);
+            this.startLLMSession(sessionId, targetRobot);
+        }
+        
+        // Process the content through the chunking system
+        if (content && content.trim()) {
+            // CRITICAL: Don't trim the content here to preserve leading/trailing spaces
+            // Only trim for the length check, but use original content for buffering
+            this.addToChunkBuffer(sessionId, content, targetRobot);
+            
+            // Mark the response as buffered
+            var result = {
+                success: true,
+                message: 'Content added to chunk buffer for intelligent processing',
+                buffered: true,
+                sessionId: sessionId,
+                contentLength: content.length
+            };
+        } else {
+            // No content to process
+            var result = {
+                success: true,
+                message: 'No content to process',
+                buffered: false,
+                sessionId: sessionId
+            };
+        }
+        
+        // Handle completion
+        if (isFinished && sessionId) {
+            console.log(`[RobotAPI] 🏁 Ending LLM session for final chunk: ${sessionId}`);
+            
+            // Process any remaining buffer content as finished
+            this.processChunkBuffer(sessionId, true);
+            
+            // End the LLM session for turn-taking
+            this.endLLMSession(sessionId);
+            
+            result.llmActive = false;
+            result.message += ' - Session completed and buffer flushed';
+        } else {
+            result.llmActive = this.llmActiveSessions.has(sessionId);
+        }
+        
+        return result;
     }
 
     /**

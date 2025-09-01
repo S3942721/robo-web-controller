@@ -39,8 +39,31 @@ class RobotAPIClient {
     /**
      *  Send a conversation response with session support
      */
-    async sendConversationResponse(message, robot = null, sessionId = null) {
-        return this.sendMessage(message, robot, 'conversation-response', sessionId);
+    async sendConversationResponse(message, robot = null, sessionId = null, isFinished = false, isFirstChunk = false) {
+        try {
+            const response = await fetch('/api/robot-conversation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message,
+                    robot,
+                    sessionId,
+                    isFinished,
+                    isFirstChunk
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error sending conversation response:', error);
+            throw error;
+        }
     }
 
     /**

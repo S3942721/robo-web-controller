@@ -282,10 +282,6 @@ class STTServer {
             
             // Prepare messages for LLM (keep last 10 exchanges to manage context)
             const messages = [
-                {
-                    role: 'system',
-                    content: 'You are a helpful assistant. Keep your responses concise and conversational.'
-                },
                 ...history.slice(-20) // Keep last 20 messages (10 exchanges)
             ];
 
