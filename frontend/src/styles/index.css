@@ -936,3 +936,155 @@ section > .foldable > .trigger:has(.trigger-checkbox:checked) {
     color: rgb(70, 70, 70);
     background-color: rgb(242, 243, 243);
 }
+
+/* Robot Status Monitor Styles */
+.robot-status-monitor {
+    width: 100%;
+    padding: 10px;
+}
+
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.connection-indicator {
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+.connection-indicator.connected {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.connection-indicator.disconnected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.connection-indicator.error {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.last-refresh {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.refresh-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.refresh-btn:hover {
+    background: var(--hover-color);
+}
+
+.robots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.robot-status-container {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: #fafafa;
+}
+
+.robot-name {
+    margin: 0 0 15px 0;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.last-update {
+    font-size: 0.8em;
+    color: #666;
+    font-weight: normal;
+}
+
+.status-category {
+    margin-bottom: 15px;
+}
+
+.category-title {
+    margin: 0 0 8px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.status-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.status-field {
+    background: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.status-field-name {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.status-field-value {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.robot-status-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.robot-status-compact-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.compact-status-field {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.loading, .no-data {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+}
