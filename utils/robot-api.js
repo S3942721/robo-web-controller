@@ -989,6 +989,11 @@ class RobotAPI extends EventEmitter {
                 console.log(`[RobotAPI] ⚠️ Empty transcript - skipping`);
                 return;
             }
+            
+            // Pause STT immediately when complete transcript is received
+            // This prevents new transcripts while LLM processes and robot responds
+            console.log(`[RobotAPI] ⏸ Pausing STT processing - complete transcript received, waiting for LLM response and robot speaking to finish`);
+            this.pauseSTTProcessing();
         }
         
         // Forward to any registered STT message handlers
