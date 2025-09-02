@@ -110,44 +110,9 @@ robotAPI.on('turnTakingViolation', ({ type, robot, sessionId, message, timestamp
     });
 });
 
-// Handle STT complete messages and forward to LLM
-robotAPI.on('sttMessage', async ({ type, text, timestamp, confidence }) => {
-    if (type === 'complete' && text && STT_LLM_ENABLED) {
-        console.log(`[Server] 🎤 Received STT complete message: "${text}" - forwarding to LLM`);
-        
-        try {
-            // Get the default robot for LLM responses
-            const targetRobot = 'Haku'; // TODO: Make this configurable or dynamic
-            
-            // Create a new session ID for this conversation
-            const sessionId = Math.random().toString(36).substring(2);
-            console.log(`[Server] 🆔 Generated session ID: ${sessionId} for STT message from robot ${targetRobot}`);
-            
-            // Forward to LLM conversation endpoint
-            const llmResponse = await fetch(`http://localhost:${SERVER_PORT}/api/conversation`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: text,
-                    robot: targetRobot,
-                    sessionId: sessionId,
-                    source: 'stt-server'
-                })
-            });
-            
-            if (!llmResponse.ok) {
-                console.error(`[Server] ❌ LLM request failed: ${llmResponse.status} ${llmResponse.statusText}`);
-            } else {
-                console.log(`[Server] ✅ STT message "${text}" successfully forwarded to LLM`);
-            }
-            
-        } catch (error) {
-            console.error('[Server] ❌ Failed to forward STT message to LLM:', error);
-        }
-    }
-});
+// STT messages are now handled directly by the STT server's LLM integration
+// The STT server forwards LLM responses to robots via the robot API
+// No additional handling needed here
 
 // variables
 let sendSockets = []; // Keep for backward compatibility
