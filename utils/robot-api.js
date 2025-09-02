@@ -161,14 +161,22 @@ class RobotAPI extends EventEmitter {
         this.onMessageType('robot-identify', (message, socketId, robot) => {
             console.log(`[RobotAPI] Robot identification message from ${robot || 'unknown'} (${socketId}):`, JSON.stringify(message, null, 2));
             
-            // Update robot status to indicate successful identification
-            if (robot && robot !== 'pending') {
-                this.updateDetailedRobotStatus(robot, {
+            // Extract robot name from the message
+            const robotName = message.robot || robot;
+            
+            if (robotName && robotName !== 'pending') {
+                // Update the connection with the identified robot name
+                this.updateRobotIdentification(socketId, robotName);
+                
+                // Update robot status to indicate successful identification
+                this.updateDetailedRobotStatus(robotName, {
                     last_identification: Date.now(),
                     connection_status: 'identified'
                 });
                 
-                console.log(`[RobotAPI] ✅ Robot ${robot} successfully identified and status initialized`);
+                console.log(`[RobotAPI] ✅ Robot ${robotName} successfully identified and status initialized`);
+            } else {
+                console.warn(`[RobotAPI] ⚠️ Invalid robot name in identification message:`, robotName);
             }
         });
 
@@ -244,12 +252,15 @@ class RobotAPI extends EventEmitter {
                 console.log(`[RobotAPI] 🎤 Robot ${robot} started speaking - pausing STT immediately`);
                 this.pauseSTTProcessing();
                 
-                // Also set a flag to ignore STT messages for a brief moment
-                this.sttTemporarilyDisabled = true;
-                setTimeout(() => {
-                    this.sttTemporarilyDisabled = false;
-                }, 1000); // 1 second buffer // TODO: Verify if this is still needed
+                // // Also set a flag to ignore STT messages for a brief moment
+                // this.sttTemporarilyDisabled = true;
+                // setTimeout(() => {
+                //     this.sttTemporarilyDisabled = false;
+                // }, 1000); // 1 second buffer // TODO: Verify if this is still needed
                 
+                this.sttTemporarilyDisabled = false;
+                
+
             } else if (!isSpeaking && wasSpeaking) {
                 // Robot stopped speaking - only resume STT if turn-taking rules allow it
                 console.log(`[RobotAPI] 🎤 Robot ${robot} stopped speaking - checking if STT can be resumed`);
@@ -1001,6 +1012,18 @@ class RobotAPI extends EventEmitter {
             
             this.emit('robotIdentified', { socketId, robot: robotName });
         }
+    }
+
+    /**
+     * Get the socket ID for a specific robot
+     */
+    getRobotSocketId(robotName) {
+        for (const [socketId, connection] of this.connections.entries()) {
+            if (connection.robot === robotName) {
+                return socketId;
+            }
+        }
+        return null;
     }
 
     checkStaleBuffers() {
