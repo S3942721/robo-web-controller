@@ -1069,6 +1069,7 @@ class RobotAPI extends EventEmitter {
      * Check if a chunk of text is safe to send to the robot.
      * It's safe if all ^...() and {...} patterns are complete.
      * Special rule: ^start(...) commands require sentence-ending punctuation to be sendable.
+     * Additionally, chunks containing only punctuation are not sendable. (Like "!!!" or "..." alone).
      */
     canSendChunkToRobot(chunk) {
         // Check for balanced braces
@@ -1100,6 +1101,13 @@ class RobotAPI extends EventEmitter {
                 return false; // ^start(...) without sentence ending is not sendable
             }
             console.log(`[RobotAPI] ✅ Chunk contains ^start(...) with sentence ending - safe to send: "${chunk}"`);
+        }
+
+        // Check if the chunk contains any alphabetic or numeric characters
+        const hasAlphanumeric = /[a-zA-Z0-9]/.test(chunk);
+        if (!hasAlphanumeric) {
+            console.log(`[RobotAPI] 🚫 Chunk contains only punctuation or whitespace - holding back: "${chunk}"`);
+            return false;
         }
 
         return true;
