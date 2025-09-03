@@ -1159,7 +1159,7 @@ router.post("/api/robot-send", (req, res) => {
 
 // Robot API conversation response endpoint with proper chunking and turn-taking
 router.post("/api/robot-conversation", (req, res) => {
-    const { message, robot, sessionId, isFinished = false, isFirstChunk = false } = req.body;
+    const { message, robot, sessionId, isFinished = false, isFirstChunk = false, chunkNumber } = req.body;
     
     if (!message && !isFinished) {
         return res.status(400).json({ error: 'Message is required unless marking finished' });
@@ -1178,7 +1178,8 @@ router.post("/api/robot-conversation", (req, res) => {
             targetRobot, 
             sessionId, 
             isFinished, 
-            isFirstChunk
+            isFirstChunk,
+            chunkNumber
         );
         
         if (result.success) {
@@ -1188,13 +1189,16 @@ router.post("/api/robot-conversation", (req, res) => {
                 buffered: result.buffered,
                 llmActive: result.llmActive,
                 sessionId: sessionId,
-                contentLength: result.contentLength
+                contentLength: result.contentLength,
+                chunkNumber: chunkNumber,
+                chunksWaiting: result.chunksWaiting || 0
             });
         } else {
             res.status(400).json({
                 success: false,
                 error: result.error,
-                sessionId: sessionId
+                sessionId: sessionId,
+                chunkNumber: chunkNumber
             });
         }
         

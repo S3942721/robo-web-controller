@@ -43,7 +43,13 @@ class RobotAPI extends EventEmitter {
         // Session-based chunk buffering - track sessions separately from LLM sessions
         this.chunkBuffers = new Map(); // sessionId -> { buffer, lastChunkTime, robot }
         this.CHUNK_TIMEOUT = 2000; // Send buffer if no new chunks for 2 seconds
-        this.BUFFER_CHECK_INTERVAL = 500; // Check buffers every 500ms
+        this.BUFFER_CHECK_INTERVAL = 250; // Check buffers every 250ms
+
+        // Chunk ordering and validation for race condition prevention
+        this.chunkOrdering = new Map(); // sessionId -> { expectedChunk, pendingChunks, maxWaitTime }
+        this.CHUNK_WAIT_TIMEOUT = 1000; // Max time to wait for out-of-order chunks (ms)
+        this.MAX_PENDING_CHUNKS = 20; // Max number of out-of-order chunks to buffer
+        this.readyChunks = new Map(); // sessionId -> array of ready chunks
         
         // Robot status system
         this.statusConfig = null;
@@ -289,6 +295,7 @@ class RobotAPI extends EventEmitter {
         // Start cleanup interval
         this.cleanupInterval = setInterval(() => {
             this.cleanupInactiveConnections();
+            this.cleanupStaleChunks();
         }, 30000); // Clean up every 30 seconds
     }
 
@@ -2159,6 +2166,42 @@ class RobotAPI extends EventEmitter {
         }
     }
 
+    cleanupStaleChunks() {
+        const now = Date.now();
+        const staleThreshold = 60000; // 1 minute
+        let cleanedCount = 0;
+        
+        for (const [sessionId, orderingData] of this.chunkOrdering.entries()) {
+            if (now - orderingData.lastActivity > staleThreshold) {
+                console.log(`[RobotAPI] 🧹 Cleaning up stale chunk ordering for session: ${sessionId}`);
+                this.chunkOrdering.delete(sessionId);
+                cleanedCount++;
+            } else {
+                // Check for individual stuck chunks within active sessions
+                const stuckChunks = [];
+                for (const [chunkNum, chunkData] of orderingData.pendingChunks.entries()) {
+                    if (now - chunkData.receivedAt > staleThreshold) {
+                        stuckChunks.push(chunkNum);
+                    }
+                }
+                
+                if (stuckChunks.length > 0) {
+                    console.log(`[RobotAPI] ⚠️ Found ${stuckChunks.length} stuck chunks in session ${sessionId}:`, stuckChunks);
+                    // Process stuck chunks as timeout - force them through to prevent indefinite blocking
+                    for (const chunkNum of stuckChunks) {
+                        console.log(`[RobotAPI] 🚨 Force-processing stuck chunk ${chunkNum} due to timeout`);
+                        this.processTimeoutChunk(sessionId, chunkNum);
+                    }
+                    cleanedCount += stuckChunks.length;
+                }
+            }
+        }
+        
+        if (cleanedCount > 0) {
+            console.log(`[RobotAPI] 🧹 Cleanup complete: cleaned ${cleanedCount} stale/stuck chunks`);
+        }
+    }
+
     handleShutdownCommand(socketId) {
         console.log(`[RobotAPI] Handling shutdown command for connection: ${socketId}`);
         this.unregisterConnection(socketId);
@@ -2168,9 +2211,9 @@ class RobotAPI extends EventEmitter {
      * Handle LLM conversation response with proper chunking and buffering
      * This is the primary method for handling LLM responses that need chunking
      */
-    handleConversationResponse(content, targetRobot = 'Haku', sessionId, isFinished = false, isFirstChunk = false) {
+    handleConversationResponse(content, targetRobot = 'Haku', sessionId, isFinished = false, isFirstChunk = false, chunkNumber = null) {
         console.log(`[RobotAPI] 🗣️ Processing conversation response for ${targetRobot} (session: ${sessionId})`);
-        console.log(`[RobotAPI] 📝 Content: "${content}", finished: ${isFinished}, firstChunk: ${isFirstChunk}`);
+        console.log(`[RobotAPI] 📝 Content: "${content}", finished: ${isFinished}, firstChunk: ${isFirstChunk}, chunkNumber: ${chunkNumber}`);
         
         // Validate session ID
         if (!sessionId) {
@@ -2181,26 +2224,60 @@ class RobotAPI extends EventEmitter {
                 buffered: false
             };
         }
+
+        // Handle chunk ordering if chunkNumber is provided
+        if (chunkNumber !== null && chunkNumber !== undefined) {
+            const orderingResult = this.validateChunkOrder(sessionId, chunkNumber, content, targetRobot, isFinished, isFirstChunk);
+            if (!orderingResult.processNow) {
+                console.log(`[RobotAPI] ⏳ Chunk ${chunkNumber} for session ${sessionId} queued - waiting for earlier chunks`);
+                return {
+                    success: true,
+                    message: `Chunk ${chunkNumber} queued - waiting for earlier chunks`,
+                    buffered: false,
+                    sessionId: sessionId,
+                    chunkNumber: chunkNumber,
+                    chunksWaiting: orderingResult.chunksWaiting
+                };
+            }
+            // If we reach here, this chunk and possibly some queued chunks are ready to process
+            console.log(`[RobotAPI] ✅ Processing chunk ${chunkNumber} for session ${sessionId} (${orderingResult.chunksToProcess.length} chunks ready)`);
+        }
         
         // Handle LLM session management for turn-taking
         if (isFirstChunk && sessionId) {
             console.log(`[RobotAPI] 🚀 Starting LLM session for first chunk: ${sessionId}`);
             this.startLLMSession(sessionId, targetRobot);
         }
+
+        // Process this chunk and any ready chunks from the ordering system
+        const chunksToProcess = chunkNumber !== null ? 
+            this.getReadyChunks(sessionId) : 
+            [{ content, targetRobot, sessionId, isFinished, isFirstChunk, chunkNumber }];
         
-        // Process the content through the chunking system
-        if (content && content.trim()) {
-            // CRITICAL: Don't trim the content here to preserve leading/trailing spaces
-            // Only trim for the length check, but use original content for buffering
-            this.addToChunkBuffer(sessionId, content, targetRobot);
-            
-            // Mark the response as buffered
+        let totalContentLength = 0;
+        let hasContent = false;
+        
+        // Process all ready chunks in order
+        for (const chunk of chunksToProcess) {
+            if (chunk.content && chunk.content.trim()) {
+                // CRITICAL: Don't trim the content here to preserve leading/trailing spaces
+                // Only trim for the length check, but use original content for buffering
+                this.addToChunkBuffer(chunk.sessionId, chunk.content, chunk.targetRobot);
+                totalContentLength += chunk.content.length;
+                hasContent = true;
+                
+                console.log(`[RobotAPI] 📋 Processed chunk ${chunk.chunkNumber || 'unnumbered'}: "${chunk.content}" (${chunk.content.length} chars)`);
+            }
+        }
+        
+        // Prepare result
+        if (hasContent) {
             var result = {
                 success: true,
-                message: 'Content added to chunk buffer for intelligent processing',
+                message: `Content added to chunk buffer for intelligent processing (${chunksToProcess.length} chunks processed)`,
                 buffered: true,
                 sessionId: sessionId,
-                contentLength: content.length
+                contentLength: totalContentLength
             };
         } else {
             // No content to process
@@ -2219,6 +2296,9 @@ class RobotAPI extends EventEmitter {
             // Process any remaining buffer content as finished
             this.processChunkBuffer(sessionId, true);
             
+            // Clean up chunk ordering for this session
+            this.chunkOrdering.delete(sessionId);
+            
             // End the LLM session for turn-taking
             this.endLLMSession(sessionId);
             
@@ -2229,6 +2309,189 @@ class RobotAPI extends EventEmitter {
         }
         
         return result;
+    }
+
+    /**
+     * Validate chunk order and handle out-of-order chunks
+     */
+    validateChunkOrder(sessionId, chunkNumber, content, targetRobot, isFinished, isFirstChunk) {
+        if (!this.chunkOrdering.has(sessionId)) {
+            // First chunk for this session - always expect chunk 0 first
+            this.chunkOrdering.set(sessionId, {
+                expectedChunk: 0,
+                pendingChunks: new Map(), // chunkNumber -> chunk data
+                maxWaitTime: Date.now() + this.CHUNK_WAIT_TIMEOUT,
+                lastActivity: Date.now()
+            });
+            console.log(`[RobotAPI] 🆕 Initialized chunk ordering for session ${sessionId}, expecting chunk 0`);
+        }
+        
+        const ordering = this.chunkOrdering.get(sessionId);
+        ordering.lastActivity = Date.now(); // Update activity timestamp
+        
+        // Check if this is the expected chunk
+        if (chunkNumber === ordering.expectedChunk) {
+            // This is the next expected chunk - we can process it
+            ordering.expectedChunk = chunkNumber + 1;
+            
+            // Store this chunk to be processed
+            const currentChunk = { content, targetRobot, sessionId, isFinished, isFirstChunk, chunkNumber };
+            
+            // Check if any pending chunks are now ready
+            const readyChunks = [currentChunk];
+            while (ordering.pendingChunks.has(ordering.expectedChunk)) {
+                const nextChunk = ordering.pendingChunks.get(ordering.expectedChunk);
+                readyChunks.push(nextChunk);
+                ordering.pendingChunks.delete(ordering.expectedChunk);
+                ordering.expectedChunk++;
+                console.log(`[RobotAPI] ⏭️ Processing queued chunk ${ordering.expectedChunk - 1} for session ${sessionId}`);
+            }
+            
+            // Store ready chunks for processing
+            this.setReadyChunks(sessionId, readyChunks);
+            
+            return {
+                processNow: true,
+                chunksToProcess: readyChunks,
+                chunksWaiting: ordering.pendingChunks.size
+            };
+        } else if (chunkNumber > ordering.expectedChunk) {
+            // This chunk arrived too early - store it for later
+            if (ordering.pendingChunks.size >= this.MAX_PENDING_CHUNKS) {
+                console.warn(`[RobotAPI] ⚠️ Too many pending chunks for session ${sessionId} - dropping chunk ${chunkNumber}`);
+                return {
+                    processNow: false,
+                    error: 'Too many pending chunks',
+                    chunksWaiting: ordering.pendingChunks.size
+                };
+            }
+            
+            ordering.pendingChunks.set(chunkNumber, {
+                content, targetRobot, sessionId, isFinished, isFirstChunk, chunkNumber,
+                receivedAt: Date.now()
+            });
+            
+            console.log(`[RobotAPI] 📦 Queued out-of-order chunk ${chunkNumber} for session ${sessionId} (expecting ${ordering.expectedChunk})`);
+            
+            // Check if we should process pending chunks due to timeout
+            this.checkChunkTimeout(sessionId);
+            
+            return {
+                processNow: false,
+                chunksWaiting: ordering.pendingChunks.size
+            };
+        } else {
+            // This chunk is older than expected (duplicate or very delayed)
+            console.warn(`[RobotAPI] ⚠️ Received duplicate or very delayed chunk ${chunkNumber} for session ${sessionId} (expecting ${ordering.expectedChunk})`);
+            return {
+                processNow: false,
+                error: 'Duplicate or delayed chunk',
+                chunksWaiting: ordering.pendingChunks.size
+            };
+        }
+    }
+
+    /**
+     * Check for chunk timeouts and process pending chunks if needed
+     */
+    checkChunkTimeout(sessionId) {
+        const ordering = this.chunkOrdering.get(sessionId);
+        if (!ordering || ordering.pendingChunks.size === 0) return;
+        
+        const now = Date.now();
+        
+        // Check if any pending chunks have timed out
+        let hasTimedOut = false;
+        for (const [chunkNumber, chunkData] of ordering.pendingChunks) {
+            if (now - chunkData.receivedAt > this.CHUNK_WAIT_TIMEOUT) {
+                hasTimedOut = true;
+                break;
+            }
+        }
+        
+        if (hasTimedOut) {
+            console.warn(`[RobotAPI] ⏰ Chunk timeout for session ${sessionId} - processing available chunks`);
+            
+            // Find the lowest chunk number we can process
+            const sortedChunks = Array.from(ordering.pendingChunks.keys()).sort((a, b) => a - b);
+            const readyChunks = [];
+            
+            for (const chunkNumber of sortedChunks) {
+                if (chunkNumber === ordering.expectedChunk) {
+                    const chunkData = ordering.pendingChunks.get(chunkNumber);
+                    readyChunks.push(chunkData);
+                    ordering.pendingChunks.delete(chunkNumber);
+                    ordering.expectedChunk++;
+                } else {
+                    break; // Can't process non-consecutive chunks
+                }
+            }
+            
+            if (readyChunks.length > 0) {
+                console.log(`[RobotAPI] 🚀 Processing ${readyChunks.length} timed-out chunks for session ${sessionId}`);
+                this.setReadyChunks(sessionId, readyChunks);
+                
+                // Process the ready chunks
+                for (const chunk of readyChunks) {
+                    this.handleConversationResponse(
+                        chunk.content, 
+                        chunk.targetRobot, 
+                        chunk.sessionId, 
+                        chunk.isFinished, 
+                        chunk.isFirstChunk,
+                        null // Don't pass chunkNumber to avoid infinite recursion
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Store ready chunks for processing
+     */
+    setReadyChunks(sessionId, chunks) {
+        if (!this.readyChunks) {
+            this.readyChunks = new Map();
+        }
+        this.readyChunks.set(sessionId, chunks);
+    }
+
+    /**
+     * Get and clear ready chunks for processing
+     */
+    getReadyChunks(sessionId) {
+        if (!this.readyChunks) {
+            this.readyChunks = new Map();
+        }
+        const chunks = this.readyChunks.get(sessionId) || [];
+        this.readyChunks.delete(sessionId);
+        return chunks;
+    }
+
+    /**
+     * Process a stuck chunk by forcing it through due to timeout
+     */
+    processTimeoutChunk(sessionId, chunkNumber) {
+        const ordering = this.chunkOrdering.get(sessionId);
+        if (!ordering || !ordering.pendingChunks.has(chunkNumber)) {
+            console.warn(`[RobotAPI] ⚠️ Cannot process timeout chunk ${chunkNumber} for session ${sessionId} - chunk not found`);
+            return;
+        }
+        
+        const chunkData = ordering.pendingChunks.get(chunkNumber);
+        ordering.pendingChunks.delete(chunkNumber);
+        
+        console.log(`[RobotAPI] 🚨 Force-processing chunk ${chunkNumber} for session ${sessionId} due to timeout`);
+        
+        // Process this chunk regardless of order
+        this.handleConversationResponse(
+            chunkData.content,
+            chunkData.targetRobot,
+            chunkData.sessionId,
+            chunkData.isFinished,
+            chunkData.isFirstChunk,
+            null // Don't pass chunkNumber to avoid infinite recursion
+        );
     }
 
     /**
