@@ -702,6 +702,10 @@ class RobotAPI extends EventEmitter {
                     clearTimeout(this.sttReconnectTimeout);
                     this.sttReconnectTimeout = null;
                 }
+                
+                // Immediately send resume command to start STT processing
+                console.log('[RobotAPI] 🎙️ Sending initial resume command to STT server');
+                this.sendSTTCommand('resume');
             });
 
             this.sttWebSocket.on('message', (data) => {
@@ -2159,9 +2163,13 @@ class RobotAPI extends EventEmitter {
         const inactiveThreshold = 5 * 60 * 1000; // 5 minutes
         
         for (const [socketId, connection] of this.connections.entries()) {
+            
             if (now - connection.lastActivity > inactiveThreshold) {
-                console.log(`[RobotAPI] Cleaning up inactive connection: ${socketId}`);
-                this.connections.delete(socketId);
+                console.warn(`[RobotAPI] Inactive connection: ${socketId}`);
+                console.warn('Clean up of inactive connections is currently disabled for safety.');
+                // TODO: Re-enable cleanup once heartbeat/ping system is implemented
+                // console.log(`[RobotAPI] Cleaning up inactive connection: ${socketId}`);
+                // this.connections.delete(socketId);
             }
         }
     }
