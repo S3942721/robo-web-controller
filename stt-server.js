@@ -280,9 +280,9 @@ class STTServer {
             // Add user message to history
             history.push({ role: 'user', content: userMessage });
             
-            // Prepare messages for LLM (keep last 10 exchanges to manage context)
+            // Prepare messages for LLM (keep last 30 exchanges to manage context)
             const messages = [
-                ...history.slice(-20) // Keep last 20 messages (10 exchanges)
+                ...history.slice(-30) // Keep last 30 messages (15 exchanges)
             ];
 
             // Send to LLM with streaming
