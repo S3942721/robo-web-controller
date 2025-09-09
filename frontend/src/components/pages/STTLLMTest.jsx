@@ -817,7 +817,7 @@ export default function STTLLMTest() {
 
     return (
         <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-            <h2>🎙️💬 Speech-to-Text + LLM Test</h2>
+            <h2>Haku Conversation</h2>
             
             {/* Connection Configuration */}
             <div style={{ 
