@@ -39,7 +39,7 @@ class RobotAPIClient {
     /**
      *  Send a conversation response with session support
      */
-    async sendConversationResponse(message, robot = null, sessionId = null, isFinished = false, isFirstChunk = false) {
+    async sendConversationResponse(message, robot = null, sessionId = null, isFinished = false, isFirstChunk = false, chunkNumber = null) {
         try {
             const response = await fetch('/api/robot-conversation', {
                 method: 'POST',
@@ -51,7 +51,8 @@ class RobotAPIClient {
                     robot,
                     sessionId,
                     isFinished,
-                    isFirstChunk
+                    isFirstChunk,
+                    chunkNumber
                 }),
             });
 
