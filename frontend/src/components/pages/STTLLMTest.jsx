@@ -158,6 +158,14 @@ export default function STTLLMTest() {
                 setSTTStatus('connected');
                 setOverallStatus('✅ STT connected - Ready to start transcription');
                 
+                // Send resume command immediately after connection
+                console.log('📤 Sending resume command to STT server...');
+                sttWsRef.current.send(JSON.stringify({
+                    type: 'control',
+                    action: 'resume',
+                    timestamp: Date.now()
+                }));
+                
                 // Auto-connect to LLM if enabled
                 if (autoStart) {
                     console.log('Auto-connecting to LLM services...');
@@ -465,7 +473,7 @@ export default function STTLLMTest() {
                 
                 // Send to robot if enabled - use Robot API directly with session ID
                 if (sendToRobot && data.content) {
-                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk);
+                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk, data.chunkNumber);
                     
                     // Remove from first chunk tracking after sending
                     if (isFirstChunk) {
@@ -502,7 +510,7 @@ export default function STTLLMTest() {
                     setOverallStatus('🤖 AI responded - Ready for your next input');
                     // Send final chunk marker with session ID
                     if (sendToRobot) {
-                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false);
+                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false, null);
                         // Flush any remaining buffer content
                         flushBuffer(data.sessionId || sessionIdRef.current);
                     }
@@ -519,7 +527,7 @@ export default function STTLLMTest() {
             
             // Send to robot if enabled with session ID
             if (sendToRobot && data.content) {
-                sendLLMResponseToRobot(data.content, true, sessionIdRef.current, false); // Assume single chunk responses are finished
+                sendLLMResponseToRobot(data.content, true, sessionIdRef.current, false, null); // Assume single chunk responses are finished
                 setLLMActive(false);
             }
             
@@ -541,7 +549,7 @@ export default function STTLLMTest() {
     };
 
     // Updated function to include session ID and turn-taking
-    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null, isFirstChunk = false) => {
+    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null, isFirstChunk = false, chunkNumber = null) => {
         if (!sendToRobot || !targetRobot) {
             console.log('🤖 Robot integration disabled or no target robot selected');
             return;
@@ -550,10 +558,10 @@ export default function STTLLMTest() {
         try {
             const effectiveSessionId = sessionId || sessionIdRef.current;
             console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}):`, content);
-            console.log(`🤖 Response chunk finished: ${isFinished}, isFirstChunk: ${isFirstChunk}`);
+            console.log(`🤖 Response chunk finished: ${isFinished}, isFirstChunk: ${isFirstChunk}, chunkNumber: ${chunkNumber}`);
             
             // Use Robot API conversation endpoint with turn-taking support
-            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId, isFinished, isFirstChunk);
+            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId, isFinished, isFirstChunk, chunkNumber);
             
             if (result.success) {
                 console.log(`✅ LLM response sent to robot ${targetRobot} successfully`);

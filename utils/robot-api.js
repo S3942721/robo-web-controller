@@ -2274,7 +2274,12 @@ class RobotAPI extends EventEmitter {
                 totalContentLength += chunk.content.length;
                 hasContent = true;
                 
-                console.log(`[RobotAPI] 📋 Processed chunk ${chunk.chunkNumber || 'unnumbered'}: "${chunk.content}" (${chunk.content.length} chars)`);
+                console.log(`[RobotAPI] 📋 Processed chunk ${chunk.chunkNumber !== null && chunk.chunkNumber !== undefined ? chunk.chunkNumber : 'unnumbered'}: "${chunk.content}" (${chunk.content.length} chars)`);
+                
+                // Add warning for missing chunk numbers
+                if (chunk.chunkNumber === null || chunk.chunkNumber === undefined) {
+                    console.warn(`[RobotAPI] ⚠️ WARNING: Chunk received without number. Could lead to processing issues.`);
+                }
             }
         }
         
