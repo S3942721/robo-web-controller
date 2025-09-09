@@ -77,11 +77,30 @@ class RobotAPI extends EventEmitter {
         this.sttHost = process.env.STT_SERVER_HOST || 'localhost';
         this.sttPort = process.env.STT_SERVER_PORT || 8765;
         
+        // Enhanced STT state management
+        this.sttState = {
+            connected: false,
+            expectedState: 'running', // 'running', 'paused', 'stopped'
+            actualState: 'unknown',   // State reported by STT server
+            lastHealthCheck: null,
+            lastStateSync: null,
+            syncRetries: 0,
+            maxSyncRetries: this.STT_MAX_SYNC_RETRIES
+        };
+        this.sttHealthCheckInterval = null;
+        this.sttStateCheckInterval = null;
+        this.STT_HEALTH_CHECK_INTERVAL = parseInt(process.env.STT_HEALTH_CHECK_INTERVAL) || 10000;
+        this.STT_STATE_CHECK_INTERVAL = parseInt(process.env.STT_STATE_CHECK_INTERVAL) || 5000;
+        this.STT_RECONNECT_DELAY = parseInt(process.env.STT_RECONNECT_DELAY) || 5000;
+        this.STT_MAX_SYNC_RETRIES = parseInt(process.env.STT_MAX_SYNC_RETRIES) || 3;
+        this.sttServerDownFallbackSent = new Set(); // Track which conversations got fallback message
+        
         this.loadStatusConfiguration();
         this.setupDefaultHandlers();
         this.setupCleanupInterval();
         this.startBufferMonitoring();
         this.initializeSTTConnection();
+        this.startSTTHealthMonitoring();
     }
 
     setupDefaultHandlers() {
@@ -697,21 +716,32 @@ class RobotAPI extends EventEmitter {
 
             this.sttWebSocket.on('open', () => {
                 console.log('[RobotAPI] ✅ STT WebSocket connected');
+                this.sttState.connected = true;
+                this.sttState.lastHealthCheck = Date.now();
+                
                 // Clear any reconnect timeout
                 if (this.sttReconnectTimeout) {
                     clearTimeout(this.sttReconnectTimeout);
                     this.sttReconnectTimeout = null;
                 }
                 
-                // Immediately send resume command to start STT processing
-                console.log('[RobotAPI] 🎙️ Sending initial resume command to STT server');
-                this.sendSTTCommand('resume');
+                // Request current state from STT server
+                this.requestSTTState();
+                
+                // Sync our expected state with STT server
+                this.syncSTTState();
             });
 
             this.sttWebSocket.on('message', (data) => {
                 try {
                     const message = JSON.parse(data);
                     console.log('[RobotAPI] 📥 STT message received:', message);
+                    
+                    // Update health check timestamp
+                    this.sttState.lastHealthCheck = Date.now();
+                    
+                    // Handle state-related messages
+                    this.handleSTTStateMessage(message);
                     
                     // Handle STT messages with turn-taking validation
                     this.handleSTTMessage(message);
@@ -722,13 +752,13 @@ class RobotAPI extends EventEmitter {
 
             this.sttWebSocket.on('close', () => {
                 console.log('[RobotAPI] STT WebSocket disconnected, attempting reconnect...');
-                this.sttWebSocket = null;
+                this.handleSTTDisconnection();
                 this.scheduleSTTReconnect();
             });
 
             this.sttWebSocket.on('error', (error) => {
                 console.error('[RobotAPI] ❌ STT WebSocket error:', error);
-                this.sttWebSocket = null;
+                this.handleSTTDisconnection();
                 this.scheduleSTTReconnect();
             });
 
@@ -749,7 +779,7 @@ class RobotAPI extends EventEmitter {
         this.sttReconnectTimeout = setTimeout(() => {
             this.sttReconnectTimeout = null;
             this.initializeSTTConnection();
-        }, 5000); // Reconnect after 5 seconds
+        }, this.STT_RECONNECT_DELAY);
     }
 
     /**
@@ -784,6 +814,7 @@ class RobotAPI extends EventEmitter {
     pauseSTTProcessing() {
         console.log('[RobotAPI] ⏸️ Pausing STT processing - robot is speaking');
         this.sttPaused = true;
+        this.sttState.expectedState = 'paused';
         return this.sendSTTCommand('pause');
     }
 
@@ -793,7 +824,178 @@ class RobotAPI extends EventEmitter {
     resumeSTTProcessing() {
         console.log('[RobotAPI] ▶️ Resuming STT processing - robot finished speaking');
         this.sttPaused = false;
+        this.sttState.expectedState = 'running';
         return this.sendSTTCommand('resume');
+    }
+
+    /**
+     * Enhanced STT State Management Methods
+     */
+    
+    /**
+     * Start STT health monitoring with periodic state checks
+     */
+    startSTTHealthMonitoring() {
+        // Health check interval
+        this.sttHealthCheckInterval = setInterval(() => {
+            this.performSTTHealthCheck();
+        }, this.STT_HEALTH_CHECK_INTERVAL);
+        
+        // State sync interval 
+        this.sttStateCheckInterval = setInterval(() => {
+            this.checkSTTStateSync();
+        }, this.STT_STATE_CHECK_INTERVAL);
+        
+        console.log('[RobotAPI] STT health monitoring started');
+    }
+    
+    /**
+     * Perform STT server health check
+     */
+    performSTTHealthCheck() {
+        if (this.sttWebSocket && this.sttWebSocket.readyState === WebSocket.OPEN) {
+            // Send ping/health check command
+            this.sendSTTCommand('ping', { healthCheck: true });
+        } else {
+            console.log('[RobotAPI] STT server health check failed - not connected');
+            this.handleSTTDisconnection();
+        }
+    }
+    
+    /**
+     * Check STT state synchronization
+     */
+    checkSTTStateSync() {
+        if (!this.sttState.connected) {
+            return; // Can't sync if not connected
+        }
+        
+        const now = Date.now();
+        
+        // Check if we've received health updates recently
+        if (this.sttState.lastHealthCheck && 
+            (now - this.sttState.lastHealthCheck) > (this.STT_HEALTH_CHECK_INTERVAL * 2)) {
+            console.warn('[RobotAPI] ⚠️ STT server health check timeout - assuming disconnected');
+            this.handleSTTDisconnection();
+            return;
+        }
+        
+        // Check if state sync is needed
+        if (this.sttState.expectedState !== this.sttState.actualState) {
+            console.log(`[RobotAPI] 🔄 STT state mismatch - expected: ${this.sttState.expectedState}, actual: ${this.sttState.actualState}`);
+            if (this.sttState.syncRetries < this.sttState.maxSyncRetries) {
+                this.syncSTTState();
+            } else {
+                console.error('[RobotAPI] ❌ STT state sync failed after max retries');
+            }
+        }
+    }
+    
+    /**
+     * Request current state from STT server
+     */
+    requestSTTState() {
+        console.log('[RobotAPI] 📋 Requesting current STT server state');
+        return this.sendSTTCommand('get_state');
+    }
+    
+    /**
+     * Sync our expected state with STT server
+     */
+    syncSTTState() {
+        if (!this.sttState.connected) {
+            return false;
+        }
+        
+        console.log(`[RobotAPI] 🔄 Syncing STT state - sending ${this.sttState.expectedState} command`);
+        this.sttState.syncRetries++;
+        this.sttState.lastStateSync = Date.now();
+        
+        if (this.sttState.expectedState === 'running') {
+            return this.sendSTTCommand('resume');
+        } else if (this.sttState.expectedState === 'paused') {
+            return this.sendSTTCommand('pause');
+        } else if (this.sttState.expectedState === 'stopped') {
+            return this.sendSTTCommand('stop');
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Handle STT server state-related messages
+     */
+    handleSTTStateMessage(message) {
+        if (message.type === 'status') {
+            if (message.status) {
+                this.sttState.actualState = message.status;
+                console.log(`[RobotAPI] 📊 STT server state update: ${message.status}`);
+                
+                // Reset sync retries on successful state update
+                if (this.sttState.expectedState === this.sttState.actualState) {
+                    this.sttState.syncRetries = 0;
+                }
+            }
+        } else if (message.type === 'command_ack') {
+            console.log(`[RobotAPI] ✅ STT command acknowledged: ${message.action}`);
+        } else if (message.type === 'pong' || (message.type === 'status' && message.healthCheck)) {
+            // Health check response
+            this.sttState.lastHealthCheck = Date.now();
+            console.log('[RobotAPI] STT server health check OK');
+        }
+    }
+    
+    /**
+     * Handle STT server disconnection and notify active conversations
+     */
+    handleSTTDisconnection() {
+        const wasConnected = this.sttState.connected;
+        this.sttState.connected = false;
+        this.sttState.actualState = 'disconnected';
+        this.sttWebSocket = null;
+        
+        if (wasConnected) {
+            console.log('[RobotAPI] STT server disconnected');
+            
+            // Check for active conversations and send fallback messages
+            this.handleSTTServerDownFallback();
+        }
+    }
+    
+    /**
+     * Send fallback messages to robots when STT server is down during active conversations
+     */
+    handleSTTServerDownFallback() {
+        // Check for active LLM sessions or conversations
+        for (const [sessionId, session] of this.conversationSessions.entries()) {
+            if (session.llmActive || this.llmActiveSessions.has(sessionId)) {
+                // Don't send duplicate fallback messages for the same session
+                if (!this.sttServerDownFallbackSent.has(sessionId)) {
+                    this.sttServerDownFallbackSent.add(sessionId);
+                    
+                    const fallbackMessage = "Sorry, I can't hear you right now, I'm getting some help from my support crew.";
+                    console.log(`[RobotAPI] 🆘 Sending STT server down fallback message to ${session.robot} (session: ${sessionId})`);
+                    
+                    // Send fallback message to robot
+                    this.sendMessageToRobot(session.robot, {
+                        cmd: 'req-execute',
+                        type: 'conversation-response',
+                        message: fallbackMessage,
+                        robot: session.robot,
+                        source: 'stt-fallback',
+                        sessionId: sessionId,
+                        timestamp: Date.now()
+                    });
+                }
+            }
+        }
+    }
+    
+    /**
+     * Clean up STT state when conversations end
+     */
+    cleanupSTTFallbackTracking(sessionId) {
+        this.sttServerDownFallbackSent.delete(sessionId);
     }
 
     /**
@@ -852,6 +1054,9 @@ class RobotAPI extends EventEmitter {
         console.log(`[RobotAPI] 🤖 Ending LLM session ${sessionId}`);
         
         this.llmActiveSessions.delete(sessionId);
+        
+        // Clean up STT fallback tracking for this session
+        this.cleanupSTTFallbackTracking(sessionId);
         
         if (this.conversationSessions.has(sessionId)) {
             this.updateConversationSession(sessionId, null, { 
@@ -922,6 +1127,11 @@ class RobotAPI extends EventEmitter {
         // Check if STT is paused globally
         if (this.sttPaused) {
             console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while globally paused!`);
+            
+            // Send pause command to STT server to stop further messages
+            console.log(`[RobotAPI] 📤 Sending pause command to STT server due to turn-taking violation`);
+            this.pauseSTTProcessing();
+            
             this.emit('turnTakingViolation', {
                 type: 'stt_message_while_paused',
                 sessionId,
@@ -934,6 +1144,11 @@ class RobotAPI extends EventEmitter {
         // Check if STT is temporarily disabled (during LLM conversation startup)
         if (this.sttTemporarilyDisabled) {
             console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while temporarily disabled for LLM conversation!`);
+            
+            // Send pause command to STT server to stop further messages
+            console.log(`[RobotAPI] 📤 Sending pause command to STT server due to temporary disable violation`);
+            this.pauseSTTProcessing();
+            
             this.emit('turnTakingViolation', {
                 type: 'stt_message_while_temporarily_disabled',
                 sessionId,
@@ -949,6 +1164,11 @@ class RobotAPI extends EventEmitter {
             
             if (session.robotSpeaking) {
                 console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while robot ${session.robot} is speaking (session: ${sessionId})!`);
+                
+                // Send pause command to STT server to stop further messages
+                console.log(`[RobotAPI] 📤 Sending pause command to STT server due to robot speaking violation`);
+                this.pauseSTTProcessing();
+                
                 this.emit('turnTakingViolation', {
                     type: 'stt_message_while_robot_speaking',
                     robot: session.robot,
@@ -961,6 +1181,11 @@ class RobotAPI extends EventEmitter {
 
             if (session.llmActive) {
                 console.warn(`[RobotAPI] ⚠️ TURN-TAKING VIOLATION: Received STT message while LLM is active (session: ${sessionId})!`);
+                
+                // Send pause command to STT server to stop further messages
+                console.log(`[RobotAPI] 📤 Sending pause command to STT server due to LLM active violation`);
+                this.pauseSTTProcessing();
+                
                 this.emit('turnTakingViolation', {
                     type: 'stt_message_while_llm_active',
                     sessionId,
@@ -2534,6 +2759,17 @@ class RobotAPI extends EventEmitter {
         if (this.bufferCheckInterval) {
             clearInterval(this.bufferCheckInterval);
             this.bufferCheckInterval = null;
+        }
+        
+        // Clear STT monitoring intervals
+        if (this.sttHealthCheckInterval) {
+            clearInterval(this.sttHealthCheckInterval);
+            this.sttHealthCheckInterval = null;
+        }
+        
+        if (this.sttStateCheckInterval) {
+            clearInterval(this.sttStateCheckInterval);
+            this.sttStateCheckInterval = null;
         }
         
         console.log('[RobotAPI] ✅ Cleanup completed');
