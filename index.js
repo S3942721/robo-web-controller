@@ -1295,6 +1295,133 @@ router.post("/api/robot-buffer/update-mode/:sessionId", (req, res) => {
     }
 });
 
+// Robot State Management Endpoints (similar to STT state management)
+router.post("/api/robot-state/start", (req, res) => {
+    try {
+        console.log('[API] Starting robot state management');
+        robotAPI.startRobotStateManagement();
+        
+        // Also send $StopAction to all robots on start
+        robotAPI.stopAllRobotActivities();
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Robot state management started and $StopAction sent to all robots' 
+        });
+    } catch (error) {
+        console.error('[API] Failed to start robot state management:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post("/api/robot-state/stop", (req, res) => {
+    try {
+        console.log('[API] Stopping robot state management');
+        
+        // Send $StopAction to all robots and cleanup state management
+        robotAPI.stopAllRobotActivities();
+        robotAPI.cleanupRobotStateManagement();
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Robot state management stopped and $StopAction sent to all robots' 
+        });
+    } catch (error) {
+        console.error('[API] Failed to stop robot state management:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get("/api/robot-state/status", (req, res) => {
+    try {
+        const status = {
+            active: robotAPI.robotStateManager.active,
+            connected_robots: Array.from(robotAPI.robotStateManager.connected),
+            expected_states: Object.fromEntries(robotAPI.robotStateManager.expectedStates),
+            intervals: {
+                health_check: robotAPI.robotStateManager.healthCheckInterval !== null,
+                state_sync: robotAPI.robotStateManager.stateSyncInterval !== null
+            },
+            config: {
+                health_check_interval: process.env.ROBOT_HEALTH_CHECK_INTERVAL || 30000,
+                state_sync_interval: process.env.ROBOT_STATE_SYNC_INTERVAL || 5000,
+                health_check_timeout: process.env.ROBOT_HEALTH_CHECK_TIMEOUT || 5000
+            }
+        };
+        res.status(200).json(status);
+    } catch (error) {
+        console.error('[API] Failed to get robot state status:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post("/api/robot-state/sync/:robot", (req, res) => {
+    try {
+        const { robot } = req.params;
+        console.log(`[API] Manual state sync requested for robot: ${robot}`);
+        
+        robotAPI.syncRobotState(robot);
+        
+        res.status(200).json({ 
+            success: true, 
+            message: `State sync requested for robot: ${robot}` 
+        });
+    } catch (error) {
+        console.error(`[API] Failed to sync state for robot ${req.params.robot}:`, error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post("/api/robot-state/health-check/:robot", (req, res) => {
+    try {
+        const { robot } = req.params;
+        console.log(`[API] Manual health check requested for robot: ${robot}`);
+        
+        // Send health check to specific robot
+        const message = {
+            cmd: 'health_check',
+            type: 'system',
+            timestamp: Date.now(),
+            source: 'web-controller'
+        };
+        
+        const sent = robotAPI.sendMessage(message, robot);
+        
+        res.status(200).json({ 
+            success: sent, 
+            message: sent ? `Health check sent to robot: ${robot}` : `Robot ${robot} not connected` 
+        });
+    } catch (error) {
+        console.error(`[API] Failed to send health check to robot ${req.params.robot}:`, error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post("/api/robot-state/stop-action/:robot?", (req, res) => {
+    try {
+        const { robot } = req.params;
+        
+        if (robot) {
+            console.log(`[API] Sending $StopAction to robot: ${robot}`);
+            robotAPI.sendStopActionToRobot(robot);
+            res.status(200).json({ 
+                success: true, 
+                message: `$StopAction sent to robot: ${robot}` 
+            });
+        } else {
+            console.log('[API] Sending $StopAction to all robots');
+            robotAPI.stopAllRobotActivities();
+            res.status(200).json({ 
+                success: true, 
+                message: '$StopAction sent to all connected robots' 
+            });
+        }
+    } catch (error) {
+        console.error('[API] Failed to send $StopAction:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Catch-all route for serving the frontend - MUST BE LAST
 router.get("*", (req, res)=>{
     res.sendFile(join(__dirname, 'dist', 'index.html'));
