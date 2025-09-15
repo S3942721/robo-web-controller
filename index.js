@@ -515,6 +515,7 @@ app.ws('/api/nova-sonic-stream', (ws, req) => {
 
 // ROUTER SETUP
 app.use(express.static(join(__dirname, 'dist')));
+app.use(express.static(join(__dirname, 'public')));
 
 const router = express.Router();
 
@@ -1420,6 +1421,11 @@ router.post("/api/robot-state/stop-action/:robot?", (req, res) => {
         console.error('[API] Failed to send $StopAction:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Tablet controller route - serve the tablet interface
+router.get("/tablet", (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'tablet.html'));
 });
 
 // Catch-all route for serving the frontend - MUST BE LAST
