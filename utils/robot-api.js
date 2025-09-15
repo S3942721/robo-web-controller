@@ -79,8 +79,11 @@ class RobotAPI extends EventEmitter {
         this.ROBOT_RECONNECT_DELAY = parseInt(process.env.ROBOT_RECONNECT_DELAY) || 3000;
         this.ROBOT_MAX_SYNC_RETRIES = parseInt(process.env.ROBOT_MAX_SYNC_RETRIES) || 3;
         
-        // Session ID inference for robots - track most recent session per robot
-        this.robotLastSessionId = new Map(); // robot -> sessionId
+        // Robot name mappings: robot name as primary identifier
+        this.robotNameToSocketId = new Map();     // robot name -> socket ID
+        this.robotNameToSessionId = new Map();    // robot name -> LLM session ID
+        this.socketIdToRobotName = new Map();     // socket ID -> robot name
+        this.sessionIdToRobotName = new Map();    // LLM session ID -> robot name
         
         console.log('[RobotAPI] Initialized with identification method:', this.identificationMethod);
         console.log('[RobotAPI] Robot IP mappings:', this.robotIPs);
@@ -732,6 +735,14 @@ class RobotAPI extends EventEmitter {
      * Handle when robot finishes speaking - notifies STT to flush buffer
      */
     handleSpeakingFinished(robotName, sessionId) {
+        // If no session ID provided, use robot's socket ID as session ID
+        if (!sessionId) {
+            sessionId = this.getRobotSocketId(robotName);
+            if (sessionId) {
+                console.log(`[RobotAPI] 🎤 Using robot ${robotName} socket ID ${sessionId} for speaking finished handling`);
+            }
+        }
+        
         console.log(`[RobotAPI] 🎤 Robot ${robotName} finished speaking (session: ${sessionId})`);
         
         // Update robot status
@@ -1246,6 +1257,14 @@ class RobotAPI extends EventEmitter {
      * Handle when robot stops speaking (including state overrides)
      */
     handleRobotStoppedSpeaking(robot, sessionId) {
+        // If no session ID provided, use robot's socket ID as session ID
+        if (!sessionId) {
+            sessionId = this.getRobotSocketId(robot);
+            if (sessionId) {
+                console.log(`[RobotAPI] 🎤 Using robot ${robot} socket ID ${sessionId} for stopped speaking handling`);
+            }
+        }
+        
         // Update conversation session if we have one
         if (sessionId) {
             this.updateConversationSession(sessionId, robot, { robotSpeaking: false });
@@ -1340,6 +1359,19 @@ class RobotAPI extends EventEmitter {
      * Turn-taking management: Update conversation session state
      */
     updateConversationSession(sessionId, robot, updates) {
+        // If no session ID provided but we have a robot, try to infer from mappings or use socket ID
+        if (!sessionId && robot) {
+            sessionId = this.inferSessionIdForRobot(robot);
+            if (sessionId) {
+                console.log(`[RobotAPI] 📝 Inferred session ID ${sessionId} for robot ${robot}`);
+            }
+        }
+        
+        if (!sessionId) {
+            console.warn(`[RobotAPI] ⚠️ Cannot update conversation session - no session ID available for robot ${robot}`);
+            return;
+        }
+        
         if (!this.conversationSessions.has(sessionId)) {
             this.conversationSessions.set(sessionId, {
                 robot: robot,
@@ -1355,8 +1387,6 @@ class RobotAPI extends EventEmitter {
         
         // Track this as the most recent session for this robot
         if (robot) {
-            this.robotLastSessionId.set(robot, sessionId);
-            console.log(`[RobotAPI] 📝 Tracked session ${sessionId} as most recent for robot ${robot}`);
         }
         
         console.log(`[RobotAPI] 🔄 Updated conversation session ${sessionId}:`, session);
@@ -1373,6 +1403,19 @@ class RobotAPI extends EventEmitter {
      * Turn-taking management: Start LLM session
      */
     startLLMSession(sessionId, robot) {
+        // If no session ID provided but we have a robot, try to infer session ID
+        if (!sessionId && robot) {
+            sessionId = this.inferSessionIdForRobot(robot);
+            if (sessionId) {
+                console.log(`[RobotAPI] 🤖 Inferred session ID ${sessionId} for LLM session start for robot ${robot}`);
+            }
+        }
+        
+        if (!sessionId) {
+            console.warn(`[RobotAPI] ⚠️ Cannot start LLM session - no session ID available for robot ${robot}`);
+            return;
+        }
+        
         console.log(`[RobotAPI] 🤖 Starting LLM session ${sessionId} for robot ${robot}`);
         
         this.llmActiveSessions.add(sessionId);
@@ -1389,6 +1432,7 @@ class RobotAPI extends EventEmitter {
      * Turn-taking management: End LLM session
      */
     endLLMSession(sessionId) {
+        // For endLLMSession, we use the session ID as provided since it should already be mapped
         console.log(`[RobotAPI] 🤖 Ending LLM session ${sessionId}`);
         
         this.llmActiveSessions.delete(sessionId);
@@ -1412,6 +1456,14 @@ class RobotAPI extends EventEmitter {
      * STT resumption should only happen when robot speaking state changes to false.
      */
     checkSTTResumption(sessionId, robot) {
+        // If no session ID provided but we have a robot, use robot's socket ID as session ID
+        if (!sessionId && robot) {
+            sessionId = this.getRobotSocketId(robot);
+            if (sessionId) {
+                console.log(`[RobotAPI] 🎤 Using robot ${robot} socket ID ${sessionId} for STT resumption check`);
+            }
+        }
+        
         if (!sessionId) {
             console.log('[RobotAPI] 🎤 No session ID provided - STT resumption will be handled by robot speaking state');
             return true; // Allow resumption when robot speaking state changes
@@ -1440,6 +1492,7 @@ class RobotAPI extends EventEmitter {
 
     /**
      * Infer session ID for robot messages when not provided
+     * First checks for existing LLM session mappings, then falls back to socket ID
      */
     inferSessionIdForRobot(robot, providedSessionId = null) {
         if (providedSessionId) {
@@ -1447,14 +1500,21 @@ class RobotAPI extends EventEmitter {
             return providedSessionId;
         }
         
-        // No session ID provided, try to infer from robot's last session
-        const lastSessionId = this.robotLastSessionId.get(robot);
-        if (lastSessionId) {
-            console.log(`[RobotAPI] 💡 Inferred session ID ${lastSessionId} for robot ${robot} (no session ID provided)`);
-            return lastSessionId;
+        // Check if we have an existing LLM session mapping for this robot
+        if (this.robotNameToSessionId.has(robot)) {
+            const mappedSessionId = this.robotNameToSessionId.get(robot);
+            console.log(`[RobotAPI] 💡 Using mapped LLM session ID ${mappedSessionId} for robot ${robot}`);
+            return mappedSessionId;
         }
         
-        console.log(`[RobotAPI] ❓ No session ID provided and no previous session found for robot ${robot}`);
+        // No LLM session mapping found, use the robot's socket connection ID as session ID
+        const robotSocketId = this.robotNameToSocketId.get(robot);
+        if (robotSocketId) {
+            console.log(`[RobotAPI] 💡 Using socket connection ID ${robotSocketId} as session ID for robot ${robot}`);
+            return robotSocketId;
+        }
+        
+        console.log(`[RobotAPI] ❓ No session ID provided and no socket connection found for robot ${robot}`);
         return null;
     }
 
@@ -1613,12 +1673,7 @@ class RobotAPI extends EventEmitter {
      * Get the socket ID for a specific robot
      */
     getRobotSocketId(robotName) {
-        for (const [socketId, connection] of this.connections.entries()) {
-            if (connection.robot === robotName) {
-                return socketId;
-            }
-        }
-        return null;
+        return this.robotNameToSocketId.get(robotName) || null;
     }
 
     checkStaleBuffers() {
@@ -2023,6 +2078,11 @@ class RobotAPI extends EventEmitter {
         if (robotName !== 'pending' && robotName !== this.defaultRobotName) {
             this.initializeRobotStatus(robotName);
             this.processQueuedMessages(robotName);
+            
+            // Establish robot name mappings
+            this.robotNameToSocketId.set(robotName, socketId);
+            this.socketIdToRobotName.set(socketId, robotName);
+            console.log(`[RobotAPI] 📝 Established robot name mapping: ${robotName} -> socket ${socketId}`);
         }
         
         this.emit('connectionRegistered', { socketId, robot: robotName, connectionInfo });
@@ -2057,6 +2117,11 @@ class RobotAPI extends EventEmitter {
         
         console.log(`[RobotAPI] Updated robot identification: ${socketId} ${oldRobot} -> ${robotName}`);
         
+        // Establish robot name mappings
+        this.robotNameToSocketId.set(robotName, socketId);
+        this.socketIdToRobotName.set(socketId, robotName);
+        console.log(`[RobotAPI] 📝 Established robot name mapping: ${robotName} -> socket ${socketId}`);
+        
         // Send queued messages for this robot
         this.processQueuedMessages(robotName);
         
@@ -2070,6 +2135,45 @@ class RobotAPI extends EventEmitter {
         const connection = this.connections.get(socketId);
         if (connection) {
             console.log(`[RobotAPI] Unregistered connection ${socketId} for robot: ${connection.robot}`);
+            
+            const robotName = connection.robot;
+            
+            // Clean up robot name mappings
+            if (robotName && robotName !== 'pending' && robotName !== this.defaultRobotName) {
+                // Clean up robot name to socket mapping
+                if (this.robotNameToSocketId.get(robotName) === socketId) {
+                    this.robotNameToSocketId.delete(robotName);
+                    console.log(`[RobotAPI] 🧹 Cleaned up robot name to socket mapping for ${robotName}`);
+                }
+                
+                // Clean up socket to robot name mapping
+                this.socketIdToRobotName.delete(socketId);
+                
+                // Clean up LLM session mappings if they exist
+                if (this.robotNameToSessionId.has(robotName)) {
+                    const sessionId = this.robotNameToSessionId.get(robotName);
+                    this.robotNameToSessionId.delete(robotName);
+                    this.sessionIdToRobotName.delete(sessionId);
+                    console.log(`[RobotAPI] 🧹 Cleaned up LLM session mapping for ${robotName}: ${sessionId}`);
+                    
+                    // Clean up conversation session, chunk buffers, and ordering for the LLM session ID
+                    this.conversationSessions.delete(sessionId);
+                    this.chunkBuffers.delete(sessionId);
+                    this.chunkOrdering.delete(sessionId);
+                } else {
+                    // If no LLM session mapping, clean up using socket ID as session ID
+                    this.conversationSessions.delete(socketId);
+                    this.chunkBuffers.delete(socketId);
+                    this.chunkOrdering.delete(socketId);
+                }
+            } else {
+                // Clean up for unidentified connections
+                this.socketIdToRobotName.delete(socketId);
+                this.conversationSessions.delete(socketId);
+                this.chunkBuffers.delete(socketId);
+                this.chunkOrdering.delete(socketId);
+            }
+            
             this.connections.delete(socketId);
             this.emit('connectionUnregistered', { socketId, robot: connection.robot });
         }
@@ -2808,6 +2912,34 @@ class RobotAPI extends EventEmitter {
             return {
                 success: false,
                 error: 'Session ID is required',
+                buffered: false
+            };
+        }
+
+        // Establish robot name and session ID mapping if this is the first chunk or if mapping doesn't exist
+        if (isFirstChunk || !this.robotNameToSessionId.has(targetRobot)) {
+            const robotSocketId = this.robotNameToSocketId.get(targetRobot);
+            if (robotSocketId) {
+                console.log(`[RobotAPI] 🔗 Mapping robot ${targetRobot} to LLM session ${sessionId}`);
+                this.robotNameToSessionId.set(targetRobot, sessionId);
+                this.sessionIdToRobotName.set(sessionId, targetRobot);
+            } else {
+                console.error(`[RobotAPI] ❌ No socket connection found for robot ${targetRobot}`);
+                return {
+                    success: false,
+                    error: `No socket connection found for robot ${targetRobot}`,
+                    buffered: false
+                };
+            }
+        }
+        
+        // Use robot name as primary identifier for chunking
+        const robotSocketId = this.robotNameToSocketId.get(targetRobot);
+        if (!robotSocketId) {
+            console.error(`[RobotAPI] ❌ No robot socket found for robot ${targetRobot}`);
+            return {
+                success: false,
+                error: `No robot socket found for robot ${targetRobot}`,
                 buffered: false
             };
         }
