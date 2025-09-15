@@ -50,6 +50,30 @@ export default function STTLLMTest() {
     const [robotSpeaking, setRobotSpeaking] = useState(false);
     const [llmActive, setLLMActive] = useState(false);
 
+    // Add comprehensive robot status tracking
+    const [robotStatus, setRobotStatus] = useState({
+        connected: false,
+        speaking: false,
+        listening: false,
+        moving: false,
+        battery_level: null,
+        current_behavior: 'idle',
+        connection_quality: null,
+        face_detected: false,
+        stt_buffer_state: 'ready',
+        last_heartbeat: null,
+        error_count: 0
+    });
+    
+    // Add STT detailed status tracking
+    const [sttDetailedStatus, setSTTDetailedStatus] = useState({
+        status: 'disconnected',
+        transcribing: false,
+        lastTranscription: null,
+        errorCount: 0,
+        sessionsActive: 0
+    });
+
     useEffect(() => {
         // Load network configuration from server
         fetch('/api/network-config')
@@ -78,9 +102,21 @@ export default function STTLLMTest() {
                 
                 // Handle robot status updates
                 if (data.type === 'robot-status-update') {
-                    if (data.robot === targetRobot && data.field === 'speaking') {
-                        console.log(`🔄 Robot ${data.robot} speaking state: ${data.value}`);
-                        setRobotSpeaking(data.value);
+                    if (data.robot === targetRobot) {
+                        console.log(`🔄 Robot ${data.robot} ${data.field}: ${data.value}`);
+                        
+                        // Update specific robot status field
+                        setRobotStatus(prevStatus => ({
+                            ...prevStatus,
+                            [data.field]: data.value,
+                            connected: true,
+                            last_heartbeat: new Date().toISOString()
+                        }));
+                        
+                        // Legacy speaking state for backward compatibility
+                        if (data.field === 'speaking') {
+                            setRobotSpeaking(data.value);
+                        }
                     }
                 }
                 
@@ -156,6 +192,11 @@ export default function STTLLMTest() {
                 clearTimeout(timeout);
                 console.log('STT WebSocket connected successfully');
                 setSTTStatus('connected');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    status: 'connected',
+                    errorCount: 0
+                }));
                 setOverallStatus('✅ STT connected - Ready to start transcription');
                 
                 // Send resume command immediately after connection
@@ -196,6 +237,11 @@ export default function STTLLMTest() {
                 clearTimeout(timeout);
                 console.log('STT WebSocket closed:', event.code, event.reason);
                 setSTTStatus('disconnected');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    status: 'disconnected',
+                    transcribing: false
+                }));
                 
                 if (event.code === 1006) {
                     setOverallStatus('❌ STT connection lost - server may be down');
@@ -340,6 +386,11 @@ export default function STTLLMTest() {
                 }
                 
                 setCurrentTranscription(data.text || '');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    transcribing: true,
+                    lastTranscription: data.text
+                }));
                 setOverallStatus('🎤 Listening... (partial result)');
                 break;
                 
@@ -367,6 +418,11 @@ export default function STTLLMTest() {
                 
                 if (data.text && data.text.trim()) {
                     console.log('✅ Complete transcription:', data.text);
+                    setSTTDetailedStatus(prev => ({
+                        ...prev,
+                        transcribing: false,
+                        lastTranscription: data.text
+                    }));
                     
                     // Record STT complete time for delay measurement
                     sttCompleteTimeRef.current = Date.now();
@@ -815,6 +871,31 @@ export default function STTLLMTest() {
         }
     }, [currentLLMSession]);
 
+    const getBooleanStatusColor = (value) => {
+        return value ? '#28a745' : '#6c757d';
+    };
+
+    const formatStatusValue = (value, field) => {
+        if (value === null || value === undefined) return 'Unknown';
+        
+        switch(field) {
+            case 'battery_level':
+            case 'cpu_usage':
+            case 'memory_usage':
+            case 'connection_quality':
+                return `${value}%`;
+            case 'temperature':
+                return `${value}°C`;
+            case 'last_heartbeat': {
+                if (!value) return 'None';
+                const timeDiff = new Date() - new Date(value);
+                return timeDiff < 5000 ? 'Live' : `${Math.round(timeDiff/1000)}s ago`;
+            }
+            default:
+                return value.toString();
+        }
+    };
+
     return (
         <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
             <h2>Haku Conversation</h2>
@@ -893,6 +974,168 @@ export default function STTLLMTest() {
                         <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                             {sessionId || 'Not connected'}
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Live Status Indicators */}
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa', 
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4 style={{ marginBottom: '15px', color: '#495057' }}>🔴 Live Status</h4>
+                
+                {/* Robot Status */}
+                <div style={{ marginBottom: '15px' }}>
+                    <h5 style={{ marginBottom: '10px', color: '#495057' }}>🤖 Robot: {targetRobot}</h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Connection</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.connected), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.connected ? '🟢 CONNECTED' : '🔴 DISCONNECTED'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Speaking</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.speaking), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.speaking ? '🔊 SPEAKING' : '🔇 SILENT'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Listening</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.listening), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.listening ? '👂 LISTENING' : '🚫 NOT LISTENING'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Behavior</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#495057' }}>
+                                {robotStatus.current_behavior?.toUpperCase() || 'UNKNOWN'}
+                            </div>
+                        </div>
+                        
+                        {robotStatus.battery_level !== null && (
+                            <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Battery</div>
+                                <div style={{ 
+                                    color: robotStatus.battery_level > 30 ? '#28a745' : robotStatus.battery_level > 20 ? '#ffc107' : '#dc3545',
+                                    fontWeight: 'bold', 
+                                    fontSize: '14px' 
+                                }}>
+                                    🔋 {formatStatusValue(robotStatus.battery_level, 'battery_level')}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>STT Buffer</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#495057' }}>
+                                {robotStatus.stt_buffer_state?.toUpperCase() || 'UNKNOWN'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Heartbeat</div>
+                            <div style={{ 
+                                color: robotStatus.last_heartbeat && (new Date() - new Date(robotStatus.last_heartbeat)) < 10000 ? '#28a745' : '#dc3545',
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {formatStatusValue(robotStatus.last_heartbeat, 'last_heartbeat')}
+                            </div>
+                        </div>
+                        
+                        {robotStatus.face_detected !== null && (
+                            <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Face Detection</div>
+                                <div style={{ 
+                                    color: getBooleanStatusColor(robotStatus.face_detected), 
+                                    fontWeight: 'bold', 
+                                    fontSize: '14px' 
+                                }}>
+                                    {robotStatus.face_detected ? '👤 DETECTED' : '👻 NONE'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                {/* STT Status */}
+                <div>
+                    <h5 style={{ marginBottom: '10px', color: '#495057' }}>🎤 STT Service</h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Connection</div>
+                            <div style={{ 
+                                color: getStatusColor(sttDetailedStatus.status), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.status.toUpperCase()}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Transcribing</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(sttDetailedStatus.transcribing), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.transcribing ? '📝 ACTIVE' : '⏸️ IDLE'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Errors</div>
+                            <div style={{ 
+                                color: sttDetailedStatus.errorCount > 0 ? '#dc3545' : '#28a745',
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.errorCount > 0 ? `❌ ${sttDetailedStatus.errorCount}` : '✅ 0'}
+                            </div>
+                        </div>
+                        
+                        {sttDetailedStatus.lastTranscription && (
+                            <div style={{ 
+                                padding: '8px', 
+                                backgroundColor: 'white', 
+                                borderRadius: '4px', 
+                                border: '1px solid #dee2e6',
+                                gridColumn: 'span 2'
+                            }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Last Transcription</div>
+                                <div style={{ 
+                                    fontSize: '14px', 
+                                    color: '#495057',
+                                    fontStyle: 'italic',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    &quot;{sttDetailedStatus.lastTranscription}&quot;
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
