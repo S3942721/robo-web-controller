@@ -49,7 +49,6 @@ class RobotAPI extends EventEmitter {
         this.chunkOrdering = new Map(); // sessionId -> { expectedChunk, pendingChunks, maxWaitTime }
         this.CHUNK_WAIT_TIMEOUT = 1000; // Max time to wait for out-of-order chunks (ms)
         this.MAX_PENDING_CHUNKS = 20; // Max number of out-of-order chunks to buffer
-        this.readyChunks = new Map(); // sessionId -> array of ready chunks
         
         // Robot status system
         this.statusConfig = null;
@@ -1023,32 +1022,48 @@ class RobotAPI extends EventEmitter {
                 this.sttState.actualState = message.status;
                 console.log(`[RobotAPI] 📊 STT server state update: ${message.status}`);
                 
-                // Always update sttPaused to reflect actual server state
-                this.sttPaused = (message.status === 'paused');
+                // Always update sttPaused to reflect actual server state (but not for 'connected' state)
+                if (message.status !== 'connected') {
+                    this.sttPaused = (message.status === 'paused');
+                }
                 
-                // If this is the first state update after connection (actualState was 'unknown'), 
-                // align our expected state with the server's actual state instead of forcing a change
+                // Handle initial connection states
                 if (previousState === 'unknown') {
-                    console.log(`[RobotAPI] 🔄 Initial STT state detected: ${message.status}, aligning expected state`);
-                    this.sttState.expectedState = message.status;
+                    console.log(`[RobotAPI] 🔄 Initial STT state detected: ${message.status}`);
                     
-                    // Only sync if we need to change the state for turn-taking reasons
-                    // Check if any robots are currently speaking
-                    const anyRobotSpeaking = Array.from(this.detailedRobotStatus.values()).some(status => status.speaking);
-                    
-                    if (anyRobotSpeaking && message.status === 'running') {
-                        console.log('[RobotAPI] 🔇 Robot is speaking, need to pause STT');
-                        this.pauseSTTProcessing();
-                    } else if (!anyRobotSpeaking && message.status === 'paused') {
-                        console.log('[RobotAPI] 🔊 No robots speaking, STT should be running');
-                        this.resumeSTTProcessing();
+                    if (message.status === 'connected') {
+                        // 'connected' is just the initial welcome message, expect 'running' next
+                        console.log(`[RobotAPI] 📡 STT server connected, expecting transition to 'running' state`);
+                        this.sttState.expectedState = 'running';
+                        // Don't change sttPaused for 'connected' state
                     } else {
-                        console.log(`[RobotAPI] ✅ STT state ${message.status} is appropriate for current conditions`);
+                        // Server started in a processing state, align with it
+                        console.log(`[RobotAPI] 🔄 Aligning expected state with server state: ${message.status}`);
+                        this.sttState.expectedState = message.status;
+                        
+                        // Check if we need to change the state for turn-taking reasons
+                        const anyRobotSpeaking = Array.from(this.detailedRobotStatus.values()).some(status => status.speaking);
+                        
+                        if (anyRobotSpeaking && message.status === 'running') {
+                            console.log('[RobotAPI] 🔇 Robot is speaking, need to pause STT');
+                            this.pauseSTTProcessing();
+                        } else if (!anyRobotSpeaking && message.status === 'paused') {
+                            console.log('[RobotAPI] 🔊 No robots speaking, STT should be running');
+                            this.resumeSTTProcessing();
+                        } else {
+                            console.log(`[RobotAPI] ✅ STT state ${message.status} is appropriate for current conditions`);
+                        }
                     }
                 } else {
                     // Normal state update - check for sync completion
-                if (this.sttState.expectedState === this.sttState.actualState) {
-                    this.sttState.syncRetries = 0;
+                    if (message.status === 'connected') {
+                        // Ignore 'connected' messages after initial connection
+                        console.log(`[RobotAPI] 📡 Ignoring subsequent 'connected' message`);
+                        return;
+                    }
+                    
+                    if (this.sttState.expectedState === this.sttState.actualState) {
+                        this.sttState.syncRetries = 0;
                         console.log(`[RobotAPI] ✅ STT state synchronized: ${message.status}`);
                     } else {
                         console.log(`[RobotAPI] 🔄 STT state mismatch - expected: ${this.sttState.expectedState}, actual: ${message.status}`);
@@ -1703,7 +1718,7 @@ class RobotAPI extends EventEmitter {
         bufferInfo.lastChunkTime = Date.now();
         bufferInfo.robot = targetRobot;
 
-        console.log(`[RobotAPI] 📝 Added to buffer ${sessionId}: "${filteredContent}" (total: ${bufferInfo.buffer.length} chars)`);
+        console.log(`[RobotAPI] 📝 Added to buffer ${sessionId}: "${content}" (total: ${bufferInfo.buffer.length} chars)`);
         // console.log(`[RobotAPI] 📋 Complete buffer for ${sessionId}: "${bufferInfo.buffer}"`);
         
         // Check if we should send the buffer
@@ -2945,8 +2960,9 @@ class RobotAPI extends EventEmitter {
         }
 
         // Handle chunk ordering if chunkNumber is provided
+        let orderingResult = null;
         if (chunkNumber !== null && chunkNumber !== undefined) {
-            const orderingResult = this.validateChunkOrder(sessionId, chunkNumber, content, targetRobot, isFinished, isFirstChunk);
+            orderingResult = this.validateChunkOrder(sessionId, chunkNumber, content, targetRobot, isFinished, isFirstChunk);
             if (!orderingResult.processNow) {
                 console.log(`[RobotAPI] ⏳ Chunk ${chunkNumber} for session ${sessionId} queued - waiting for earlier chunks`);
                 return {
@@ -2969,8 +2985,8 @@ class RobotAPI extends EventEmitter {
         }
 
         // Process this chunk and any ready chunks from the ordering system
-        const chunksToProcess = chunkNumber !== null ? 
-            this.getReadyChunks(sessionId) : 
+        const chunksToProcess = orderingResult ? 
+            orderingResult.chunksToProcess : 
             [{ content, targetRobot, sessionId, isFinished, isFirstChunk, chunkNumber }];
         
         let totalContentLength = 0;
@@ -3071,9 +3087,6 @@ class RobotAPI extends EventEmitter {
                 console.log(`[RobotAPI] ⏭️ Processing queued chunk ${ordering.expectedChunk - 1} for session ${sessionId}`);
             }
             
-            // Store ready chunks for processing
-            this.setReadyChunks(sessionId, readyChunks);
-            
             return {
                 processNow: true,
                 chunksToProcess: readyChunks,
@@ -3153,7 +3166,6 @@ class RobotAPI extends EventEmitter {
             
             if (readyChunks.length > 0) {
                 console.log(`[RobotAPI] 🚀 Processing ${readyChunks.length} timed-out chunks for session ${sessionId}`);
-                this.setReadyChunks(sessionId, readyChunks);
                 
                 // Process the ready chunks
                 for (const chunk of readyChunks) {
@@ -3173,25 +3185,6 @@ class RobotAPI extends EventEmitter {
     /**
      * Store ready chunks for processing
      */
-    setReadyChunks(sessionId, chunks) {
-        if (!this.readyChunks) {
-            this.readyChunks = new Map();
-        }
-        this.readyChunks.set(sessionId, chunks);
-    }
-
-    /**
-     * Get and clear ready chunks for processing
-     */
-    getReadyChunks(sessionId) {
-        if (!this.readyChunks) {
-            this.readyChunks = new Map();
-        }
-        const chunks = this.readyChunks.get(sessionId) || [];
-        this.readyChunks.delete(sessionId);
-        return chunks;
-    }
-
     /**
      * Process a stuck chunk by forcing it through due to timeout
      */
