@@ -199,13 +199,23 @@ export default function STTLLMTest() {
                 }));
                 setOverallStatus('✅ STT connected - Ready to start transcription');
                 
-                // Send resume command immediately after connection
-                console.log('📤 Sending resume command to STT server...');
+                // Send reset command first, then resume command
+                console.log('📤 Sending reset command to STT server...');
                 sttWsRef.current.send(JSON.stringify({
                     type: 'control',
-                    action: 'resume',
+                    action: 'reset',
                     timestamp: Date.now()
                 }));
+                
+                // Wait a moment, then send resume command
+                setTimeout(() => {
+                    console.log('📤 Sending resume command to STT server...');
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'control',
+                        action: 'resume',
+                        timestamp: Date.now()
+                    }));
+                }, 100); // 100ms delay between reset and resume
                 
                 // Auto-connect to LLM if enabled
                 if (autoStart) {
