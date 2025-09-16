@@ -1455,6 +1455,9 @@ class RobotAPI extends EventEmitter {
         // Clean up STT fallback tracking for this session
         this.cleanupSTTFallbackTracking(sessionId);
         
+        // Clean up thinking filter for this session
+        this.cleanupThinkingFilter(sessionId);
+        
         if (this.conversationSessions.has(sessionId)) {
             this.updateConversationSession(sessionId, null, { 
                 llmActive: false
@@ -1702,9 +1705,18 @@ class RobotAPI extends EventEmitter {
     }
 
     /**
+     * Clean up thinking filter for finished sessions
+     */
+    cleanupThinkingFilter(sessionId) {
+        // No longer needed since thinking filtering is integrated into buffer processing
+        console.log(`[RobotAPI] � Thinking filter cleanup no longer needed for session ${sessionId} (integrated into buffer processing)`);
+    }
+
+    /**
      * Add content to chunk buffer for session-based buffering
      */
     addToChunkBuffer(sessionId, content, targetRobot = 'Haku') {
+        // Add all content directly to buffer without individual chunk filtering
         if (!this.chunkBuffers.has(sessionId)) {
             this.chunkBuffers.set(sessionId, {
                 buffer: '',
@@ -1714,12 +1726,11 @@ class RobotAPI extends EventEmitter {
         }
 
         const bufferInfo = this.chunkBuffers.get(sessionId);        
-        bufferInfo.buffer += content;
+        bufferInfo.buffer += content; // Add all content to buffer
         bufferInfo.lastChunkTime = Date.now();
         bufferInfo.robot = targetRobot;
 
         console.log(`[RobotAPI] 📝 Added to buffer ${sessionId}: "${content}" (total: ${bufferInfo.buffer.length} chars)`);
-        // console.log(`[RobotAPI] 📋 Complete buffer for ${sessionId}: "${bufferInfo.buffer}"`);
         
         // Check if we should send the buffer
         this.processChunkBuffer(sessionId, false);
@@ -1796,6 +1807,7 @@ class RobotAPI extends EventEmitter {
 
     /**
      * Process chunk buffer to extract complete sentences with pattern boundaries
+     * Now includes thinking filter removal integrated with sentence boundary detection
      */
     processChunkBuffer(sessionId, isFinished = false) {
         const bufferInfo = this.chunkBuffers.get(sessionId);
@@ -1804,12 +1816,18 @@ class RobotAPI extends EventEmitter {
         let buffer = bufferInfo.buffer;
         const sentenceMarkers = ['.', '!', '?'];
 
-        // First, process complete sentences
+        // STEP 1: Remove any complete thinking sections from the buffer
+        buffer = this.removeCompleteThinkingSections(buffer, sessionId);
+        bufferInfo.buffer = buffer;
+
+        // STEP 2: Process complete sentences (existing logic)
         for (let i = 0; i < buffer.length; i++) {
             if (sentenceMarkers.includes(buffer[i])) {
                 const potentialChunk = buffer.substring(0, i + 1);
                 console.log(`[RobotAPI] 🔍 Evaluating potential chunk for session ${sessionId}: "${potentialChunk}"`);
-                if (this.canSendChunkToRobot(potentialChunk)) {
+                
+                // Check if this chunk is inside or contains thinking tags
+                if (!this.containsIncompleteThinkingTags(potentialChunk) && this.canSendChunkToRobot(potentialChunk)) {
                     console.log(`[RobotAPI] 🚀 Found sendable sentence for session ${sessionId}: "${potentialChunk}"`);
                     this.flushChunkBufferWithContent(sessionId, potentialChunk);
                     
@@ -1821,20 +1839,107 @@ class RobotAPI extends EventEmitter {
             }
         }
         
-        // After sentence processing, check the remainder of the buffer
+        // STEP 3: After sentence processing, check the remainder of the buffer
         const remainingBuffer = buffer; // Use the buffer directly, don't trim here
         if (remainingBuffer.trim().length > 0) {
             // Condition 1: The entire remaining buffer is ONLY patterns and is safe to send
-            if (this.isOnlyPatterns(remainingBuffer) && this.canSendChunkToRobot(remainingBuffer)) {
+            if (!this.containsIncompleteThinkingTags(remainingBuffer) && 
+                this.isOnlyPatterns(remainingBuffer) && 
+                this.canSendChunkToRobot(remainingBuffer)) {
                 console.log(`[RobotAPI] 🚀 Found sendable pattern-only chunk for session ${sessionId}: "${remainingBuffer}"`);
                 this.flushChunkBuffer(sessionId); // Flush the entire remaining buffer
             }
-            // Condition 2: The stream is finished, flush whatever is left
+            // Condition 2: The stream is finished, flush whatever is left (but not thinking content)
             else if (isFinished) {
-                console.log(`[RobotAPI] 🏁 Stream finished, flushing remaining buffer for session ${sessionId}: "${remainingBuffer}"`);
-                this.flushChunkBuffer(sessionId);
+                const finalBuffer = this.removeIncompleteThinkingTags(remainingBuffer, sessionId);
+                if (finalBuffer.trim()) {
+                    console.log(`[RobotAPI] 🏁 Stream finished, flushing remaining valid content for session ${sessionId}: "${finalBuffer}"`);
+                    this.flushChunkBufferWithContent(sessionId, finalBuffer);
+                    bufferInfo.buffer = ''; // Clear the buffer
+                } else {
+                    console.log(`[RobotAPI] 🏁 Stream finished, but only thinking content remained for session ${sessionId}`);
+                }
             }
         }
+    }
+
+    /**
+     * Remove complete thinking sections from buffer
+     */
+    removeCompleteThinkingSections(buffer, sessionId) {
+        let processedBuffer = buffer;
+        let foundThinking = true;
+        
+        while (foundThinking) {
+            foundThinking = false;
+            const openIndex = processedBuffer.toLowerCase().indexOf('<thinking>');
+            
+            if (openIndex !== -1) {
+                const closeIndex = processedBuffer.toLowerCase().indexOf('</thinking>', openIndex + 10);
+                
+                if (closeIndex !== -1) {
+                    // Found complete thinking section, remove it
+                    const beforeThinking = processedBuffer.substring(0, openIndex);
+                    const afterThinking = processedBuffer.substring(closeIndex + 11);
+                    const removedSection = processedBuffer.substring(openIndex, closeIndex + 11);
+                    
+                    console.log(`[RobotAPI] 🧠 Removed complete thinking section from buffer ${sessionId}: "${removedSection}"`);
+                    
+                    processedBuffer = beforeThinking + afterThinking;
+                    foundThinking = true; // Check for more thinking sections
+                }
+            }
+        }
+        
+        return processedBuffer;
+    }
+
+    /**
+     * Check if content contains incomplete thinking tags
+     */
+    containsIncompleteThinkingTags(content) {
+        const contentLower = content.toLowerCase();
+        const openIndex = contentLower.indexOf('<thinking>');
+        const closeIndex = contentLower.indexOf('</thinking>');
+        
+        // Has opening tag but no closing tag
+        if (openIndex !== -1 && closeIndex === -1) {
+            return true;
+        }
+        
+        // Has closing tag but no opening tag (continuation of thinking section)
+        if (openIndex === -1 && closeIndex !== -1) {
+            return true;
+        }
+        
+        // Check for partial tags at the end
+        const incompletePatterns = ['<', '<t', '<th', '<thi', '<thin', '<think', '<thinki', '<thinkin'];
+        for (const pattern of incompletePatterns) {
+            if (contentLower.endsWith(pattern)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Remove incomplete thinking tags from content (for final flush)
+     */
+    removeIncompleteThinkingTags(content, sessionId) {
+        const contentLower = content.toLowerCase();
+        
+        // Check for incomplete opening tag at the end
+        const incompletePatterns = ['<', '<t', '<th', '<thi', '<thin', '<think', '<thinki', '<thinkin'];
+        for (const pattern of incompletePatterns) {
+            if (contentLower.endsWith(pattern)) {
+                const cleanContent = content.substring(0, content.length - pattern.length);
+                console.log(`[RobotAPI] 🧠 Removed incomplete thinking tag "${pattern}" from final content for session ${sessionId}`);
+                return cleanContent;
+            }
+        }
+        
+        return content;
     }
 
     /**
@@ -2175,11 +2280,13 @@ class RobotAPI extends EventEmitter {
                     this.conversationSessions.delete(sessionId);
                     this.chunkBuffers.delete(sessionId);
                     this.chunkOrdering.delete(sessionId);
+                    this.cleanupThinkingFilter(sessionId);
                 } else {
                     // If no LLM session mapping, clean up using socket ID as session ID
                     this.conversationSessions.delete(socketId);
                     this.chunkBuffers.delete(socketId);
                     this.chunkOrdering.delete(socketId);
+                    this.cleanupThinkingFilter(socketId);
                 }
             } else {
                 // Clean up for unidentified connections
@@ -2566,6 +2673,7 @@ class RobotAPI extends EventEmitter {
         // Clean up finished session
         if (isFinished) {
             this.llmSessions.delete(sessionId);
+            this.cleanupThinkingFilter(sessionId);
         }
     }
 

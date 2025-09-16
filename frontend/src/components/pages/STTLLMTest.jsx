@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import robotAPI from '../../utils/robotAPI';
 
 export default function STTLLMTest() {
@@ -623,7 +623,8 @@ export default function STTLLMTest() {
 
         try {
             const effectiveSessionId = sessionId || sessionIdRef.current;
-            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}):`, content);
+            
+            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}): "${content}"`);
             console.log(`🤖 Response chunk finished: ${isFinished}, isFirstChunk: ${isFirstChunk}, chunkNumber: ${chunkNumber}`);
             
             // Use Robot API conversation endpoint with turn-taking support
@@ -722,6 +723,7 @@ export default function STTLLMTest() {
         setConversationHistory([]);
         setCurrentTranscription('');
         setLLMResponse('');
+        
         // Reset delay stats
         setDelayStats({
             totalRequests: 0,
@@ -862,7 +864,7 @@ export default function STTLLMTest() {
         }
     };
 
-    const updateBufferStatus = async () => {
+    const updateBufferStatus = useCallback(async () => {
         if (!currentLLMSession) return;
 
         try {
@@ -871,7 +873,7 @@ export default function STTLLMTest() {
         } catch (error) {
             console.error('Failed to get buffer status:', error);
         }
-    };
+    }, [currentLLMSession]);
 
     // Update buffer status periodically when session is active
     useEffect(() => {
@@ -879,7 +881,7 @@ export default function STTLLMTest() {
             const interval = setInterval(updateBufferStatus, 2000);
             return () => clearInterval(interval);
         }
-    }, [currentLLMSession]);
+    }, [currentLLMSession, updateBufferStatus]);
 
     const getBooleanStatusColor = (value) => {
         return value ? '#28a745' : '#6c757d';
@@ -1254,7 +1256,8 @@ export default function STTLLMTest() {
                                 borderRadius: '8px',
                                 cursor: 'pointer',
                                 fontSize: '16px',
-                                fontWeight: 'bold'
+                                fontWeight: 'bold',
+                                marginRight: '10px'
                             }}
                         >
                             🗑️ Clear
@@ -1559,6 +1562,7 @@ export default function STTLLMTest() {
                         <li><strong>STT Integration:</strong> Configured speech-to-text server connection</li>
                         <li><strong>LLM Gateway:</strong> Configured language model gateway connection</li>
                         <li><strong>Auto-reconnect:</strong> STT service will attempt to reconnect if connection is lost</li>
+                        <li><strong>Thinking Filter:</strong> Content between &lt;Thinking&gt; and &lt;/Thinking&gt; tags is automatically filtered out by the backend before being sent to the robot</li>
                     </ul>
                 </div>
             </div>
