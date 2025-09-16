@@ -274,6 +274,22 @@
             75% { transform: translate(-50%, -50%) scale(1.1); background: #ff4444; }
         }
         
+        /* YouTube Video Embed */
+        .video-container {
+            margin-bottom: 15px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        .video-container iframe {
+            width: 100%;
+            height: 120px;
+            border: none;
+            display: block;
+        }
+        
         /* Controls */
         .controls {
             display: flex;
@@ -398,7 +414,7 @@
         </div>
 
         <div class="status-panel robot-state">
-            <div class="panel-title">System Status</div>
+            <div class="panel-title">System Statussss</div>
             
             <div class="robot-eyes">
                 <div class="eye" id="left-eye">
@@ -407,6 +423,12 @@
                 <div class="eye" id="right-eye">
                     <div class="eye-pupil"></div>
                 </div>
+            </div>
+            
+            <div class="video-container">
+                <iframe src="https://www.youtube.com/embed/vTfD20dbxho?autoplay=1&loop=1&playlist=vTfD20dbxho&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1" 
+                        allowfullscreen>
+                </iframe>
             </div>
             
             <div class="metrics">
