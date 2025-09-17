@@ -32,6 +32,14 @@ export default function STTLLMTest() {
     const [pendingRequests, setPendingRequests] = useState(new Map());
     const sttCompleteTimeRef = useRef(null);
 
+    // Add state for debug information
+    const [debugInfo, setDebugInfo] = useState({
+        lastRequest: null,
+        requestTimestamp: null,
+        lastResponse: null,
+        responseTimestamp: null
+    });
+
     // Add state for LLM chunk processor
     const [sendToRobot, setSendToRobot] = useState(true);
     const [targetRobot, setTargetRobot] = useState('Haku');
@@ -509,6 +517,13 @@ export default function STTLLMTest() {
     const handleLLMMessage = (data) => {
         console.log('🤖 Processing LLM data:', data);
         
+        // Store debug information for responses
+        setDebugInfo(prev => ({
+            ...prev,
+            lastResponse: data,
+            responseTimestamp: new Date().toISOString()
+        }));
+        
         if (data.action === 'completion') {
             // Check if this is the first response chunk with content
             if (data.content && sttCompleteTimeRef.current) {
@@ -657,18 +672,42 @@ export default function STTLLMTest() {
                 sttCompleteTimeRef.current = Date.now();
             }
             
+            // Map conversation history to the correct format
+            const historyMessages = conversationHistory.slice(-8).map(item => ({
+                role: item.type === 'user' ? 'user' : 'assistant',
+                content: item.text
+            }));
+            
             // Use the format expected by AWS API Gateway
             const llmPayload = {
                 action: 'completion',
                 history: [
-                    // Map conversation history to the correct format
-                    ...conversationHistory.slice(-8).map(item => ({
-                        role: item.type === 'user' ? 'user' : 'assistant',
-                        content: item.text
-                    })),
+                    ...historyMessages,
                     { role: 'user', content: message }
                 ]
             };
+            
+            // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
+            console.group('📤 LLM REQUEST DETAILS');
+            console.log('🎯 Current Message:', message);
+            console.log('📚 Conversation History Length:', conversationHistory.length);
+            console.log('📚 History Used (last 8 + current):', historyMessages.length + 1);
+            console.log('📜 Full History Being Sent:');
+            llmPayload.history.forEach((msg, index) => {
+                console.log(`  ${index + 1}. [${msg.role.toUpperCase()}]: "${msg.content}"`);
+            });
+            console.log('📦 Complete Payload Structure:');
+            console.log(JSON.stringify(llmPayload, null, 2));
+            console.log('📡 WebSocket Ready State:', llmWsRef.current.readyState);
+            console.log('🕐 Timestamp:', new Date().toISOString());
+            console.groupEnd();
+            
+            // Store debug information
+            setDebugInfo(prev => ({
+                ...prev,
+                lastRequest: llmPayload,
+                requestTimestamp: new Date().toISOString()
+            }));
             
             llmWsRef.current.send(JSON.stringify(llmPayload));
             setOverallStatus('✍️ Message sent to AI - waiting for response');
@@ -1529,6 +1568,178 @@ export default function STTLLMTest() {
                     </div>
                 </div>
             )}
+
+            {/* Debug Information Panel */}
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4>🔍 LLM Communication Debug</h4>
+                
+                {/* Last Request */}
+                <div style={{ marginBottom: '15px' }}>
+                    <h5 style={{ color: '#007bff', marginBottom: '10px' }}>📤 Last Request to LLM</h5>
+                    {debugInfo.lastRequest ? (
+                        <div>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#6c757d', 
+                                marginBottom: '5px' 
+                            }}>
+                                Sent at: {debugInfo.requestTimestamp}
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#e7f3ff', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                marginBottom: '10px'
+                            }}>
+                                <strong>Action:</strong> {debugInfo.lastRequest.action}<br />
+                                <strong>History Length:</strong> {debugInfo.lastRequest.history?.length || 0} messages
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#f8f9fa', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                border: '1px solid #dee2e6',
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                            }}>
+                                <strong>Full Conversation History:</strong>
+                                {debugInfo.lastRequest.history?.map((msg, index) => (
+                                    <div key={index} style={{
+                                        margin: '8px 0',
+                                        padding: '8px',
+                                        backgroundColor: msg.role === 'user' ? '#fff3cd' : '#d1ecf1',
+                                        borderLeft: `4px solid ${msg.role === 'user' ? '#ffc107' : '#007bff'}`,
+                                        borderRadius: '4px'
+                                    }}>
+                                        <div style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 'bold',
+                                            color: msg.role === 'user' ? '#856404' : '#004085',
+                                            marginBottom: '4px'
+                                        }}>
+                                            {index + 1}. [{msg.role.toUpperCase()}]
+                                        </div>
+                                        <div style={{ 
+                                            fontSize: '14px', 
+                                            fontFamily: 'monospace',
+                                            wordBreak: 'break-word'
+                                        }}>
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <details style={{ marginTop: '10px' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    View Raw JSON Payload
+                                </summary>
+                                <pre style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    overflow: 'auto',
+                                    maxHeight: '300px',
+                                    border: '1px solid #dee2e6',
+                                    marginTop: '5px'
+                                }}>
+                                    {JSON.stringify(debugInfo.lastRequest, null, 2)}
+                                </pre>
+                            </details>
+                        </div>
+                    ) : (
+                        <div style={{ 
+                            color: '#6c757d', 
+                            fontStyle: 'italic' 
+                        }}>
+                            No LLM request sent yet
+                        </div>
+                    )}
+                </div>
+                
+                {/* Last Response */}
+                <div>
+                    <h5 style={{ color: '#28a745', marginBottom: '10px' }}>📥 Last Response from LLM</h5>
+                    {debugInfo.lastResponse ? (
+                        <div>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#6c757d', 
+                                marginBottom: '5px' 
+                            }}>
+                                Received at: {debugInfo.responseTimestamp}
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#d4edda', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                marginBottom: '10px'
+                            }}>
+                                <strong>Action:</strong> {debugInfo.lastResponse.action || 'N/A'}<br />
+                                <strong>Content Length:</strong> {debugInfo.lastResponse.content?.length || 0} characters<br />
+                                <strong>Is Finished:</strong> {debugInfo.lastResponse.isFinished ? 'Yes' : 'No'}<br />
+                                <strong>Session ID:</strong> {debugInfo.lastResponse.sessionId || 'N/A'}
+                            </div>
+                            
+                            {debugInfo.lastResponse.content && (
+                                <div style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    border: '1px solid #dee2e6',
+                                    maxHeight: '150px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <strong>Content:</strong>
+                                    <div style={{ 
+                                        marginTop: '5px',
+                                        fontFamily: 'monospace',
+                                        fontSize: '14px',
+                                        wordBreak: 'break-word'
+                                    }}>
+                                        {debugInfo.lastResponse.content}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <details style={{ marginTop: '10px' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    View Raw Response JSON
+                                </summary>
+                                <pre style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    overflow: 'auto',
+                                    maxHeight: '300px',
+                                    border: '1px solid #dee2e6',
+                                    marginTop: '5px'
+                                }}>
+                                    {JSON.stringify(debugInfo.lastResponse, null, 2)}
+                                </pre>
+                            </details>
+                        </div>
+                    ) : (
+                        <div style={{ 
+                            color: '#6c757d', 
+                            fontStyle: 'italic' 
+                        }}>
+                            No LLM response received yet
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Instructions */}
             <div style={{ 
