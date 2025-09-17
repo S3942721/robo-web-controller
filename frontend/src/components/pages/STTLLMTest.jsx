@@ -17,6 +17,8 @@ export default function STTLLMTest() {
     const sttWsRef = useRef(null);
     const llmWsRef = useRef(null);
     const conversationRef = useRef(null);
+    // Keep the latest conversation history in a ref to avoid stale reads
+    const conversationHistoryRef = useRef([]);
 
     // Delay statistics
     const [delayStats, setDelayStats] = useState({
@@ -170,6 +172,11 @@ export default function STTLLMTest() {
             conversationRef.current.scrollTop = conversationRef.current.scrollHeight;
         }
     }, [conversationHistory, currentTranscription]);
+
+    // Keep ref synchronized with state for up-to-date payload building
+    useEffect(() => {
+        conversationHistoryRef.current = conversationHistory;
+    }, [conversationHistory]);
 
     const connectSTT = async () => {
         if (!networkConfig) {
@@ -455,8 +462,12 @@ export default function STTLLMTest() {
                     setCurrentTranscription('');
                     setOverallStatus('✅ Transcription complete - sending to AI');
                     
-                    // Automatically send to LLM
-                    sendToLLM(data.text);
+                    // Automatically send to LLM using a fresh snapshot that includes this user turn
+                    const historySnapshot = [
+                        ...conversationHistoryRef.current,
+                        { text: data.text, type: 'user', timestamp, confidence: data.confidence }
+                    ];
+                    sendToLLM(data.text, historySnapshot);
                 }
                 break;
                 
@@ -663,7 +674,7 @@ export default function STTLLMTest() {
         }
     };
 
-    const sendToLLM = (message) => {
+    const sendToLLM = (message, historyOverride = null) => {
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
             
@@ -672,11 +683,22 @@ export default function STTLLMTest() {
                 sttCompleteTimeRef.current = Date.now();
             }
             
-            // Map conversation history to the correct format
-            const historyMessages = conversationHistory.slice(-8).map(item => ({
-                role: item.type === 'user' ? 'user' : 'assistant',
-                content: item.text
-            }));
+            // Map conversation history (latest snapshot) to the correct format
+            // Use ref to avoid stale state at message send time
+            const historySource = Array.isArray(historyOverride)
+                ? historyOverride
+                : Array.isArray(conversationHistoryRef.current)
+                ? conversationHistoryRef.current
+                : [];
+
+            // Keep a sensible window of context
+            const historyMessages = historySource
+                .filter(m => m && typeof m.text === 'string' && m.text.trim().length > 0)
+                .slice(-12) // increase context depth
+                .map(item => ({
+                    role: item.type === 'user' ? 'user' : 'assistant',
+                    content: item.text
+                }));
             
             // Use the format expected by AWS API Gateway
             const llmPayload = {
@@ -690,7 +712,7 @@ export default function STTLLMTest() {
             // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
             console.group('📤 LLM REQUEST DETAILS');
             console.log('🎯 Current Message:', message);
-            console.log('📚 Conversation History Length:', conversationHistory.length);
+            console.log('📚 Conversation History Length:', historySource.length);
             console.log('📚 History Used (last 8 + current):', historyMessages.length + 1);
             console.log('📜 Full History Being Sent:');
             llmPayload.history.forEach((msg, index) => {
@@ -732,8 +754,12 @@ export default function STTLLMTest() {
             // Clear STT complete time for manual messages
             sttCompleteTimeRef.current = Date.now();
             
-            // Send to LLM
-            sendToLLM(message.trim());
+            // Send to LLM with a snapshot that includes this new user message
+            const historySnapshot = [
+                ...conversationHistoryRef.current,
+                { text: message.trim(), timestamp, type: 'user', manual: true }
+            ];
+            sendToLLM(message.trim(), historySnapshot);
         }
     };
 
