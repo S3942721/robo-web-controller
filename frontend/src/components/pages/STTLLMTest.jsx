@@ -453,12 +453,21 @@ export default function STTLLMTest() {
                     sttCompleteTimeRef.current = Date.now();
                     
                     const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
-                    setConversationHistory(prev => [...prev, {
-                        text: data.text,
-                        timestamp: timestamp,
-                        confidence: data.confidence,
-                        type: 'user'
-                    }]);
+                    // Deduplicate back-to-back identical user messages
+                    setConversationHistory(prev => {
+                        const trimmed = (data.text || '').trim();
+                        const last = prev[prev.length - 1];
+                        if (last && last.type === 'user' && typeof last.text === 'string' && last.text.trim() === trimmed) {
+                            console.log('🟡 Skipping duplicate user utterance in history');
+                            return prev;
+                        }
+                        return [...prev, {
+                            text: data.text,
+                            timestamp: timestamp,
+                            confidence: data.confidence,
+                            type: 'user'
+                        }];
+                    });
                     setCurrentTranscription('');
                     setOverallStatus('✅ Transcription complete - sending to AI');
                     
@@ -699,21 +708,28 @@ export default function STTLLMTest() {
                     role: item.type === 'user' ? 'user' : 'assistant',
                     content: item.text
                 }));
+
+            // Avoid duplicating the current user message if it's already the last entry
+            const trimmedMessage = (message || '').trim();
+            const lastMsg = historyMessages[historyMessages.length - 1];
+            const alreadyHasCurrent = lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string' && lastMsg.content.trim() === trimmedMessage;
             
             // Use the format expected by AWS API Gateway
             const llmPayload = {
                 action: 'completion',
-                history: [
-                    ...historyMessages,
-                    { role: 'user', content: message }
-                ]
+                history: alreadyHasCurrent
+                    ? historyMessages
+                    : [
+                        ...historyMessages,
+                        { role: 'user', content: message }
+                      ]
             };
             
             // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
             console.group('📤 LLM REQUEST DETAILS');
             console.log('🎯 Current Message:', message);
             console.log('📚 Conversation History Length:', historySource.length);
-            console.log('📚 History Used (last 8 + current):', historyMessages.length + 1);
+            console.log('📚 History Used (last 12 + current if needed):', llmPayload.history.length);
             console.log('📜 Full History Being Sent:');
             llmPayload.history.forEach((msg, index) => {
                 console.log(`  ${index + 1}. [${msg.role.toUpperCase()}]: "${msg.content}"`);
