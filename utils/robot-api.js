@@ -49,6 +49,8 @@ class RobotAPI extends EventEmitter {
         this.chunkOrdering = new Map(); // sessionId -> { expectedChunk, pendingChunks, maxWaitTime }
         this.CHUNK_WAIT_TIMEOUT = 1000; // Max time to wait for out-of-order chunks (ms)
         this.MAX_PENDING_CHUNKS = 20; // Max number of out-of-order chunks to buffer
+        // If we see many chunks but never chunk 0, optionally assume the stream starts at 1
+        this.CHUNK_START_ASSUME_THRESHOLD = parseInt(process.env.LLM_FIRST_CHUNK_ASSUME_AFTER || process.env.LLM_CHUNK_START_ASSUME_THRESHOLD) || 5;
         
         // Robot status system
         this.statusConfig = null;
@@ -3087,8 +3089,18 @@ class RobotAPI extends EventEmitter {
         }
         
         // Handle LLM session management for turn-taking
-        if (isFirstChunk && sessionId) {
-            console.log(`[RobotAPI] 🚀 Starting LLM session for first chunk: ${sessionId}`);
+        // If current call is first chunk OR ordering assumed start and indicates a first chunk among ready ones
+        if ((isFirstChunk && sessionId) || (orderingResult && orderingResult.assumeStartFromOne && orderingResult.shouldStartSession)) {
+            console.log(`[RobotAPI] 🚀 Starting LLM session for first chunk (assumed or explicit): ${sessionId}`);
+            // Establish robot mapping if needed
+            if (!this.robotNameToSessionId.has(targetRobot)) {
+                const robotSocketId = this.robotNameToSocketId.get(targetRobot);
+                if (robotSocketId) {
+                    console.log(`[RobotAPI] 🔗 Mapping robot ${targetRobot} to LLM session ${sessionId}`);
+                    this.robotNameToSessionId.set(targetRobot, sessionId);
+                    this.sessionIdToRobotName.set(sessionId, targetRobot);
+                }
+            }
             this.startLLMSession(sessionId, targetRobot);
         }
 
@@ -3169,7 +3181,8 @@ class RobotAPI extends EventEmitter {
                 expectedChunk: 0,
                 pendingChunks: new Map(), // chunkNumber -> chunk data
                 maxWaitTime: Date.now() + this.CHUNK_WAIT_TIMEOUT,
-                lastActivity: Date.now()
+                lastActivity: Date.now(),
+                assumedStart: 0 // 0 by default; can flip to 1 if we never get chunk 0
             });
             console.log(`[RobotAPI] 🆕 Initialized chunk ordering for session ${sessionId}, expecting chunk 0`);
         }
@@ -3220,6 +3233,20 @@ class RobotAPI extends EventEmitter {
             
             // Check if we should process pending chunks due to timeout
             this.checkChunkTimeout(sessionId);
+            
+            // If we've received many chunks (>= threshold), none are 0, but 1 is present,
+            // assume numbering starts at 1 and process from there.
+            const maybeAssumed = this.maybeAssumeOneStart(sessionId);
+            if (maybeAssumed && maybeAssumed.length > 0) {
+                console.warn(`[RobotAPI] 🔁 Adjusted expected chunk to ${this.chunkOrdering.get(sessionId).expectedChunk} and processing ${maybeAssumed.length} queued chunk(s) for session ${sessionId}`);
+                return {
+                    processNow: true,
+                    chunksToProcess: maybeAssumed,
+                    chunksWaiting: this.chunkOrdering.get(sessionId).pendingChunks.size,
+                    assumeStartFromOne: true,
+                    shouldStartSession: true
+                };
+            }
             
             return {
                 processNow: false,
@@ -3288,6 +3315,47 @@ class RobotAPI extends EventEmitter {
                 }
             }
         }
+    }
+
+    /**
+     * If after receiving at least CHUNK_START_ASSUME_THRESHOLD pending chunks we still haven't
+     * seen chunk 0 but have chunk 1, assume numbering starts at 1 and adjust expectedChunk.
+     * Returns an array of ready, consecutive chunks starting at 1 if adjustment occurs,
+     * otherwise returns null/empty.
+     */
+    maybeAssumeOneStart(sessionId) {
+        const ordering = this.chunkOrdering.get(sessionId);
+        if (!ordering) return null;
+
+        // Only consider this path when still waiting for chunk 0
+        if (ordering.expectedChunk !== 0) return null;
+
+        const pendingSize = ordering.pendingChunks.size;
+        if (pendingSize < this.CHUNK_START_ASSUME_THRESHOLD) return null;
+
+        const hasChunk0 = ordering.pendingChunks.has(0);
+        const hasChunk1 = ordering.pendingChunks.has(1);
+
+        if (!hasChunk0 && hasChunk1) {
+            console.warn(`[RobotAPI] ⚠️ No chunk 0 after ${pendingSize} chunk(s), but chunk 1 exists. Assuming first chunk is 1 for session ${sessionId}.`);
+
+            // Adjust expectation to 1
+            ordering.expectedChunk = 1;
+            ordering.assumedStart = 1;
+
+            // Collect consecutive chunks starting at 1
+            const ready = [];
+            while (ordering.pendingChunks.has(ordering.expectedChunk)) {
+                const next = ordering.pendingChunks.get(ordering.expectedChunk);
+                ready.push(next);
+                ordering.pendingChunks.delete(ordering.expectedChunk);
+                ordering.expectedChunk++;
+            }
+
+            return ready;
+        }
+
+        return null;
     }
 
     /**
