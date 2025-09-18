@@ -142,6 +142,14 @@ const LLM_GATEWAY_HOST = process.env.LLM_GATEWAY_HOST || 'localhost';
 const WS_RECONNECT_ATTEMPTS = parseInt(process.env.WS_RECONNECT_ATTEMPTS) || 5;
 const WS_RECONNECT_DELAY = parseInt(process.env.WS_RECONNECT_DELAY) || 2000;
 
+// Tablet monitor configuration (all configurable via env)
+const TABLET_AUTO_RELOAD = (process.env.TABLET_AUTO_RELOAD || 'true') !== 'false';
+const TABLET_PING_INTERVAL_MS = parseInt(process.env.TABLET_PING_INTERVAL_MS) || 5000; // default 5s
+const TABLET_PING_GRACE_MS = parseInt(process.env.TABLET_PING_GRACE_MS) || 3000; // time to wait for heartbeat after ping
+const TABLET_RELOAD_COOLDOWN_MS = parseInt(process.env.TABLET_RELOAD_COOLDOWN_MS) || 30000; // min time between reloads
+const TABLET_TARGET_ROBOT = process.env.TABLET_TARGET_ROBOT || process.env.DEFAULT_ROBOT_NAME || 'Haku';
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || '';
+
 // Function to parse script object
 function parseScriptObject(obj) {
     const newObj = {};
@@ -518,6 +526,8 @@ app.use(express.static(join(__dirname, 'dist')));
 app.use(express.static(join(__dirname, 'public')));
 
 const router = express.Router();
+// Mount router so routes below are active
+app.use(router);
 
 // for file upload
 router.get("/api/get-possible-files", (req, res)=>{
@@ -1295,6 +1305,144 @@ router.post("/api/robot-buffer/update-mode/:sessionId", (req, res) => {
         res.status(400).json(result);
     }
 });
+
+// ============================
+// Tablet heartbeat + reload API
+// ============================
+
+// In-memory heartbeat and cooldown tracking
+const tabletHeartbeats = new Map(); // robot -> timestamp of last heartbeat
+const tabletLastReloadSent = new Map(); // robot -> timestamp of last reload
+const tabletLastPingSent = new Map(); // robot -> timestamp of last ping
+
+function buildTabletUrl(robot) {
+    if (PUBLIC_BASE_URL) {
+        return `${PUBLIC_BASE_URL.replace(/\/$/, '')}/tablet?robot=${encodeURIComponent(robot || '')}`;
+    }
+    return `/tablet?robot=${encodeURIComponent(robot || '')}`;
+}
+
+function sendReloadTablet(robot) {
+    if (!robot) return { success: false, message: 'Robot name required' };
+    const url = buildTabletUrl(robot);
+    const controlMessage = {
+        type: 'control',
+        action: 'reload_tablet',
+        url,
+        path: `/tablet?robot=${encodeURIComponent(robot)}`,
+        timestamp: Date.now(),
+        source: 'web_controller'
+    };
+    const sent = robotAPI.sendMessage(controlMessage, robot);
+    if (sent) {
+        tabletLastReloadSent.set(robot, Date.now());
+        console.log(`[Tablet] 📲 Sent tablet reload to ${robot}: ${url}`);
+    } else {
+        console.warn(`[Tablet] ⚠️ Could not send tablet reload to ${robot} (not connected?)`);
+    }
+    return { success: sent, url };
+}
+
+// Send a ping request to tablet pages via WebSocket broadcast.
+// Pages that listen to /api/sync should respond by POSTing heartbeat.
+function sendTabletPingWS(robot) {
+    const msg = JSON.stringify({ cmd: 'tablet_ping', robot, timestamp: Date.now() });
+    sendWebSockets.forEach(ws => {
+        try { ws.send(msg); } catch(e) {}
+    });
+    console.log(`[Tablet] 📡 Sent tablet WS ping for ${robot}`);
+}
+
+// Heartbeat endpoint (called by tablet web page)
+router.post('/api/robot-tablet/heartbeat', (req, res) => {
+    const robot = req.body?.robot || req.query.robot;
+    if (!robot) {
+        return res.status(400).json({ error: 'robot is required' });
+    }
+    const now = Date.now();
+    tabletHeartbeats.set(robot, now);
+    // If we were waiting for a heartbeat after a ping, receiving one clears the pending ping state
+    // but we keep lastPingSent timestamp so monitor logic can compare
+    try {
+        robotAPI.updateDetailedRobotStatus?.(robot, {
+            tablet_last_seen: now,
+            tablet_connected: true
+        });
+    } catch(e) {}
+    res.status(200).json({ ok: true, robot, now });
+});
+
+// Manual reload endpoint
+router.post('/api/robot-tablet/reload/:robot?', (req, res) => {
+    const paramRobot = req.params.robot;
+    const bodyRobot = req.body?.robot;
+    const target = paramRobot || bodyRobot;
+    if (!target) {
+        return res.status(400).json({ error: 'robot is required (path or body)' });
+    }
+    const result = sendReloadTablet(target);
+    return res.status(result.success ? 200 : 503).json({ robot: target, ...result });
+});
+
+// Status endpoint for tablet connections
+router.get('/api/robot-tablet/status', (req, res) => {
+    const now = Date.now();
+    const status = {};
+    for (const [robot, ts] of tabletHeartbeats.entries()) {
+        status[robot] = {
+            lastSeen: ts,
+            ageMs: now - ts,
+            lastReloadSent: tabletLastReloadSent.get(robot) || null,
+            lastPingSent: tabletLastPingSent.get(robot) || null
+        };
+    }
+    res.status(200).json({
+        configured: {
+            TARGET_ROBOT: TABLET_TARGET_ROBOT,
+            PING_INTERVAL_MS: TABLET_PING_INTERVAL_MS,
+            PING_GRACE_MS: TABLET_PING_GRACE_MS,
+            RELOAD_COOLDOWN_MS: TABLET_RELOAD_COOLDOWN_MS,
+            AUTO_RELOAD: TABLET_AUTO_RELOAD
+        },
+        status
+    });
+});
+
+// Auto-ping and reload monitor targeting the configured robot only
+if (TABLET_AUTO_RELOAD) {
+    setInterval(() => {
+        try {
+            const robot = TABLET_TARGET_ROBOT;
+            if (!robot) return;
+            // Only act if we've ever seen this robot's tablet page (i.e., sent at least one heartbeat)
+            const lastSeen = tabletHeartbeats.get(robot);
+            if (!lastSeen) return;
+
+            const now = Date.now();
+            const lastPing = tabletLastPingSent.get(robot) || 0;
+            const lastReload = tabletLastReloadSent.get(robot) || 0;
+
+            // Send ping on schedule
+            if (now - lastPing >= TABLET_PING_INTERVAL_MS) {
+                sendTabletPingWS(robot);
+                tabletLastPingSent.set(robot, now);
+            }
+
+            // If a ping was sent and no heartbeat has arrived since, and grace window elapsed, reload
+            const effectiveLastPing = tabletLastPingSent.get(robot) || 0;
+            if (effectiveLastPing && lastSeen < effectiveLastPing) {
+                if ((now - effectiveLastPing) >= TABLET_PING_GRACE_MS && (now - lastReload) >= TABLET_RELOAD_COOLDOWN_MS) {
+                    console.warn(`[TabletMonitor] 🔄 No heartbeat after ping for ${robot} (${now - effectiveLastPing}ms since ping) — sending reload.`);
+                    sendReloadTablet(robot);
+                }
+            } else if (effectiveLastPing && lastSeen >= effectiveLastPing) {
+                // Healthy response after ping; nothing to do
+            }
+        } catch (e) {
+            console.error('[TabletMonitor] Error:', e);
+        }
+    }, Math.max(1000, TABLET_PING_INTERVAL_MS));
+}
 
 // Robot State Management Endpoints (similar to STT state management)
 router.post("/api/robot-state/start", (req, res) => {

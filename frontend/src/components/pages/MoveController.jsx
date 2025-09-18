@@ -6,7 +6,7 @@ import FoldableSection from "./../FoldableSection";
 import SelectProfile from "../SelectProfile";
 
 // New slider config and persistence code:
-export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot }) {
+export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot, reloadTabletWebView, reloadingTablet }) {
     const [keys, setKeys] = useState({
         W: false,
         A: false,
@@ -321,7 +321,13 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 />
                 {profile_switcher && (
                     <div className="scroll-controllers-triggers">
-                        <SelectProfile foldable={false} compact={true} />
+                        <SelectProfile 
+                            foldable={false} 
+                            compact={true} 
+                            reloadTabletWebView={reloadTabletWebView}
+                            reloadingTablet={reloadingTablet}
+                            activeButton={activeRobotRef.current}
+                        />
                     </div>
                 )}
             </FoldableSection>

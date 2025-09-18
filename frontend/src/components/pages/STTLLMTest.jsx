@@ -84,6 +84,9 @@ export default function STTLLMTest() {
         sessionsActive: 0
     });
 
+    // Tablet reload state
+    const [reloadingTablet, setReloadingTablet] = useState(false);
+
     useEffect(() => {
         // Load network configuration from server
         fetch('/api/network-config')
@@ -872,6 +875,33 @@ export default function STTLLMTest() {
         setOverallStatus('🔗 Connecting services...');
     };
 
+    // Function to reload tablet web view on robot
+    const reloadTabletWebView = async () => {
+        setReloadingTablet(true);
+        try {
+            const response = await fetch(`/api/robot-tablet/reload/${targetRobot}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ robot: targetRobot })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Tablet reload sent to ${targetRobot}`);
+                // You could add a toast notification here if you have one
+            } else {
+                console.error(`❌ Failed to reload tablet for ${targetRobot}:`, result.message);
+            }
+        } catch (error) {
+            console.error('Error reloading tablet:', error);
+        } finally {
+            setReloadingTablet(false);
+        }
+    };
+
     // Buffer management functions
     const flushBuffer = async (sessionId) => {
         const a_sessionId = sessionId || currentLLMSession;
@@ -1342,6 +1372,26 @@ export default function STTLLMTest() {
                             }}
                         >
                             🗑️ Clear
+                        </button>
+                        
+                        <button 
+                            onClick={reloadTabletWebView}
+                            disabled={reloadingTablet}
+                            className="btn"
+                            style={{ 
+                                backgroundColor: reloadingTablet ? '#666' : '#ff6b35',
+                                opacity: reloadingTablet ? 0.6 : 1,
+                                padding: '12px 25px',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                        >
+                            {reloadingTablet ? 'Reloading...' : '🔄 Reload Tablet'}
                         </button>
                     </>
                 )}

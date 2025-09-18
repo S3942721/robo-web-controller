@@ -179,5 +179,44 @@
             Powered by &nbsp;<img src="RACE-WHITE-WIDE.png" alt="Race Logo">
         </div>
     </div>
+    <script>
+        (function(){
+            var params = new URLSearchParams(window.location.search);
+            var robot = params.get('robot') || (window.DEFAULT_ROBOT_NAME || 'Haku');
+
+            async function heartbeat(){
+                try {
+                    await fetch('/api/robot-tablet/heartbeat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ robot: robot })
+                    });
+                } catch(e) { /* ignore */ }
+            }
+
+            // Respond to server "tablet_ping" via /api/sync WebSocket
+            function connectWS() {
+                try {
+                    var wsProto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+                    var url = wsProto + '//' + location.host + '/api/sync';
+                    var ws = new WebSocket(url);
+                    ws.onmessage = function(evt){
+                        try {
+                            var msg = JSON.parse(evt.data || '{}');
+                            if (msg && msg.cmd === 'tablet_ping' && (!msg.robot || msg.robot === robot)) {
+                                heartbeat();
+                            }
+                        } catch (err) {}
+                    };
+                    ws.onclose = function(){ setTimeout(connectWS, 2000); };
+                    ws.onerror = function(){ try { ws.close(); } catch(e) {} };
+                } catch (e) {}
+            }
+
+            // Send an initial heartbeat on load so server knows we've "ever loaded"
+            heartbeat();
+            connectWS();
+        })();
+    </script>
 </body>
 </html>

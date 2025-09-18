@@ -3,7 +3,7 @@ import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import FoldableSection from "./FoldableSection";
 import { FaCaretLeft, FaCaretRight } from "react-icons/fa";
 
-export default function SelectProfile({ foldable = true, compact = false }) {
+export default function SelectProfile({ foldable = true, compact = false, reloadTabletWebView, reloadingTablet, activeButton }) {
     const { profiles, current_profile, setCurrentProfile } = useWebSocket();
     const [profileIndex, setProfileIndex] = useState(profiles.findIndex(profile => profile.name === current_profile.name));
 
@@ -39,6 +39,23 @@ export default function SelectProfile({ foldable = true, compact = false }) {
                     </div>
                 </div>
                 <div className="btn" onClick={sendUpdateProfile}>Update Profile</div>
+                {reloadTabletWebView && (
+                    <button 
+                        onClick={reloadTabletWebView}
+                        disabled={reloadingTablet}
+                        className="btn"
+                        style={{ 
+                            backgroundColor: reloadingTablet ? '#666' : 'var(--primary-color)',
+                            opacity: reloadingTablet ? 0.6 : 1,
+                            padding: '8px 16px',
+                            fontSize: '14px',
+                            marginTop: '10px',
+                            width: '100%'
+                        }}
+                    >
+                        {reloadingTablet ? 'Reloading...' : `Reload ${activeButton} Tablet`}
+                    </button>
+                )}
             </div>
         )
     }
