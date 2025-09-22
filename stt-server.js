@@ -264,10 +264,6 @@ class STTServer {
             confidence: 0.95
         });
 
-        // Process with LLM if enabled
-        if (this.llmClient) {
-            await this.processWithLLM(clientId, text);
-        }
     }
 
     async processWithLLM(clientId, userMessage) {

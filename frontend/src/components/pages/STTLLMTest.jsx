@@ -20,6 +20,10 @@ export default function STTLLMTest() {
     // Keep the latest conversation history in a ref to avoid stale reads
     const conversationHistoryRef = useRef([]);
 
+    // LLM request deduplication - prevent duplicate sessions for same utterance
+    const pendingLLMRequestsRef = useRef(new Map()); // utteranceHash -> { timestamp, sessionId }
+    const LLM_DUPLICATE_WINDOW_MS = 5000; // 5 second window to detect duplicates
+
     // Delay statistics
     const [delayStats, setDelayStats] = useState({
         totalRequests: 0,
@@ -618,6 +622,19 @@ export default function STTLLMTest() {
                         // Flush any remaining buffer content
                         flushBuffer(data.sessionId || sessionIdRef.current);
                     }
+                    
+                    // Clean up pending LLM request tracking for deduplication
+                    const sessionId = data.sessionId || sessionIdRef.current;
+                    if (sessionId) {
+                        // Find and remove from pending requests by sessionId
+                        for (const [hash, request] of pendingLLMRequestsRef.current.entries()) {
+                            if (request.sessionId === sessionId) {
+                                pendingLLMRequestsRef.current.delete(hash);
+                                console.log(`🧹 Cleaned up pending LLM request for session ${sessionId}`);
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     setOverallStatus('🤖 AI is responding...');
                 }
@@ -689,6 +706,33 @@ export default function STTLLMTest() {
     const sendToLLM = (message, historyOverride = null) => {
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
+            
+            // LLM request deduplication - prevent duplicate sessions for same utterance
+            const utteranceHash = btoa(message.trim().toLowerCase()).slice(0, 10); // Simple hash
+            const now = Date.now();
+            
+            // Check for recent duplicate requests
+            const existing = pendingLLMRequestsRef.current.get(utteranceHash);
+            if (existing && (now - existing.timestamp) < LLM_DUPLICATE_WINDOW_MS) {
+                console.log(`🟡 Skipping duplicate LLM request for utterance "${message.substring(0, 30)}..." (within ${LLM_DUPLICATE_WINDOW_MS}ms window)`);
+                setTurnTakingViolations(prev => [...prev, {
+                    type: 'llm_duplicate_prevented',
+                    message: `Prevented duplicate LLM request for: "${message.substring(0, 30)}..."`,
+                    timestamp: Date.now()
+                }]);
+                return;
+            }
+            
+            // Clean up old entries (older than window)
+            for (const [hash, data] of pendingLLMRequestsRef.current.entries()) {
+                if ((now - data.timestamp) > LLM_DUPLICATE_WINDOW_MS) {
+                    pendingLLMRequestsRef.current.delete(hash);
+                }
+            }
+            
+            // Track this request
+            const sessionId = Math.random().toString(36).substr(2, 9);
+            pendingLLMRequestsRef.current.set(utteranceHash, { timestamp: now, sessionId });
             
             // Record send time if this is from STT
             if (!sttCompleteTimeRef.current) {
