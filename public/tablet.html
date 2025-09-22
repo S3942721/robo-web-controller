@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
             height: 100vh;
             width: 100%;
         }
-        
+
         .container {
             width: 100%;
             height: 100vh;
@@ -23,7 +24,7 @@
             box-sizing: border-box;
             position: relative;
         }
-        
+
         .header {
             text-align: center;
             background: linear-gradient(45deg, #1a0000, #330000);
@@ -35,18 +36,18 @@
             height: 35px;
             margin-bottom: 10px;
         }
-        
+
         .header h1 {
             margin: 0;
             font-size: 24px;
             text-shadow: 0 0 10px #E60028;
         }
-        
+
         .header .subtitle {
             font-size: 12px;
             opacity: 0.7;
         }
-        
+
         .header .robot-name {
             position: absolute;
             top: 10px;
@@ -57,7 +58,7 @@
             border-radius: 4px;
             background: rgba(230, 0, 40, 0.1);
         }
-        
+
         .main-content {
             background: rgba(20, 0, 0, 0.8);
             border: 1px solid #E60028;
@@ -70,7 +71,7 @@
             right: 10px;
             bottom: 200px;
         }
-        
+
         .llm-display {
             background: rgba(20, 0, 0, 0.8);
             border: 1px solid #E60028;
@@ -81,24 +82,39 @@
             left: 10px;
             right: 10px;
             height: 100px;
+            display: -webkit-box;
+            display: -ms-flexbox;
             display: flex;
-            gap: 10px;
         }
-        
+
         .llm-section {
+            -webkit-box-flex: 1;
+            -ms-flex: 1;
             flex: 1;
+            display: -webkit-box;
+            display: -ms-flexbox;
             display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -ms-flex-direction: column;
             flex-direction: column;
+            margin-right: 10px;
         }
         
+        .llm-section:last-child {
+            margin-right: 0;
+        }
+
         .llm-title {
             font-size: 12px;
             color: #E60028;
             margin-bottom: 5px;
             font-weight: bold;
         }
-        
+
         .llm-content {
+            -webkit-box-flex: 1;
+            -ms-flex: 1;
             flex: 1;
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #444;
@@ -109,14 +125,14 @@
             overflow-y: auto;
             word-wrap: break-word;
         }
-        
+
         .video-container {
             width: 100%;
             height: 100%;
             position: relative;
             overflow: hidden;
         }
-        
+
         .video-container iframe {
             width: 100%;
             height: 100%;
@@ -127,9 +143,10 @@
             position: absolute;
             top: 0;
             left: 0;
-            pointer-events: none; /* prevent any UI/hover overlays */
+            pointer-events: none;
+            /* prevent any UI/hover overlays */
         }
-        
+
         .footer {
             background: rgba(20, 0, 0, 0.8);
             border: 1px solid #E60028;
@@ -147,23 +164,30 @@
             height: 30px;
             line-height: 30px;
         }
-        
+
         .footer img {
             height: 40px;
             vertical-align: middle;
         }
-        
+
         /* Network activity indicator */
         .network-activity {
             position: absolute;
             top: 15px;
             left: 15px;
             font-size: 12px;
+            display: -webkit-box;
+            display: -ms-flexbox;
             display: flex;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
             align-items: center;
-            gap: 5px;
         }
         
+        .network-activity span:last-child {
+            margin-left: 5px;
+        }
+
         .network-dot {
             width: 8px;
             height: 8px;
@@ -171,23 +195,41 @@
             background: #ff4444;
             animation: networkBlink 2s infinite;
         }
-        
+
         .network-dot.active {
             background: #E60028;
             animation: networkActive 0.5s infinite;
         }
-        
+
         @keyframes networkBlink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0.3;
+            }
         }
-        
+
         @keyframes networkActive {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.2); }
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -201,12 +243,13 @@
         </div>
 
         <div class="main-content">
-            <div id="log-display" style="width: 100%; height: 100%; background: #000; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; overflow-y: auto; border: 1px solid #E60028;">
+            <div id="log-display"
+                style="width: 100%; height: 100%; background: #000; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; overflow-y: auto; border: 1px solid #E60028;">
                 <div style="color: #E60028; font-weight: bold; margin-bottom: 10px;">TABLET DEBUG LOG</div>
                 <div id="log-content"></div>
             </div>
         </div>
-        
+
         <div class="llm-display">
             <div class="llm-section">
                 <div class="llm-title">USER INPUT</div>
@@ -217,7 +260,7 @@
                 <div class="llm-content" id="ai-response">Waiting for response...</div>
             </div>
         </div>
-        
+
 
 
         <div class="footer">
@@ -225,192 +268,160 @@
         </div>
     </div>
     <script>
-(function(){
-  // --- 参数与基址 ---
-  var params = new URLSearchParams(window.location.search);
-  var robot = (params.get('robot') || window.DEFAULT_ROBOT_NAME || 'Haku').trim();
-  var BASE  = (params.get('base') || '').trim(); // 例：http://10.0.0.12:3000
-  if (!/^https?:\/\//i.test(BASE)) {
-    console.warn('[Tablet] Missing or invalid ?base=, fallback to location (may fail on Pepper).');
-    BASE = location.origin;
-  }
-  function abs(p){ return BASE.replace(/\/$/,'') + p; }
+        (function () {
+            // ---- 最先放：错误抓取与日志面板 ----
+            var logEl = document.getElementById('log-content')
+            function addLog (s) {
+                try {
+                    var t = (new Date()).toLocaleTimeString()
+                    if (logEl) { logEl.innerHTML += '[' + t + '] ' + s + '<br>'; logEl.scrollTop = logEl.scrollHeight }
+                } catch (e) { }
+            }
+            window.onerror = function (msg, url, line, col, err) { addLog('ONERROR: ' + msg + ' @' + line + ':' + col) }
 
-  // --- 心跳 ---
-  async function heartbeat(tag){
-    try{
-      await fetch(abs('/api/robot-tablet/heartbeat'), {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ robot, tag: tag||'tick' })
-      });
-    }catch(e){ /* ignore */ }
-  }
+            // 覆盖 console（Pepper 上可能没有）
+            var c = window.console = window.console || {};
+            ['log', 'warn', 'error'].forEach(function (k) {
+                var orig = c[k] || function () { }
+                c[k] = function () {
+                    try {
+                        var s = Array.prototype.slice.call(arguments).join(' ')
+                        addLog((k === 'log' ? '' : (k.toUpperCase() + ': ')) + s)
+                        orig.apply ? orig.apply(console, arguments) : orig(s)
+                    } catch (e) { }
+                }
+            })
 
-  // --- UI 显示 ---
-  document.getElementById('robot-name').textContent = robot;
+            // ---- 简易 query 解析（替代 URLSearchParams）----
+            function getParam (name) {
+                var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
+                return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''
+            }
+            var robot = (getParam('robot') || window.DEFAULT_ROBOT_NAME || 'Haku')
+            var BASE = getParam('base')
+            if (!/^https?:\/\//i.test(BASE || '')) { BASE = (location.origin || (location.protocol + '//' + location.host)); addLog('No ?base=, fallback to ' + BASE) }
+            document.getElementById('robot-name').textContent = robot
 
-  // --- LLM 显示逻辑 ---
-  var currentAIResponse = '';
-  function updateLLMDisplay(type, content, isChunk) {
-    var el = document.getElementById(type === 'user' ? 'user-input' : 'ai-response');
-    if (!el) return;
-    if (type === 'ai' && isChunk) {
-      currentAIResponse += content || '';
-      el.textContent = currentAIResponse || 'Waiting for response...';
-    } else if (type === 'user') {
-      currentAIResponse = '';
-      document.getElementById('ai-response').textContent = 'Waiting for response...';
-      el.textContent = content || 'Waiting for input...';
-    } else {
-      el.textContent = content || (type === 'user' ? 'Waiting for input...' : 'Waiting for response...');
-    }
-    el.scrollTop = el.scrollHeight;
-  }
-  // 暴露给 Pepper 的 executeJS 注入
-  window.pushMsg = function(m){
-    try{
-      if (!m) return;
-      if (m.type === 'llm-user-input')  updateLLMDisplay('user', m.content, false);
-      else if (m.type === 'llm-ai-response') updateLLMDisplay('ai', m.content, !!m.isChunk);
-    }catch(e){ console.error('[Tablet] pushMsg error', e); }
-  };
-  window.updateLLMDisplay = updateLLMDisplay;
+            function abs (p) { return (BASE.replace(/\/$/, '') + p) }
 
-  // --- WebSocket 主通道 ---
-  var mainWs = null, wsRetryTimer = null;
-  function wsURL(){
-    var host = BASE.replace(/^https?:\/\//,'');
-    var scheme = /^https:\/\//i.test(BASE) ? 'wss://' : 'ws://';
-    return scheme + host + '/api/sync';
-  }
-  function connectWS(){
-    try{
-      if (mainWs) { try{ mainWs.close(); }catch(_){} mainWs = null; }
-      var url = wsURL();
-      console.log('[Tablet] WS connect →', url, 'robot=', robot);
-      mainWs = new WebSocket(url);
+            // ---- XHR 工具（替代 fetch/await）----
+            function xhr (method, url, body, cb) {
+                try {
+                    var x = new XMLHttpRequest()
+                    x.open(method, url, true)
+                    if (method === 'POST') x.setRequestHeader('Content-Type', 'application/json')
+                    x.onreadystatechange = function () {
+                        if (x.readyState === 4) { cb(null, x.status, x.responseText) }
+                    }
+                    x.onerror = function () { cb(new Error('network')) }
+                    x.send(body || null)
+                } catch (e) { cb(e) }
+            }
 
-      mainWs.onopen = function(){
-        console.log('[Tablet] WS open');
-        document.getElementById('network-indicator').classList.add('active');
-        document.getElementById('network-status').textContent = 'ONLINE';
-        // 上线即注册，声明自己是 tablet
-        try { mainWs.send(JSON.stringify({ type:'hello', role:'tablet', robot })); } catch(e){}
-        heartbeat('ws-open');
-      };
+            // ---- 心跳 ----
+            function heartbeat (tag) {
+                xhr('POST', abs('/api/robot-tablet/heartbeat'), JSON.stringify({ robot: robot, tag: tag || 'tick' }), function () { })
+            }
 
-      mainWs.onmessage = function(evt){
-        var msg = null;
-        try{ msg = JSON.parse(evt.data || '{}'); }catch(e){ console.error('[Tablet] WS parse error', e); return; }
-        
-        // 调试信息
-        console.log('[Tablet] Received message:', msg);
-        
-        // 仅接收发往本机器人或广播的消息
-        var toMe = !msg.robot || String(msg.robot).toLowerCase() === robot.toLowerCase();
-        if (!toMe) {
-          console.log('[Tablet] Message not for this robot:', msg.robot, 'vs', robot);
-          return;
-        }
-        
-        if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return; }
-        
-        // 处理LLM消息
-        if (msg.type === 'llm-user-input') {
-          console.log('[Tablet] Processing user input:', msg.content);
-          updateLLMDisplay('user', msg.content, false);
-        }
-        else if (msg.type === 'llm-ai-response') {
-          console.log('[Tablet] Processing AI response:', msg.content);
-          updateLLMDisplay('ai', msg.content, true);
-        }
-        else {
-          console.log('[Tablet] Unhandled message type:', msg.type);
-        }
-      };
+            // ---- 聊天区渲染 ----
+            var currentAIResponse = ''
+            function updateLLMDisplay (type, content, isChunk) {
+                var el = document.getElementById(type === 'user' ? 'user-input' : 'ai-response')
+                if (!el) return
+                if (type === 'ai' && isChunk) {
+                    currentAIResponse += (content || '')
+                    el.textContent = currentAIResponse || 'Waiting for response...'
+                } else if (type === 'user') {
+                    currentAIResponse = ''
+                    document.getElementById('ai-response').textContent = 'Waiting for response...'
+                    el.textContent = content || 'Waiting for input...'
+                } else {
+                    el.textContent = content || (type === 'user' ? 'Waiting for input...' : 'Waiting for response...')
+                }
+                el.scrollTop = el.scrollHeight
+            }
+            window.pushMsg = function (m) {
+                try {
+                    if (!m) return
+                    if (m.type === 'llm-user-input') updateLLMDisplay('user', m.content, false)
+                    else if (m.type === 'llm-ai-response') updateLLMDisplay('ai', m.content, !!m.isChunk)
+                } catch (e) { console.error('pushMsg error', e) }
+            }
+            window.updateLLMDisplay = updateLLMDisplay
 
-      mainWs.onerror = function(err){
-        console.error('[Tablet] WS error', err);
-      };
+            // ---- WebSocket 主通道（无现代语法）----
+            var mainWs = null, wsTimer = null
+            function wsURL () {
+                var host = BASE.replace(/^https?:\/\//, '')
+                var scheme = (/^https:\/\//i).test(BASE) ? 'wss://' : 'ws://'
+                return scheme + host + '/api/sync'
+            }
+            function connectWS () {
+                try {
+                    if (!('WebSocket' in window)) { console.warn('No WebSocket support'); return }
+                    if (mainWs) { try { mainWs.close() } catch (e) { } mainWs = null }
+                    var url = wsURL()
+                    console.log('WS connect →', url, 'robot=', robot)
+                    mainWs = new WebSocket(url)
 
-      mainWs.onclose = function(ev){
-        console.warn('[Tablet] WS close', ev.code, ev.reason||'');
-        document.getElementById('network-indicator').classList.remove('active');
-        document.getElementById('network-status').textContent = 'OFFLINE';
-        if (wsRetryTimer) clearTimeout(wsRetryTimer);
-        wsRetryTimer = setTimeout(connectWS, 2000);
-      };
-    }catch(e){
-      console.error('[Tablet] WS create failed', e);
-      if (wsRetryTimer) clearTimeout(wsRetryTimer);
-      wsRetryTimer = setTimeout(connectWS, 2000);
-    }
-  }
+                    mainWs.onopen = function () {
+                        console.log('WS open')
+                        document.getElementById('network-indicator').className = 'network-dot active'
+                        document.getElementById('network-status').textContent = 'ONLINE'
+                        try { mainWs.send(JSON.stringify({ type: 'hello', role: 'tablet', robot: robot })) } catch (e) { }
+                        heartbeat('ws-open')
+                    }
+                    mainWs.onmessage = function (evt) {
+                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { console.error('WS parse', e); return }
+                        var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
+                        if (!toMe) return
+                        if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
+                        if (msg.type === 'llm-user-input') { updateLLMDisplay('user', msg.content, false); return }
+                        if (msg.type === 'llm-ai-response') { updateLLMDisplay('ai', msg.content, true); return }
+                        console.log('WS other', evt.data)
+                    }
+                    mainWs.onerror = function (e) { console.error('WS error', e) }
+                    mainWs.onclose = function (ev) {
+                        console.warn('WS close', ev && ev.code, ev && ev.reason)
+                        document.getElementById('network-indicator').className = 'network-dot'
+                        document.getElementById('network-status').textContent = 'OFFLINE'
+                        if (wsTimer) clearTimeout(wsTimer)
+                        wsTimer = setTimeout(connectWS, 2000)
+                    }
+                } catch (e) {
+                    console.error('WS create failed', e)
+                    if (wsTimer) clearTimeout(wsTimer)
+                    wsTimer = setTimeout(connectWS, 2000)
+                }
+            }
 
-  // --- 轮询兜底（用于快速定位 WS/路由问题）---
-  async function pollLoop(){
-    try{
-      const r = await fetch(abs('/api/pull?robot='+encodeURIComponent(robot)), { cache: 'no-store' });
-      if (r.ok){
-        const list = await r.json(); // 期望数组 [{type, content, isChunk, robot}, ...]
-        if (Array.isArray(list)) {
-          console.log('[Tablet] Poll received:', list.length, 'messages');
-          list.forEach(window.pushMsg);
-        }
-      } else {
-        console.warn('[Tablet] Poll failed:', r.status, r.statusText);
-      }
-    }catch(e){ 
-      console.error('[Tablet] Poll error:', e);
-    }
-    setTimeout(pollLoop, 2000);
-  }
+            // ---- 轮询兜底（区分 WS/路由问题）----
+            function pollLoop () {
+                xhr('GET', abs('/api/pull?robot=' + encodeURIComponent(robot)), null, function (err, status, text) {
+                    if (!err && status === 200) {
+                        try {
+                            var list = JSON.parse(text || '[]')
+                            if (list && list.length) { console.log('Poll got', list.length); for (var i = 0; i < list.length; i++) { window.pushMsg(list[i]) } }
+                        } catch (e) { console.error('Poll JSON', e) }
+                    } else if (err) { console.error('Poll err', err) }
+                    setTimeout(pollLoop, 2000)
+                })
+            }
 
-  // --- 日志显示 ---
-  var logEl = document.getElementById('log-content');
-  var logLines = [];
-  function addLog(msg) {
-    var timestamp = new Date().toLocaleTimeString();
-    logLines.push('[' + timestamp + '] ' + msg);
-    if (logLines.length > 50) logLines.shift();
-    if (logEl) logEl.innerHTML = logLines.join('<br>');
-  }
-  
-  // 重写console.log
-  var originalLog = console.log;
-  console.log = function() {
-    originalLog.apply(console, arguments);
-    addLog(Array.from(arguments).join(' '));
-  };
-  var originalError = console.error;
-  console.error = function() {
-    originalError.apply(console, arguments);
-    addLog('ERROR: ' + Array.from(arguments).join(' '));
-  };
-  var originalWarn = console.warn;
-  console.warn = function() {
-    originalWarn.apply(console, arguments);
-    addLog('WARN: ' + Array.from(arguments).join(' '));
-  };
+            // ---- 启动 ----
+            addLog('Init robot=' + robot + ' base=' + BASE)
+            heartbeat('init')
+            connectWS()
+            pollLoop()
+            setInterval(function () {
+                heartbeat('tick')
+                var s = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL'
+                var e = document.getElementById('network-status'); if (e) e.textContent = s
+            }, 5000)
+        })();
+    </script>
 
-  // --- 启动 ---
-  addLog('Initializing tablet for robot: ' + robot);
-  addLog('Base URL: ' + BASE);
-  
-  heartbeat('init');
-  connectWS();
-  pollLoop();
-  setInterval(heartbeat, 5000);
-  
-  // 定期更新状态
-  setInterval(function(){
-    var wsStatus = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL';
-    var statusEl = document.getElementById('network-status');
-    if (statusEl) statusEl.textContent = wsStatus;
-  }, 1000);
-})();
-</script>
 
 </body>
+
 </html>
