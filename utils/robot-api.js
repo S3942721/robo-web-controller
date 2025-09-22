@@ -768,7 +768,6 @@ class RobotAPI extends EventEmitter {
      * Initialize STT WebSocket connection
      */
     initializeSTTConnection() {
-        // STT功能已禁用
         if (this.sttHost === 'disabled') {
             console.log('[RobotAPI] STT connection disabled via configuration');
             return;
