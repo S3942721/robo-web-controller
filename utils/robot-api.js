@@ -29,6 +29,9 @@ class RobotAPI extends EventEmitter {
         };
         this.startTime = Date.now();
         
+        // LLM communication broadcast function (will be set by main server)
+        this.broadcastLLMCommunication = null;
+        
         // LLM chunk processing sessions
         this.llmSessions = new Map(); // sessionId -> { speechBuffer, chunkMode }
         
@@ -765,6 +768,12 @@ class RobotAPI extends EventEmitter {
      * Initialize STT WebSocket connection
      */
     initializeSTTConnection() {
+        // STT功能已禁用
+        if (this.sttHost === 'disabled') {
+            console.log('[RobotAPI] STT connection disabled via configuration');
+            return;
+        }
+        
         if (this.sttWebSocket && this.sttWebSocket.readyState === WebSocket.OPEN) {
             return; // Already connected
         }
@@ -1640,6 +1649,12 @@ class RobotAPI extends EventEmitter {
                 console.log(`[RobotAPI] 🚫 Ignoring STT message due to turn-taking violation: "${message.text?.substring(0, 50)}"`);
                 return; // Ignore the message
             }
+            
+            // Broadcast user input to tablet displays for both partial and complete transcripts
+            if ((message.type === 'complete' || message.type === 'partial') && message.text && message.text.trim() && this.broadcastLLMCommunication) {
+                console.log(`[RobotAPI] 📢 Broadcasting user input to tablet: "${message.text}" (type: ${message.type})`);
+                this.broadcastLLMCommunication('llm-user-input', message.text, 'Haku');
+            }
         }
         
         // Process valid STT messages
@@ -1961,6 +1976,12 @@ class RobotAPI extends EventEmitter {
 
         console.log(`[RobotAPI] 🗣️ Sending buffered response: "${content}"`);
 
+        // Broadcast AI response to tablet displays
+        if (content && content.trim() && this.broadcastLLMCommunication) {
+            console.log(`[RobotAPI] 📢 Broadcasting AI response to tablets: "${content}"`);
+            this.broadcastLLMCommunication('llm-ai-response', content, targetRobot);
+        }
+
         // Send the content to robot with chunk-buffer source to avoid re-processing
         const messageData = {
             cmd: 'req-execute',
@@ -2004,6 +2025,12 @@ class RobotAPI extends EventEmitter {
         const targetRobot = bufferInfo.robot;
 
         console.log(`[RobotAPI] 🚀 Flushing buffer for session ${sessionId} to robot ${targetRobot}: "${content}"`);
+
+        // Broadcast AI response to tablet displays
+        if (content && content.trim() && this.broadcastLLMCommunication) {
+            console.log(`[RobotAPI] 📢 Broadcasting AI response to tablets: "${content}"`);
+            this.broadcastLLMCommunication('llm-ai-response', content, targetRobot);
+        }
 
         // Send the buffered content to robot with chunk-buffer source to avoid re-processing
         const messageData = {
@@ -3030,6 +3057,11 @@ class RobotAPI extends EventEmitter {
     handleConversationResponse(content, targetRobot = 'Haku', sessionId, isFinished = false, isFirstChunk = false, chunkNumber = null) {
         console.log(`[RobotAPI] 🗣️ Processing conversation response for ${targetRobot} (session: ${sessionId})`);
         console.log(`[RobotAPI] 📝 Content: "${content}", finished: ${isFinished}, firstChunk: ${isFirstChunk}, chunkNumber: ${chunkNumber}`);
+        
+        // Broadcast AI response to tablet displays if content exists
+        if (content && content.trim() && this.broadcastLLMCommunication) {
+            this.broadcastLLMCommunication('llm-ai-response', content, targetRobot);
+        }
         
         // Validate session ID
         if (!sessionId) {

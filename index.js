@@ -15,6 +15,9 @@ require('express-ws')(app)
 // Import the Robot API
 const robotAPI = require('./utils/robot-api');
 
+// Set up LLM communication broadcast function for Robot API
+robotAPI.broadcastLLMCommunication = broadcastLLMCommunication;
+
 // Set up robot status event listeners
 robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
     console.log(`[Server] 🎤 Robot ${robot} finished speaking, session ${sessionId} - notifying STT`);
@@ -32,6 +35,28 @@ robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
             console.error('[Server] Failed to notify STT client:', error);
         }
     });
+});
+
+// Set up STT message listener to forward user input to tablets
+robotAPI.on('sttMessage', (message) => {
+    console.log(`[Server] 🎤 STT message received: ${message.type}`);
+    
+    // Forward STT messages to frontend WebSocket clients for debugging/monitoring
+    if (message.type === 'complete' || message.type === 'partial') {
+        sendWebSockets.forEach(ws => {
+            if (ws.readyState === ws.OPEN) {
+                try {
+                    ws.send(JSON.stringify({
+                        type: 'stt-message',
+                        data: message,
+                        timestamp: Date.now()
+                    }));
+                } catch (error) {
+                    console.error('[Server] Failed to forward STT message:', error);
+                }
+            }
+        });
+    }
 });
 
 robotAPI.on('statusChanged', ({ robot, changedFields, currentStatus }) => {
@@ -109,6 +134,37 @@ robotAPI.on('turnTakingViolation', ({ type, robot, sessionId, message, timestamp
         }
     });
 });
+
+// Function to broadcast LLM communication to tablet displays
+function broadcastLLMCommunication(type, content, robot) {
+    const message = {
+        type: type, // 'llm-user-input' or 'llm-ai-response'
+        content: content,
+        robot: robot,
+        timestamp: Date.now()
+    };
+    
+    const activeConnections = sendWebSockets.filter(ws => ws.readyState === ws.OPEN).length;
+    console.log(`[LLM Broadcast] Broadcasting ${type} to ${sendWebSockets.length} WebSocket clients (${activeConnections} active):`, content ? content.substring(0, 50) : 'empty');
+    console.log(`[LLM Broadcast] Message details:`, JSON.stringify(message, null, 2));
+    
+    let sentCount = 0;
+    sendWebSockets.forEach((ws, index) => {
+        if (ws.readyState === ws.OPEN) {
+            try {
+                ws.send(JSON.stringify(message));
+                sentCount++;
+                console.log(`[LLM Broadcast] ✅ Sent to WebSocket ${index}`);
+            } catch (error) {
+                console.error(`[LLM Broadcast] ❌ Failed to send to WebSocket ${index}:`, error);
+            }
+        } else {
+            console.log(`[LLM Broadcast] ⚠️ WebSocket ${index} not ready (state: ${ws.readyState})`);
+        }
+    });
+    
+    console.log(`[LLM Broadcast] Successfully sent to ${sentCount}/${sendWebSockets.length} connections`);
+}
 
 // STT messages are now handled directly by the STT server's LLM integration
 // The STT server forwards LLM responses to robots via the robot API
@@ -297,39 +353,54 @@ function getFullSyncItem() {
 // websocket setup
 app.ws('/api/sync', (ws, req)=>{
 	
+	console.log(`[WebSocket] New connection from ${req.ip || req.connection.remoteAddress}`);
 	sendWebSockets.push(ws);
+	console.log(`[WebSocket] Total connections: ${sendWebSockets.length}`);
 
 	// execute different commands
 	ws.on('message', msg=>{
-		const { cmd, message, robot, type } = JSON.parse(msg);
-		switch(cmd) {
-			case 'req-sync':
-				readSettings(); // Read settings files before syncing
-				syncWSWithOne(ws, 'res-sync', getFullSyncItem())
-				break;
-			case 'req-update-profile':
-				current_profile = message;
-				// If profile name is not null
-				if (current_profile && current_profile.name) {
-					scripts = all_scripts[current_profile.name] || {};
-					syncWSWithAll('res-update-scripts', scripts);
-					syncWSWithAll('res-update-profile', current_profile)
-					console.log("Update profile:", current_profile);
-					console.log("Profile name:", current_profile.name);
-				}
-				break;
-			case 'req-execute':
-				// Use Robot API instead of direct socket calls
-				robotAPI.sendMessage({ cmd, type, message, robot }, robot);
-				break;
+		try {
+			const parsed = JSON.parse(msg);
+			const { cmd, message, robot, type } = parsed;
+			console.log(`[WebSocket] Received message:`, parsed);
+			
+			switch(cmd) {
+				case 'req-sync':
+					readSettings(); // Read settings files before syncing
+					syncWSWithOne(ws, 'res-sync', getFullSyncItem())
+					break;
+				case 'req-update-profile':
+					current_profile = message;
+					// If profile name is not null
+					if (current_profile && current_profile.name) {
+						scripts = all_scripts[current_profile.name] || {};
+						syncWSWithAll('res-update-scripts', scripts);
+						syncWSWithAll('res-update-profile', current_profile)
+						console.log("Update profile:", current_profile);
+						console.log("Profile name:", current_profile.name);
+					}
+					break;
+				case 'req-execute':
+					// Use Robot API instead of direct socket calls
+					robotAPI.sendMessage({ cmd, type, message, robot }, robot);
+					break;
+				default:
+					console.log(`[WebSocket] Unknown command: ${cmd}`);
+			}
+		} catch (error) {
+			console.error(`[WebSocket] Failed to parse message:`, error, 'Raw message:', msg);
 		}
 	})
 
 	ws.on("close", ()=>{
+		console.log(`[WebSocket] Connection closed`);
 		sendWebSockets = sendWebSockets.filter(e=>e!==ws);
+		console.log(`[WebSocket] Remaining connections: ${sendWebSockets.length}`);
 	})
-	ws.on("error", ()=>{
+	ws.on("error", (error)=>{
+		console.log(`[WebSocket] Connection error:`, error);
 		sendWebSockets = sendWebSockets.filter(e=>e!==ws);
+		console.log(`[WebSocket] Remaining connections: ${sendWebSockets.length}`);
 	})
 
 })
@@ -606,6 +677,8 @@ router.get("/api/network-info", (req, res) => {
 
 // Add configuration endpoint
 router.get("/api/network-config", (req, res) => {
+    const sttDisabled = process.env.STT_DISABLED === 'true' || STT_SERVER_HOST === 'disabled';
+    
     res.status(200).json({
         server: {
             host: SERVER_HOST,
@@ -614,8 +687,9 @@ router.get("/api/network-config", (req, res) => {
         stt: {
             host: STT_SERVER_HOST,
             port: STT_SERVER_PORT,
-            enabled: STT_LLM_ENABLED,
-            defaultUrl: `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
+            enabled: STT_LLM_ENABLED && !sttDisabled,
+            disabled: sttDisabled,
+            defaultUrl: sttDisabled ? null : `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
         },
         llm: {
             host: LLM_GATEWAY_HOST,
@@ -1141,12 +1215,47 @@ router.get("/api/robot-history/:robot?", (req, res) => {
     }
 });
 
+// Add WebSocket status endpoint
+router.get("/api/websocket-status", (req, res) => {
+    const activeConnections = sendWebSockets.filter(ws => ws.readyState === 1).length;
+    const totalConnections = sendWebSockets.length;
+    
+    res.status(200).json({
+        activeConnections,
+        totalConnections,
+        connections: sendWebSockets.map((ws, index) => ({
+            index,
+            readyState: ws.readyState,
+            readyStateText: ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][ws.readyState]
+        }))
+    });
+});
+
 // Add Robot API message sending endpoint
 router.post("/api/robot-send", (req, res) => {
     const { message, robot, type = 'api', sessionId } = req.body;
     
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    // Handle broadcast type for LLM communication
+    if (type === 'broadcast') {
+        try {
+            const broadcastData = JSON.parse(message);
+            if (broadcastData.type === 'llm-user-input' || broadcastData.type === 'llm-ai-response') {
+                console.log(`[Broadcast] Sending ${broadcastData.type} to ${sendWebSockets.length} WebSocket connections`);
+                broadcastLLMCommunication(broadcastData.type, broadcastData.content, broadcastData.robot);
+                return res.status(200).json({
+                    success: true,
+                    message: 'Broadcast sent successfully',
+                    broadcastData,
+                    connectionsCount: sendWebSockets.length
+                });
+            }
+        } catch (error) {
+            console.error('Failed to parse broadcast message:', error);
+        }
     }
     
     const messageData = {
@@ -1167,6 +1276,8 @@ router.post("/api/robot-send", (req, res) => {
         messageData
     });
 });
+
+
 
 // Robot API conversation response endpoint with proper chunking and turn-taking
 router.post("/api/robot-conversation", (req, res) => {
@@ -1221,6 +1332,10 @@ router.post("/api/robot-conversation", (req, res) => {
         });
     }
 });
+
+
+
+
 
 // Add Robot API buffer management endpoints
 router.post("/api/robot-buffer/flush/:sessionId", (req, res) => {
@@ -1575,6 +1690,41 @@ router.post("/api/robot-state/stop-action/:robot?", (req, res) => {
 router.get("/tablet", (req, res) => {
     res.sendFile(join(__dirname, 'public', 'tablet.html'));
 });
+
+// Add polling endpoint for tablet fallback
+router.get("/api/pull", (req, res) => {
+    const robot = req.query.robot;
+    // For now, return empty array as WebSocket should be primary method
+    // This endpoint exists as fallback for debugging
+    res.status(200).json([]);
+});
+
+// Test endpoint for LLM broadcast
+router.post("/api/test-llm-broadcast", (req, res) => {
+    const { type, content, robot } = req.body;
+    
+    if (!type || !content) {
+        return res.status(400).json({ error: 'type and content are required' });
+    }
+    
+    const targetRobot = robot || 'Haku';
+    
+    console.log(`[Test] Broadcasting LLM message: ${type} - ${content}`);
+    broadcastLLMCommunication(type, content, targetRobot);
+    
+    res.status(200).json({ 
+        success: true, 
+        message: 'LLM broadcast sent',
+        type: type,
+        content: content,
+        robot: targetRobot,
+        connections: sendWebSockets.length
+    });
+});
+
+
+
+
 
 // Catch-all route for serving the frontend - MUST BE LAST
 router.get("*", (req, res)=>{

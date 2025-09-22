@@ -68,7 +68,46 @@
             top: 75px;
             left: 10px;
             right: 10px;
+            bottom: 200px;
+        }
+        
+        .llm-display {
+            background: rgba(20, 0, 0, 0.8);
+            border: 1px solid #E60028;
+            border-radius: 8px;
+            padding: 10px;
+            position: absolute;
             bottom: 80px;
+            left: 10px;
+            right: 10px;
+            height: 100px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .llm-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .llm-title {
+            font-size: 12px;
+            color: #E60028;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .llm-content {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 11px;
+            color: #fff;
+            overflow-y: auto;
+            word-wrap: break-word;
         }
         
         .video-container {
@@ -96,17 +135,17 @@
             border: 1px solid #E60028;
             color: rgba(255, 255, 255, 1);
             border-radius: 8px;
-            padding: 15px;
+            padding: 10px;
             text-align: center;
-            font-size: 28px;
+            font-size: 20px;
             font-weight: bold;
             opacity: 0.9;
             position: absolute;
             bottom: 10px;
             left: 10px;
             right: 10px;
-            height: 40px;
-            line-height: 40px;
+            height: 30px;
+            line-height: 30px;
         }
         
         .footer img {
@@ -162,61 +201,216 @@
         </div>
 
         <div class="main-content">
-            <div class="video-container">
-            <iframe id="yt-frame" src="https://www.youtube-nocookie.com/embed/avs-mPoAUSE?autoplay=1&mute=1&controls=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&playlist=avs-mPoAUSE&loop=1&playsinline=1&enablejsapi=1"
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                referrerpolicy="origin-when-cross-origin"
-                allowfullscreen></iframe>
-            <!-- <iframe id="yt-frame" src="https://www.youtube-nocookie.com/embed/NE0n0IwHxtI?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&playlist=avs-mPoAUSE&loop=1&playsinline=1&enablejsapi=1&title=0&byline=0&portrait=0"
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                referrerpolicy="origin-when-cross-origin"
-                allowfullscreen></iframe> -->
-                <!-- <iframe src="https://www.youtube.com/embed/NE0n0IwHxtI?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0&cc_load_policy=0&playlist=NE0n0IwHxtI&loop=1" allowfullscreen></iframe> -->
+            <div id="log-display" style="width: 100%; height: 100%; background: #000; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; overflow-y: auto; border: 1px solid #E60028;">
+                <div style="color: #E60028; font-weight: bold; margin-bottom: 10px;">TABLET DEBUG LOG</div>
+                <div id="log-content"></div>
             </div>
         </div>
+        
+        <div class="llm-display">
+            <div class="llm-section">
+                <div class="llm-title">USER INPUT</div>
+                <div class="llm-content" id="user-input">Waiting for input...</div>
+            </div>
+            <div class="llm-section">
+                <div class="llm-title">AI RESPONSE</div>
+                <div class="llm-content" id="ai-response">Waiting for response...</div>
+            </div>
+        </div>
+        
+
 
         <div class="footer">
             Powered by &nbsp;<img src="RACE-WHITE-WIDE.png" alt="Race Logo">
         </div>
     </div>
     <script>
-        (function(){
-            var params = new URLSearchParams(window.location.search);
-            var robot = params.get('robot') || (window.DEFAULT_ROBOT_NAME || 'Haku');
+(function(){
+  // --- 参数与基址 ---
+  var params = new URLSearchParams(window.location.search);
+  var robot = (params.get('robot') || window.DEFAULT_ROBOT_NAME || 'Haku').trim();
+  var BASE  = (params.get('base') || '').trim(); // 例：http://10.0.0.12:3000
+  if (!/^https?:\/\//i.test(BASE)) {
+    console.warn('[Tablet] Missing or invalid ?base=, fallback to location (may fail on Pepper).');
+    BASE = location.origin;
+  }
+  function abs(p){ return BASE.replace(/\/$/,'') + p; }
 
-            async function heartbeat(){
-                try {
-                    await fetch('/api/robot-tablet/heartbeat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ robot: robot })
-                    });
-                } catch(e) { /* ignore */ }
-            }
+  // --- 心跳 ---
+  async function heartbeat(tag){
+    try{
+      await fetch(abs('/api/robot-tablet/heartbeat'), {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ robot, tag: tag||'tick' })
+      });
+    }catch(e){ /* ignore */ }
+  }
 
-            // Respond to server "tablet_ping" via /api/sync WebSocket
-            function connectWS() {
-                try {
-                    var wsProto = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-                    var url = wsProto + '//' + location.host + '/api/sync';
-                    var ws = new WebSocket(url);
-                    ws.onmessage = function(evt){
-                        try {
-                            var msg = JSON.parse(evt.data || '{}');
-                            if (msg && msg.cmd === 'tablet_ping' && (!msg.robot || msg.robot === robot)) {
-                                heartbeat();
-                            }
-                        } catch (err) {}
-                    };
-                    ws.onclose = function(){ setTimeout(connectWS, 2000); };
-                    ws.onerror = function(){ try { ws.close(); } catch(e) {} };
-                } catch (e) {}
-            }
+  // --- UI 显示 ---
+  document.getElementById('robot-name').textContent = robot;
 
-            // Send an initial heartbeat on load so server knows we've "ever loaded"
-            heartbeat();
-            connectWS();
-        })();
-    </script>
+  // --- LLM 显示逻辑 ---
+  var currentAIResponse = '';
+  function updateLLMDisplay(type, content, isChunk) {
+    var el = document.getElementById(type === 'user' ? 'user-input' : 'ai-response');
+    if (!el) return;
+    if (type === 'ai' && isChunk) {
+      currentAIResponse += content || '';
+      el.textContent = currentAIResponse || 'Waiting for response...';
+    } else if (type === 'user') {
+      currentAIResponse = '';
+      document.getElementById('ai-response').textContent = 'Waiting for response...';
+      el.textContent = content || 'Waiting for input...';
+    } else {
+      el.textContent = content || (type === 'user' ? 'Waiting for input...' : 'Waiting for response...');
+    }
+    el.scrollTop = el.scrollHeight;
+  }
+  // 暴露给 Pepper 的 executeJS 注入
+  window.pushMsg = function(m){
+    try{
+      if (!m) return;
+      if (m.type === 'llm-user-input')  updateLLMDisplay('user', m.content, false);
+      else if (m.type === 'llm-ai-response') updateLLMDisplay('ai', m.content, !!m.isChunk);
+    }catch(e){ console.error('[Tablet] pushMsg error', e); }
+  };
+  window.updateLLMDisplay = updateLLMDisplay;
+
+  // --- WebSocket 主通道 ---
+  var mainWs = null, wsRetryTimer = null;
+  function wsURL(){
+    var host = BASE.replace(/^https?:\/\//,'');
+    var scheme = /^https:\/\//i.test(BASE) ? 'wss://' : 'ws://';
+    return scheme + host + '/api/sync';
+  }
+  function connectWS(){
+    try{
+      if (mainWs) { try{ mainWs.close(); }catch(_){} mainWs = null; }
+      var url = wsURL();
+      console.log('[Tablet] WS connect →', url, 'robot=', robot);
+      mainWs = new WebSocket(url);
+
+      mainWs.onopen = function(){
+        console.log('[Tablet] WS open');
+        document.getElementById('network-indicator').classList.add('active');
+        document.getElementById('network-status').textContent = 'ONLINE';
+        // 上线即注册，声明自己是 tablet
+        try { mainWs.send(JSON.stringify({ type:'hello', role:'tablet', robot })); } catch(e){}
+        heartbeat('ws-open');
+      };
+
+      mainWs.onmessage = function(evt){
+        var msg = null;
+        try{ msg = JSON.parse(evt.data || '{}'); }catch(e){ console.error('[Tablet] WS parse error', e); return; }
+        
+        // 调试信息
+        console.log('[Tablet] Received message:', msg);
+        
+        // 仅接收发往本机器人或广播的消息
+        var toMe = !msg.robot || String(msg.robot).toLowerCase() === robot.toLowerCase();
+        if (!toMe) {
+          console.log('[Tablet] Message not for this robot:', msg.robot, 'vs', robot);
+          return;
+        }
+        
+        if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return; }
+        
+        // 处理LLM消息
+        if (msg.type === 'llm-user-input') {
+          console.log('[Tablet] Processing user input:', msg.content);
+          updateLLMDisplay('user', msg.content, false);
+        }
+        else if (msg.type === 'llm-ai-response') {
+          console.log('[Tablet] Processing AI response:', msg.content);
+          updateLLMDisplay('ai', msg.content, true);
+        }
+        else {
+          console.log('[Tablet] Unhandled message type:', msg.type);
+        }
+      };
+
+      mainWs.onerror = function(err){
+        console.error('[Tablet] WS error', err);
+      };
+
+      mainWs.onclose = function(ev){
+        console.warn('[Tablet] WS close', ev.code, ev.reason||'');
+        document.getElementById('network-indicator').classList.remove('active');
+        document.getElementById('network-status').textContent = 'OFFLINE';
+        if (wsRetryTimer) clearTimeout(wsRetryTimer);
+        wsRetryTimer = setTimeout(connectWS, 2000);
+      };
+    }catch(e){
+      console.error('[Tablet] WS create failed', e);
+      if (wsRetryTimer) clearTimeout(wsRetryTimer);
+      wsRetryTimer = setTimeout(connectWS, 2000);
+    }
+  }
+
+  // --- 轮询兜底（用于快速定位 WS/路由问题）---
+  async function pollLoop(){
+    try{
+      const r = await fetch(abs('/api/pull?robot='+encodeURIComponent(robot)), { cache: 'no-store' });
+      if (r.ok){
+        const list = await r.json(); // 期望数组 [{type, content, isChunk, robot}, ...]
+        if (Array.isArray(list)) {
+          console.log('[Tablet] Poll received:', list.length, 'messages');
+          list.forEach(window.pushMsg);
+        }
+      } else {
+        console.warn('[Tablet] Poll failed:', r.status, r.statusText);
+      }
+    }catch(e){ 
+      console.error('[Tablet] Poll error:', e);
+    }
+    setTimeout(pollLoop, 2000);
+  }
+
+  // --- 日志显示 ---
+  var logEl = document.getElementById('log-content');
+  var logLines = [];
+  function addLog(msg) {
+    var timestamp = new Date().toLocaleTimeString();
+    logLines.push('[' + timestamp + '] ' + msg);
+    if (logLines.length > 50) logLines.shift();
+    if (logEl) logEl.innerHTML = logLines.join('<br>');
+  }
+  
+  // 重写console.log
+  var originalLog = console.log;
+  console.log = function() {
+    originalLog.apply(console, arguments);
+    addLog(Array.from(arguments).join(' '));
+  };
+  var originalError = console.error;
+  console.error = function() {
+    originalError.apply(console, arguments);
+    addLog('ERROR: ' + Array.from(arguments).join(' '));
+  };
+  var originalWarn = console.warn;
+  console.warn = function() {
+    originalWarn.apply(console, arguments);
+    addLog('WARN: ' + Array.from(arguments).join(' '));
+  };
+
+  // --- 启动 ---
+  addLog('Initializing tablet for robot: ' + robot);
+  addLog('Base URL: ' + BASE);
+  
+  heartbeat('init');
+  connectWS();
+  pollLoop();
+  setInterval(heartbeat, 5000);
+  
+  // 定期更新状态
+  setInterval(function(){
+    var wsStatus = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL';
+    var statusEl = document.getElementById('network-status');
+    if (statusEl) statusEl.textContent = wsStatus;
+  }, 1000);
+})();
+</script>
+
 </body>
 </html>
