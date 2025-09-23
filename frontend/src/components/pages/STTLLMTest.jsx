@@ -478,6 +478,11 @@ export default function STTLLMTest() {
                     setCurrentTranscription('');
                     setOverallStatus('✅ Transcription complete - sending to AI');
                     
+                    // Send user input to robot for tablet display
+                    if (sendToRobot && targetRobot) {
+                        sendUserInputToRobot(data.text, sessionIdRef.current);
+                    }
+                    
                     // Automatically send to LLM using a fresh snapshot that includes this user turn
                     const historySnapshot = [
                         ...conversationHistoryRef.current,
@@ -669,6 +674,30 @@ export default function STTLLMTest() {
         }
     };
 
+    // Function to send user input to robot for tablet display
+    const sendUserInputToRobot = async (content, sessionId = null) => {
+        if (!sendToRobot || !targetRobot) {
+            return;
+        }
+
+        try {
+            const effectiveSessionId = sessionId || sessionIdRef.current;
+            console.log(`👤 Sending user input to robot ${targetRobot}: "${content}"`);
+            
+            const broadcastMessage = JSON.stringify({
+                type: 'llm-user-input',
+                content: content,
+                robot: targetRobot,
+                sessionId: effectiveSessionId,
+                timestamp: Date.now()
+            });
+            
+            await robotAPI.sendMessage(broadcastMessage, targetRobot, 'broadcast', effectiveSessionId);
+        } catch (error) {
+            console.error(`Failed to send user input to robot ${targetRobot}:`, error);
+        }
+    };
+
     // Updated function to include session ID and turn-taking
     const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null, isFirstChunk = false, chunkNumber = null) => {
         if (!sendToRobot || !targetRobot) {
@@ -813,6 +842,11 @@ export default function STTLLMTest() {
                 type: 'user',
                 manual: true
             }]);
+            
+            // Send user input to robot for tablet display
+            if (sendToRobot && targetRobot) {
+                sendUserInputToRobot(message.trim(), sessionIdRef.current);
+            }
             
             // Clear STT complete time for manual messages
             sttCompleteTimeRef.current = Date.now();
