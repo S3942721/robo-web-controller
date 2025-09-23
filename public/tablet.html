@@ -56,12 +56,12 @@
             padding: 5px 10px;
             border: 1px solid #333333;
             border-radius: 4px;
-            background: rgba(240, 240, 240, 0.8);
+            background: rgba(240, 240, 240, 0.1);
         }
 
         .main-content {
-            background: rgba(250, 250, 250, 0.9);
-            border: 1px solid #333333;
+            background: transparent;
+            border: none;
             border-radius: 8px;
             padding: 0;
             overflow: hidden;
@@ -69,7 +69,153 @@
             top: 75px;
             left: 10px;
             right: 10px;
-            bottom: 200px;
+            bottom: 220px;
+        }
+
+        .conversation-interface {
+            display: none;
+            height: 100%;
+            padding: 0;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+        }
+
+        .conversation-interface.active {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .user-message-container {
+            position: absolute;
+            top: 30px;
+            left: 10px;
+            width: 75%;
+            height: 200px;
+        }
+
+        .user-message-area {
+            width: 100%;
+            height: 100%;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 12px;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .user-message-label {
+            position: absolute;
+            top: 50px;
+            right: -90px;
+            text-align: center;
+            width: 80px;
+        }
+
+        .user-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .user-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .ai-message-container {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            width: 75%;
+            height: 280px;
+        }
+
+        .ai-message-area {
+            width: 100%;
+            height: 100%;
+            background: #f3e5f5;
+            border: 3px solid #9c27b0;
+            border-radius: 12px;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .ai-message-label {
+            position: absolute;
+            top: 50px;
+            left: -90px;
+            text-align: center;
+            width: 80px;
+        }
+
+        .ai-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .ai-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .message-content {
+            font-size: 32px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 100%;
+            overflow-y: auto;
+            text-align: left;
+            padding: 0;
+        }
+
+        .user-message-area .message-content {
+            color: #1565c0;
+        }
+
+        .ai-message-area .message-content {
+            color: #7b1fa2;
+        }
+
+        .ai-response-streaming {
+            position: relative;
+        }
+
+        .ai-response-streaming::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #9c27b0;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
         }
 
         .text-bubble {
@@ -156,10 +302,10 @@
         /* 音频波形图 */
         .audio-visualizer {
             position: absolute;
-            bottom: 60px;
+            bottom: 80px;
             left: 10px;
             right: 10px;
-            height: 140px;
+            height: 120px;
             background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
             border: 2px solid rgba(148, 163, 184, 0.3);
             border-radius: 16px;
@@ -191,11 +337,14 @@
         }
 
         @keyframes wave {
-            0%, 100% {
+
+            0%,
+            100% {
                 height: 12px;
                 opacity: 0.6;
                 transform: scaleY(1);
             }
+
             50% {
                 height: 70px;
                 opacity: 1;
@@ -204,21 +353,26 @@
         }
 
         @keyframes waveIntense {
-            0%, 100% {
+
+            0%,
+            100% {
                 height: 8px;
                 opacity: 0.8;
                 transform: scaleY(1);
             }
+
             25% {
                 height: 95px;
                 opacity: 1;
                 transform: scaleY(1.2);
             }
+
             50% {
                 height: 50px;
                 opacity: 0.9;
                 transform: scaleY(1.1);
             }
+
             75% {
                 height: 110px;
                 opacity: 1;
@@ -324,9 +478,9 @@
             -webkit-transform: translate(-50%, -50%) scale(0);
             -moz-transform: translate(-50%, -50%) scale(0);
             -ms-transform: translate(-50%, -50%) scale(0);
-            width: 60vw;
-            max-width: 480px;
-            max-height: 70vh;
+            width: 120vw;
+            max-width: 960px;
+            max-height: 140vh;
             object-fit: contain;
             border: 2px solid #E60028;
             border-radius: 12px;
@@ -456,22 +610,43 @@
                 <span class="network-dot" id="network-indicator"></span>
                 <span id="network-status">OFFLINE</span>
             </div>
-            <h1>HAKU THE AI ROBOT</h1>
+            <h1>Hi, I'm HAKU</h1>
             <!-- <div class="subtitle">Real-time Activity Monitor</div> -->
             <div class="robot-name" id="robot-name">HAKU</div>
         </div>
 
         <div class="main-content">
-            <div class="video-container">
+            <div class="video-container" id="video-container">
                 <iframe src="https://www.youtube.com/embed/avs-mPoAUSE?autoplay=1&mute=1&loop=1&playlist=avs-mPoAUSE"
                     allow="autoplay; encrypted-media" allowfullscreen>
                 </iframe>
             </div>
+
+            <div class="conversation-interface" id="conversation-interface">
+                <div class="user-message-container">
+                    <div class="user-message-label">
+                        <span class="emoji">👤</span>
+                        <span class="name">You</span>
+                    </div>
+                    <div class="user-message-area" id="user-message-area">
+                        <div class="message-content" id="user-message-content">Waiting for your message...</div>
+                    </div>
+                </div>
+
+                <div class="ai-message-container">
+                    <div class="ai-message-label">
+                        <span class="emoji">🤖</span>
+                        <span class="name">Haku</span>
+                    </div>
+                    <div class="ai-message-area" id="ai-message-area">
+                        <div class="message-content" id="ai-message-content">Waiting for Haku's response...</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- 用户文本气泡 -->
         <div class="text-bubble" id="text-bubble">
-            <div class="bubble-content" id="bubble-content">等待消息...</div>
+            <div class="bubble-content" id="bubble-content">Waiting for message...</div>
         </div>
 
 
@@ -486,7 +661,7 @@
         </div>
 
         <div class="footer">
-            Powered by &nbsp;<img src="RACE-BLUE-WIDE.png" alt="Race Logo">
+            <img src="PB-RACE-BLUE-WIDE-1.svg" alt="Race Logo">
         </div>
 
         <img id="cn-overlay" alt="City North">
@@ -642,6 +817,104 @@
 
             var currentAIResponse = ''
             var bubbleTimer = null
+            var conversationActive = false
+            var conversationHistory = []
+            var currentAIResponseText = ''
+            var inactivityTimer = null
+            var waveformBars = []
+            var waveAnimationTimer = null
+            var waveAnimationMode = 'idle'
+
+            function showConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    // videoContainer.style.display = 'none'
+                    conversationInterface.className = 'conversation-interface active'
+                    conversationActive = true
+
+                    // Clear any existing auto-return timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+
+                    console.log('Conversation interface shown')
+                }
+            }
+
+            function hideConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    conversationInterface.className = 'conversation-interface'
+                    videoContainer.style.display = 'block'
+                    conversationActive = false
+
+                    // Clear any existing timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+
+                    // Stop waveform animation when conversation interface is hidden
+                    stopWaveAnimation()
+                    aiResponseStarted = false
+
+                    console.log('Conversation interface hidden, returned to video')
+                }
+            }
+
+            function startAutoReturnTimer () {
+                // Clear any existing timer
+                if (inactivityTimer) {
+                    clearTimeout(inactivityTimer)
+                }
+
+                // Set 10-second timer to return to video
+                inactivityTimer = setTimeout(function () {
+                    if (conversationActive) {
+                        hideConversationInterface()
+                    }
+                }, 10000) // 10 seconds
+
+                console.log('Auto-return timer started (10 seconds)')
+            }
+
+            function forceStopAIResponse () {
+                aiResponseStarted = false
+                stopWaveAnimation()
+                if (aiResponseTimeout) {
+                    clearTimeout(aiResponseTimeout)
+                    aiResponseTimeout = null
+                }
+                console.log('AI response force stopped')
+            }
+
+
+
+
+
+            function updateUserMessage (content) {
+                var userMessageContent = document.getElementById('user-message-content')
+                if (userMessageContent) {
+                    userMessageContent.textContent = content || 'Waiting for your message...'
+                    // 自动滚动到最新内容
+                    userMessageContent.scrollTop = userMessageContent.scrollHeight
+                }
+            }
+
+            function updateAIMessage (content) {
+                var aiMessageContent = document.getElementById('ai-message-content')
+                if (aiMessageContent) {
+                    aiMessageContent.textContent = content || 'Waiting for Haku\'s response...'
+                    // 自动滚动到最新内容
+                    aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                }
+            }
+
 
 
             function showUserBubble (content) {
@@ -674,38 +947,57 @@
 
 
             var aiResponseStarted = false
-            
+
             function updateLLMDisplay (type, content, isChunk, isFinal) {
                 console.log('updateLLMDisplay called:', type, content ? content.substring(0, 50) : 'empty', isChunk, isFinal)
                 if (!content) content = ''
 
                 if (type === 'user') {
                     currentAIResponse = ''
+                    currentAIResponseText = ''
                     aiResponseStarted = false
-                    showUserBubble(content)
+
+                    // 显示对话界面
+                    showConversationInterface()
+
+                    // 更新用户消息区域
+                    updateUserMessage(content)
+
+                    // 重置AI消息区域
+                    updateAIMessage('Waiting for Haku\'s response...')
+
+                    // 启动10秒自动返回计时器
+                    startAutoReturnTimer()
                     return
                 }
 
                 if (type === 'ai') {
                     currentAIResponse += content
+                    currentAIResponseText += content
                     console.log('AI processing:', isChunk, isFinal, currentAIResponse.length)
-                    
+
                     if (!aiResponseStarted && isChunk) {
                         aiResponseStarted = true
                         startIntenseWaveAnimation()
                     }
-                    
+
+                    // 更新AI消息显示
+                    updateAIMessage(currentAIResponseText)
+
                     if (isFinal === true) {
                         console.log('AI response finished, stopping animation')
-                        setTimeout(function() {
+                        setTimeout(function () {
                             stopWaveAnimation()
                             aiResponseStarted = false
-                        }, 1000)
+                        }, 500)
                     }
-                    
+
                     var probe = (currentAIResponse || content).toLowerCase()
                     if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
-                    if (isFinal === true) currentAIResponse = ''
+                    if (isFinal === true) {
+                        currentAIResponse = ''
+                        currentAIResponseText = ''
+                    }
                 }
             }
 
@@ -716,9 +1008,8 @@
                     if (m.type === 'llm-user-input') {
                         updateLLMDisplay('user', m.content, false, false)
                     } else if (m.type === 'llm-ai-response') {
-                        var isChunk = m.isChunk === true
-                        var isFinal = !isChunk
-                        updateLLMDisplay('ai', m.content, isChunk, isFinal)
+                        var flags = parseStreamFlags(m)
+                        updateLLMDisplay('ai', m.content, flags.isChunk, flags.isFinal)
                     }
                 } catch (e) { console.error('pushMsg error', e) }
             }
@@ -741,13 +1032,14 @@
                 var phase = msg && (msg.phase || msg.event || msg.status)
                 var isFinal = false
 
-                if (msg && (msg.final || msg.done || msg.isFinal || msg.end)) isFinal = true
+                // Check for various final indicators
+                if (msg && (msg.final || msg.done || msg.isFinal || msg.end || msg.isFinished)) isFinal = true
                 if (phase === 'final' || phase === 'end' || phase === 'stop' || phase === 'complete') isFinal = true
 
                 var v = msg && (msg.isChunk || msg.chunk || msg.delta)
                 var isChunk = !isFinal
-                if (v === true || v === 1 || v === '1' || v === 'true' || v === 'delta') isChunk = true
-                if (phase === 'delta' || phase === 'chunk' || phase === 'stream') isChunk = true
+                if (!isFinal && (v === true || v === 1 || v === '1' || v === 'true' || v === 'delta')) isChunk = true
+                if (!isFinal && (phase === 'delta' || phase === 'chunk' || phase === 'stream')) isChunk = true
 
                 return { isChunk, isFinal }
             }
@@ -782,13 +1074,8 @@
                         if (msg.type === 'llm-user-input') { updateLLMDisplay('user', msg.content, false); return }
                         if (msg.type === 'llm-ai-response') {
                             console.log('AI message received:', msg)
-                            var isChunk = true
-                            var isFinal = false
-                            if (msg.final === true || msg.done === true || msg.isFinal === true) {
-                                isChunk = false
-                                isFinal = true
-                            }
-                            updateLLMDisplay('ai', msg.content, isChunk, isFinal)
+                            var flags = parseStreamFlags(msg)
+                            updateLLMDisplay('ai', msg.content, flags.isChunk, flags.isFinal)
                             return
                         }
 
@@ -837,45 +1124,126 @@
                 var waveform = document.getElementById('waveform')
                 if (!waveform) return
 
-                // 创建80个波形条，宽度加倍
+                waveform.innerHTML = ''
+                waveformBars = []
                 for (var i = 0; i < 80; i++) {
                     var bar = document.createElement('div')
                     bar.className = 'bar'
-                    bar.style.animationDelay = (i * 0.05) + 's'
+                    bar.style.animationPlayState = 'paused'
+                    bar.style.transition = 'height 0.25s ease, opacity 0.25s ease'
                     waveform.appendChild(bar)
+                    waveformBars.push(bar)
                 }
             }
 
             function startWaveAnimation () {
-                var bars = document.querySelectorAll('.bar')
-                for (var i = 0; i < bars.length; i++) {
-                    bars[i].className = 'bar'
-                    bars[i].style.animationPlayState = 'running'
-                }
+                setWaveformMode('normal')
             }
 
             function startIntenseWaveAnimation () {
                 console.log('Starting intense wave animation')
-                var bars = document.querySelectorAll('.bar')
-                for (var i = 0; i < bars.length; i++) {
-                    bars[i].className = 'bar intense'
-                    bars[i].style.animationDelay = (i * 0.05) + 's'
-                    bars[i].style.animationPlayState = 'running'
-                }
+                setWaveformMode('intense')
             }
 
             function stopWaveAnimation () {
-                var bars = document.querySelectorAll('.bar')
-                for (var i = 0; i < bars.length; i++) {
-                    bars[i].className = 'bar'
-                    bars[i].style.animationPlayState = 'paused'
-                    bars[i].style.height = '10px'
+                setWaveformMode('idle')
+            }
+
+            function setWaveformMode (mode) {
+                if (waveAnimationTimer) {
+                    clearInterval(waveAnimationTimer)
+                    waveAnimationTimer = null
                 }
+
+                waveAnimationMode = mode
+                console.log('Setting waveform mode to:', mode)
+
+                if (!waveformBars || !waveformBars.length) return
+
+                if (mode === 'idle') {
+                    for (var i = 0; i < waveformBars.length; i++) {
+                        var idleBar = waveformBars[i]
+                        idleBar.className = 'bar'
+                        idleBar.style.animation = 'none'
+                        idleBar.style.height = '10px'
+                        idleBar.style.opacity = '0.25'
+                        idleBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
+                    }
+                    return
+                }
+
+                var intense = (mode === 'intense')
+                console.log('Starting', intense ? 'intense' : 'normal', 'wave animation')
+
+                // 设置初始状态
+                for (var j = 0; j < waveformBars.length; j++) {
+                    var activeBar = waveformBars[j]
+                    activeBar.style.animation = 'none'
+                    if (intense) {
+                        activeBar.className = 'bar intense'
+                        activeBar.style.background = 'linear-gradient(180deg, #f59e0b 0%, #d97706 30%, #dc2626 60%, #b91c1c 100%)'
+                    } else {
+                        activeBar.className = 'bar'
+                        activeBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
+                    }
+                }
+
+                var updateWaveHeights = function () {
+                    if (waveAnimationMode !== mode || !waveformBars || !waveformBars.length) return
+
+                    var minHeight = intense ? 8 : 8
+                    var maxHeight = intense ? 110 : 70
+                    var baseOpacity = intense ? 0.3 : 0.2
+                    var opacityRange = intense ? 0.6 : 0.6
+
+                    for (var k = 0; k < waveformBars.length; k++) {
+                        var bar = waveformBars[k]
+                        if (!bar) continue
+
+                        if (intense) {
+                            // 创建更剧烈的随机变化
+                            var rand1 = Math.random()
+                            var rand2 = Math.random()
+                            var rand3 = Math.random()
+                            
+                            // 混合不同的随机模式
+                            var heightFactor
+                            if (rand1 < 0.3) {
+                                // 30% 概率产生低高度
+                                heightFactor = Math.pow(rand2, 2.5)
+                            } else if (rand1 < 0.6) {
+                                // 30% 概率产生中等高度
+                                heightFactor = 0.3 + rand2 * 0.4
+                            } else {
+                                // 40% 概率产生高高度
+                                heightFactor = 0.6 + Math.pow(rand2, 0.5) * 0.4
+                            }
+                            
+                            var height = minHeight + heightFactor * (maxHeight - minHeight)
+                            var opacity = baseOpacity + rand3 * opacityRange
+                        } else {
+                            var noise = Math.random()
+                            var heightFactor = Math.pow(noise, 1.2)
+                            var height = minHeight + heightFactor * (maxHeight - minHeight)
+                            var opacity = baseOpacity + Math.random() * opacityRange
+                        }
+
+                        bar.style.height = Math.round(height) + 'px'
+                        bar.style.opacity = opacity.toFixed(2)
+                    }
+                }
+
+                // 立即更新一次
+                updateWaveHeights()
+
+                // 开始定时更新
+                waveAnimationTimer = setInterval(updateWaveHeights, intense ? 120 : 200)
             }
 
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
             initWaveform()
+            setWaveformMode('idle')
             heartbeat('init')
             connectWS()
             pollLoop()
