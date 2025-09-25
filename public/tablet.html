@@ -572,33 +572,6 @@
             z-index: -1;
         }
 
-        /* Video overlay */
-        #video-overlay {
-            position: absolute;
-            top: 75px;
-            left: 10px;
-            right: 10px;
-            bottom: 60px;
-            z-index: 8888;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        #video-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        #video-overlay video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
         /* Floating particles effect */
         .particle {
             position: absolute;
@@ -655,8 +628,8 @@
         <div class="main-content">
             <div class="video-container" id="video-container">
                 <video autoplay muted loop playsinline>
-                    <source src="test1.mp4" type="video/mp4">
-                    <source src="test1.webm" type="video/webm">
+                    <source src="out_0p5x.mp4" type="video/mp4">
+                    <source src="out_0p5x.webm" type="video/webm">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -695,11 +668,6 @@
         </div>
 
         <img id="cn-overlay" alt="City North">
-        <div id="video-overlay" class="video-overlay">
-            <video id="overlay-video" muted loop playsinline>
-                <source src="video.mp4" type="video/mp4">
-            </video>
-        </div>
     </div>
     <script>
         (function () {
@@ -731,10 +699,7 @@
             var _cnBusy = 0
             var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
 
-            // ---- Video overlay 控制 ----
-            var videoOverlay = document.getElementById('video-overlay')
-            var overlayVideo = document.getElementById('overlay-video')
-            var _videoBusy = 0
+
 
             // 预加载图片
             for (var i = 0; i < CN_IMAGES.length; i++) {
@@ -817,49 +782,18 @@
                 particles = []
             }
 
-            function showVideo () {
-                if (_videoBusy || !videoOverlay) return
-                _videoBusy = 1
 
-                overlayVideo.currentTime = 0
-                videoOverlay.className = 'show'
-                overlayVideo.play()
-
-                console.log('Video overlay shown')
-
-                setTimeout(function () {
-                    hideVideo()
-                }, 5000)
-            }
-
-            function hideVideo () {
-                if (!videoOverlay) return
-
-                overlayVideo.pause()
-                overlayVideo.currentTime = 0
-                videoOverlay.className = ''
-
-                setTimeout(function () {
-                    _videoBusy = 0
-                }, 500)
-
-                console.log('Video overlay hidden')
-            }
 
             // 暴露给外部调用
             window.showCityNorth = showCityNorth
             window.hideCityNorth = hideCityNorth
-            window.showVideo = showVideo
-            window.hideVideo = hideVideo
 
             // 检测关键词触发
             function maybeShowCityNorth () {
                 showCityNorth()
             }
 
-            function maybeShowVideo () {
-                showVideo()
-            }
+
             function getParam (name) {
                 var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
                 return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''
@@ -1099,11 +1033,7 @@
                     }
 
                     var probe = (currentAIResponse || content).toLowerCase()
-                    if (probe.indexOf('video') > -1) {
-                        maybeShowVideo()
-                    } else if (probe.indexOf('city north') > -1) {
-                        maybeShowCityNorth()
-                    }
+                    if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
                     if (isFinal === true) {
                         currentAIResponse = ''
                         currentAIResponseText = ''
