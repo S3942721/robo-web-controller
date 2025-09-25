@@ -10,8 +10,8 @@
             margin: 0;
             padding: 0;
             font-family: 'Courier New', monospace;
-            background: #ffffff;
-            color: #333333;
+            background: #000000;
+            color: #ffffff;
             overflow: hidden;
             height: 100vh;
             width: 100%;
@@ -27,8 +27,8 @@
 
         .header {
             text-align: center;
-            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
-            border: 1px solid #333333;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            border: 1px solid #666666;
             border-radius: 8px;
             padding: 15px;
             position: relative;
@@ -40,7 +40,7 @@
         .header h1 {
             margin: 0;
             font-size: 24px;
-            color: #333333;
+            color: #ffffff;
         }
 
         .header .subtitle {
@@ -54,9 +54,10 @@
             right: 15px;
             font-size: 14px;
             padding: 5px 10px;
-            border: 1px solid #333333;
+            border: 1px solid #666666;
             border-radius: 4px;
-            background: rgba(240, 240, 240, 0.1);
+            background: rgba(255, 255, 255, 0.1);
+            display: none;
         }
 
         .main-content {
@@ -69,7 +70,7 @@
             top: 75px;
             left: 10px;
             right: 10px;
-            bottom: 220px;
+            bottom: 60px;
         }
 
         .conversation-interface {
@@ -83,25 +84,27 @@
             right: 0;
             bottom: 0;
             opacity: 0;
-            transform: scale(0.9);
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.9);
+            transform: scale(0.85) translateY(20px);
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: rgba(0, 0, 0, 0.8);
             pointer-events: none;
+            filter: blur(5px);
         }
 
         .conversation-interface.active {
             display: block;
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translateY(0);
             pointer-events: auto;
+            filter: blur(0);
         }
 
         .user-message-container {
             position: absolute;
-            top: 30px;
-            left: 10px;
+            top: 5%;
+            left: 2%;
             width: 75%;
-            height: 200px;
+            height: 35%;
         }
 
         .user-message-area {
@@ -110,7 +113,7 @@
             background: #e3f2fd;
             border: 3px solid #2196f3;
             border-radius: 12px;
-            padding: 20px;
+            padding: 3%;
             box-sizing: border-box;
             overflow: hidden;
             pointer-events: auto;
@@ -118,10 +121,10 @@
 
         .user-message-label {
             position: absolute;
-            top: 50px;
-            right: -90px;
+            top: 15%;
+            right: -12%;
             text-align: center;
-            width: 80px;
+            width: 10%;
         }
 
         .user-message-label .emoji {
@@ -133,15 +136,15 @@
         .user-message-label .name {
             font-size: 24px;
             font-weight: bold;
-            color: #333;
+            color: #ffffff;
         }
 
         .ai-message-container {
             position: absolute;
-            bottom: 30px;
-            right: 10px;
+            bottom: 5%;
+            right: 2%;
             width: 75%;
-            height: 280px;
+            height: 45%;
         }
 
         .ai-message-area {
@@ -150,7 +153,7 @@
             background: #f3e5f5;
             border: 3px solid #9c27b0;
             border-radius: 12px;
-            padding: 20px;
+            padding: 3%;
             box-sizing: border-box;
             overflow: hidden;
             pointer-events: auto;
@@ -158,10 +161,10 @@
 
         .ai-message-label {
             position: absolute;
-            top: 50px;
-            left: -90px;
+            top: 15%;
+            left: -12%;
             text-align: center;
-            width: 80px;
+            width: 10%;
         }
 
         .ai-message-label .emoji {
@@ -173,7 +176,7 @@
         .ai-message-label .name {
             font-size: 24px;
             font-weight: bold;
-            color: #333;
+            color: #ffffff;
         }
 
         .message-content {
@@ -220,38 +223,46 @@
 
         .text-bubble {
             position: fixed;
-            top: 10px;
+            top: 2%;
             left: 5%;
             width: 90%;
-            height: 60px;
-            background: linear-gradient(135deg, rgba(240, 240, 240, 0.95) 0%, rgba(220, 220, 220, 0.95) 100%);
-            border: 2px solid #333333;
+            height: 8%;
+            background: linear-gradient(135deg, rgba(40, 40, 40, 0.95) 0%, rgba(60, 60, 60, 0.95) 100%);
+            border: 2px solid #666666;
             border-radius: 15px;
             padding: 0;
-            color: #333333;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            color: #ffffff;
+            box-shadow: 0 5px 20px rgba(255, 255, 255, 0.1);
             z-index: 8888;
             opacity: 0;
-            transform: translateY(-50px);
-            transition: all 0.4s ease;
+            transform: translateY(-80px) scale(0.8);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: none;
             overflow: hidden;
             -webkit-box-align: center;
             -ms-flex-align: center;
             align-items: center;
+            filter: blur(3px);
         }
 
         .text-bubble.show {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
             display: -webkit-box;
             display: -ms-flexbox;
             display: flex;
+            filter: blur(0);
+        }
+
+        .text-bubble.hide {
+            opacity: 0;
+            transform: translateY(-30px) scale(0.9);
+            filter: blur(2px);
         }
 
         .text-bubble .bubble-content {
             font-size: 24px;
-            color: #333333;
+            color: #ffffff;
             line-height: 1.2;
             padding: 0 20px;
             word-wrap: break-word;
@@ -267,9 +278,10 @@
             overflow: hidden;
         }
 
-        .video-container iframe {
+        .video-container video {
             width: 100%;
             height: 100%;
+            object-fit: cover;
             border: none;
             display: block;
             margin: 0;
@@ -278,13 +290,11 @@
             top: 0;
             left: 0;
             pointer-events: none;
-            /* prevent any UI/hover overlays */
         }
 
         .footer {
-            background: rgba(240, 240, 240, 0.9);
-            border: 1px solid #333333;
-            color: #333333;
+            background: rgba(40, 40, 40, 0.9);
+            color: #ffffff;
             border-radius: 8px;
             padding: 10px;
             text-align: center;
@@ -407,8 +417,9 @@
         }
 
         .footer img {
-            height: 40px;
+            height: 35px;
             vertical-align: middle;
+            margin-top: -5px;
         }
 
         /* Network activity indicator */
@@ -417,9 +428,7 @@
             top: 15px;
             left: 15px;
             font-size: 12px;
-            display: -webkit-box;
-            display: -ms-flexbox;
-            display: flex;
+            display: none;
             -webkit-box-align: center;
             -ms-flex-align: center;
             align-items: center;
@@ -438,7 +447,7 @@
         }
 
         .network-dot.active {
-            background: #333333;
+            background: #00ff00;
             animation: networkActive 0.5s infinite;
         }
 
@@ -469,7 +478,7 @@
             }
         }
 
-        /* City North pop up with modern animations */
+        /* City North image pop up */
         #cn-overlay {
             position: fixed;
             left: 50%;
@@ -495,6 +504,33 @@
             -webkit-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             -moz-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             -ms-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* City North video overlay */
+        #cn-video-overlay {
+            position: absolute;
+            top: 75px;
+            left: 10px;
+            right: 10px;
+            bottom: 60px;
+            z-index: 8888;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #cn-video-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #cn-video-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         #cn-overlay.show {
@@ -607,19 +643,20 @@
     <div class="container">
         <div class="header">
             <div class="network-activity">
-                <span class="network-dot" id="network-indicator"></span>
+                <div class="network-dot" id="network-indicator"></div>
                 <span id="network-status">OFFLINE</span>
             </div>
             <h1>Hi, I'm HAKU</h1>
-            <!-- <div class="subtitle">Real-time Activity Monitor</div> -->
-            <div class="robot-name" id="robot-name">HAKU</div>
+            <div class="robot-name" id="robot-name">Haku</div>
         </div>
 
         <div class="main-content">
             <div class="video-container" id="video-container">
-                <iframe src="https://www.youtube.com/embed/avs-mPoAUSE?autoplay=1&mute=1&loop=1&playlist=avs-mPoAUSE"
-                    allow="autoplay; encrypted-media" allowfullscreen>
-                </iframe>
+                <video autoplay muted loop playsinline>
+                    <source src="out_0p5x.mp4" type="video/mp4">
+                    <source src="out_0p5x.webm" type="video/webm">
+                    Your browser does not support the video tag.
+                </video>
             </div>
 
             <div class="conversation-interface" id="conversation-interface">
@@ -648,23 +685,19 @@
         <div class="text-bubble" id="text-bubble">
             <div class="bubble-content" id="bubble-content">Waiting for message...</div>
         </div>
-
-
-
-
-
-        <!-- 音频波形图 -->
-        <div class="audio-visualizer">
-            <div class="waveform" id="waveform">
-                <!-- 波形条将由JavaScript生成 -->
-            </div>
+        <div class="audio-visualizer" id="audio-visualizer" style="display: none;">
+            <div class="waveform" id="waveform"></div>
         </div>
-
         <div class="footer">
-            <img src="PB-RACE-BLUE-WIDE-1.svg" alt="Race Logo">
+            <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
         </div>
 
         <img id="cn-overlay" alt="City North">
+        <div id="cn-video-overlay" class="video-overlay">
+            <video id="cn-video" muted loop playsinline>
+                <source src="" type="video/mp4">
+            </video>
+        </div>
     </div>
     <script>
         (function () {
@@ -692,8 +725,11 @@
 
             // ---- City North 弹出动画控制 ----
             var cnOverlay = document.getElementById('cn-overlay')
+            var cnVideoOverlay = document.getElementById('cn-video-overlay')
+            var cnVideo = document.getElementById('cn-video')
             var particles = []
             var _cnBusy = 0
+            var _videoBusy = 0
             var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
 
             // 预加载图片
@@ -721,11 +757,35 @@
                 // 显示动画
                 cnOverlay.className = 'show'
 
-                console.log('City North popup shown with animation:', imageSrc)
+                console.log('City North image popup shown:', imageSrc)
 
                 // 5秒后自动隐藏
                 setTimeout(function () {
                     hideCityNorth()
+                }, 5000)
+            }
+
+            function showCityNorthVideo (videoSrc) {
+                if (_videoBusy || !cnVideoOverlay) return
+                _videoBusy = 1
+
+                // 设置视频源
+                if (!videoSrc) {
+                    videoSrc = 'Reworlding City North_noaudio.mp4'
+                }
+
+                cnVideo.src = videoSrc
+                cnVideo.currentTime = 0
+
+                // 显示视频覆盖层
+                cnVideoOverlay.className = 'show'
+                cnVideo.play()
+
+                console.log('City North video overlay shown:', videoSrc)
+
+                // 5秒后自动隐藏
+                setTimeout(function () {
+                    hideCityNorthVideo()
                 }, 5000)
             }
 
@@ -745,7 +805,26 @@
                     _cnBusy = 0
                 }, 400)
 
-                console.log('City North popup hidden with animation')
+                console.log('City North image popup hidden')
+            }
+
+            function hideCityNorthVideo () {
+                if (!cnVideoOverlay) return
+
+                // 停止视频播放
+                cnVideo.pause()
+                cnVideo.currentTime = 0
+
+                // 隐藏视频覆盖层
+                cnVideoOverlay.className = ''
+
+                // 重置状态
+                setTimeout(function () {
+                    cnVideo.src = ''
+                    _videoBusy = 0
+                }, 500)
+
+                console.log('City North video overlay hidden')
             }
 
             function createParticles () {
@@ -776,10 +855,16 @@
             // 暴露给外部调用
             window.showCityNorth = showCityNorth
             window.hideCityNorth = hideCityNorth
+            window.showCityNorthVideo = showCityNorthVideo
+            window.hideCityNorthVideo = hideCityNorthVideo
 
             // 检测关键词触发
             function maybeShowCityNorth () {
                 showCityNorth() // 不传参数，会随机选择图片
+            }
+
+            function maybeShowVideo () {
+                showCityNorthVideo() // 触发视频覆盖
             }
             function getParam (name) {
                 var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
@@ -830,8 +915,15 @@
                 var conversationInterface = document.getElementById('conversation-interface')
 
                 if (videoContainer && conversationInterface) {
-                    // videoContainer.style.display = 'none'
-                    conversationInterface.className = 'conversation-interface active'
+                    // 先显示元素
+                    conversationInterface.style.display = 'block'
+                    conversationInterface.className = 'conversation-interface'
+
+                    // 延迟一帧后开始动画
+                    setTimeout(function () {
+                        conversationInterface.className = 'conversation-interface active'
+                    }, 50)
+
                     conversationActive = true
 
                     // Clear any existing auto-return timer
@@ -849,7 +941,14 @@
                 var conversationInterface = document.getElementById('conversation-interface')
 
                 if (videoContainer && conversationInterface) {
+                    // 开始隐藏动画
                     conversationInterface.className = 'conversation-interface'
+
+                    // 动画完成后隐藏元素
+                    setTimeout(function () {
+                        conversationInterface.style.display = 'none'
+                    }, 500)
+
                     videoContainer.style.display = 'block'
                     conversationActive = false
 
@@ -929,9 +1028,18 @@
                     bubbleTimer = null
                 }
 
+                // 设置内容
                 bubbleContent.textContent = '👤 ' + content
                 bubbleContent.className = 'bubble-content'
-                textBubble.className = 'text-bubble show'
+
+                // 先显示元素但保持隐藏状态
+                textBubble.style.display = 'flex'
+                textBubble.className = 'text-bubble'
+
+                // 延迟一帧后开始动画
+                setTimeout(function () {
+                    textBubble.className = 'text-bubble show'
+                }, 50)
 
                 console.log('User bubble should be visible now')
 
@@ -939,7 +1047,11 @@
                 startWaveAnimation()
 
                 bubbleTimer = setTimeout(function () {
-                    textBubble.className = 'text-bubble'
+                    textBubble.className = 'text-bubble hide'
+                    setTimeout(function () {
+                        textBubble.style.display = 'none'
+                        textBubble.className = 'text-bubble'
+                    }, 600)
                     stopWaveAnimation()
                 }, 12000)
             }
@@ -994,6 +1106,7 @@
 
                     var probe = (currentAIResponse || content).toLowerCase()
                     if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
+                    if (probe.indexOf('video') > -1) { maybeShowVideo() }
                     if (isFinal === true) {
                         currentAIResponse = ''
                         currentAIResponseText = ''
@@ -1086,6 +1199,14 @@
                         }
                         if (msg.type === 'hide-city-north') {
                             hideCityNorth()
+                            return
+                        }
+                        if (msg.type === 'show-city-north-video') {
+                            showCityNorthVideo(msg.videoSrc)
+                            return
+                        }
+                        if (msg.type === 'hide-city-north-video') {
+                            hideCityNorthVideo()
                             return
                         }
 
@@ -1205,7 +1326,7 @@
                             var rand1 = Math.random()
                             var rand2 = Math.random()
                             var rand3 = Math.random()
-                            
+
                             // 混合不同的随机模式
                             var heightFactor
                             if (rand1 < 0.3) {
@@ -1218,7 +1339,7 @@
                                 // 40% 概率产生高高度
                                 heightFactor = 0.6 + Math.pow(rand2, 0.5) * 0.4
                             }
-                            
+
                             var height = minHeight + heightFactor * (maxHeight - minHeight)
                             var opacity = baseOpacity + rand3 * opacityRange
                         } else {
