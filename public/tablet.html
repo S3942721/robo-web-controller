@@ -506,32 +506,7 @@
             -ms-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* City North video overlay */
-        #cn-video-overlay {
-            position: absolute;
-            top: 75px;
-            left: 10px;
-            right: 10px;
-            bottom: 60px;
-            z-index: 8888;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-        }
 
-        #cn-video-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        #cn-video-overlay video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
 
         #cn-overlay.show {
             transform: translate(-50%, -50%) scale(1);
@@ -597,6 +572,33 @@
             z-index: -1;
         }
 
+        /* Video overlay */
+        #video-overlay {
+            position: absolute;
+            top: 75px;
+            left: 10px;
+            right: 10px;
+            bottom: 60px;
+            z-index: 8888;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #video-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #video-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         /* Floating particles effect */
         .particle {
             position: absolute;
@@ -653,8 +655,8 @@
         <div class="main-content">
             <div class="video-container" id="video-container">
                 <video autoplay muted loop playsinline>
-                    <source src="out_0p5x.mp4" type="video/mp4">
-                    <source src="out_0p5x.webm" type="video/webm">
+                    <source src="test1.mp4" type="video/mp4">
+                    <source src="test1.webm" type="video/webm">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -693,9 +695,9 @@
         </div>
 
         <img id="cn-overlay" alt="City North">
-        <div id="cn-video-overlay" class="video-overlay">
-            <video id="cn-video" muted loop playsinline>
-                <source src="" type="video/mp4">
+        <div id="video-overlay" class="video-overlay">
+            <video id="overlay-video" muted loop playsinline>
+                <source src="audio.mp4" type="video/mp4">
             </video>
         </div>
     </div>
@@ -725,12 +727,14 @@
 
             // ---- City North 弹出动画控制 ----
             var cnOverlay = document.getElementById('cn-overlay')
-            var cnVideoOverlay = document.getElementById('cn-video-overlay')
-            var cnVideo = document.getElementById('cn-video')
             var particles = []
             var _cnBusy = 0
-            var _videoBusy = 0
             var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
+
+            // ---- Video overlay 控制 ----
+            var videoOverlay = document.getElementById('video-overlay')
+            var overlayVideo = document.getElementById('overlay-video')
+            var _videoBusy = 0
 
             // 预加载图片
             for (var i = 0; i < CN_IMAGES.length; i++) {
@@ -757,7 +761,7 @@
                 // 显示动画
                 cnOverlay.className = 'show'
 
-                console.log('City North image popup shown:', imageSrc)
+                console.log('City North popup shown with animation:', imageSrc)
 
                 // 5秒后自动隐藏
                 setTimeout(function () {
@@ -765,29 +769,7 @@
                 }, 5000)
             }
 
-            function showCityNorthVideo (videoSrc) {
-                if (_videoBusy || !cnVideoOverlay) return
-                _videoBusy = 1
 
-                // 设置视频源
-                if (!videoSrc) {
-                    videoSrc = 'Reworlding City North_noaudio.mp4'
-                }
-
-                cnVideo.src = videoSrc
-                cnVideo.currentTime = 0
-
-                // 显示视频覆盖层
-                cnVideoOverlay.className = 'show'
-                cnVideo.play()
-
-                console.log('City North video overlay shown:', videoSrc)
-
-                // 5秒后自动隐藏
-                setTimeout(function () {
-                    hideCityNorthVideo()
-                }, 5000)
-            }
 
             function hideCityNorth () {
                 if (!cnOverlay) return
@@ -805,27 +787,10 @@
                     _cnBusy = 0
                 }, 400)
 
-                console.log('City North image popup hidden')
+                console.log('City North popup hidden with animation')
             }
 
-            function hideCityNorthVideo () {
-                if (!cnVideoOverlay) return
 
-                // 停止视频播放
-                cnVideo.pause()
-                cnVideo.currentTime = 0
-
-                // 隐藏视频覆盖层
-                cnVideoOverlay.className = ''
-
-                // 重置状态
-                setTimeout(function () {
-                    cnVideo.src = ''
-                    _videoBusy = 0
-                }, 500)
-
-                console.log('City North video overlay hidden')
-            }
 
             function createParticles () {
                 var container = document.querySelector('.container')
@@ -852,19 +817,48 @@
                 particles = []
             }
 
+            function showVideo () {
+                if (_videoBusy || !videoOverlay) return
+                _videoBusy = 1
+
+                overlayVideo.currentTime = 0
+                videoOverlay.className = 'show'
+                overlayVideo.play()
+
+                console.log('Video overlay shown')
+
+                setTimeout(function () {
+                    hideVideo()
+                }, 5000)
+            }
+
+            function hideVideo () {
+                if (!videoOverlay) return
+
+                overlayVideo.pause()
+                overlayVideo.currentTime = 0
+                videoOverlay.className = ''
+
+                setTimeout(function () {
+                    _videoBusy = 0
+                }, 500)
+
+                console.log('Video overlay hidden')
+            }
+
             // 暴露给外部调用
             window.showCityNorth = showCityNorth
             window.hideCityNorth = hideCityNorth
-            window.showCityNorthVideo = showCityNorthVideo
-            window.hideCityNorthVideo = hideCityNorthVideo
+            window.showVideo = showVideo
+            window.hideVideo = hideVideo
 
             // 检测关键词触发
             function maybeShowCityNorth () {
-                showCityNorth() // 不传参数，会随机选择图片
+                showCityNorth()
             }
 
             function maybeShowVideo () {
-                showCityNorthVideo() // 触发视频覆盖
+                showVideo()
             }
             function getParam (name) {
                 var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
@@ -1105,8 +1099,11 @@
                     }
 
                     var probe = (currentAIResponse || content).toLowerCase()
-                    if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
-                    if (probe.indexOf('video') > -1) { maybeShowVideo() }
+                    if (probe.indexOf('video') > -1) {
+                        maybeShowVideo()
+                    } else if (probe.indexOf('city north') > -1) {
+                        maybeShowCityNorth()
+                    }
                     if (isFinal === true) {
                         currentAIResponse = ''
                         currentAIResponseText = ''
@@ -1199,14 +1196,6 @@
                         }
                         if (msg.type === 'hide-city-north') {
                             hideCityNorth()
-                            return
-                        }
-                        if (msg.type === 'show-city-north-video') {
-                            showCityNorthVideo(msg.videoSrc)
-                            return
-                        }
-                        if (msg.type === 'hide-city-north-video') {
-                            hideCityNorthVideo()
                             return
                         }
 
