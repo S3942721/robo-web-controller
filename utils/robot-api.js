@@ -886,19 +886,22 @@ class RobotAPI extends EventEmitter {
         // Only update sttPaused if the STT server is actually in running state
         // This prevents race conditions where we set sttPaused=true but server is already paused
         if (this.sttState.actualState === 'running') {
-        this.sttPaused = true;
-        this.sttState.expectedState = 'paused';
-        return this.sendSTTCommand('pause');
+            this.sttPaused = true;
+            this.sttState.expectedState = 'paused';
+            this.sttState.syncRetries = 0; // Reset retries for new command
+            return this.sendSTTCommand('pause');
         } else if (this.sttState.actualState === 'paused') {
             // Server is already paused, just update our internal state
             console.log('[RobotAPI] ✅ STT server already paused, updating internal state');
             this.sttPaused = true;
             this.sttState.expectedState = 'paused';
+            this.sttState.syncRetries = 0; // States are aligned
             return true;
         } else {
             // Server state unknown, send pause command but don't set sttPaused yet
             console.log('[RobotAPI] ⚠️ STT server state unknown, sending pause command');
             this.sttState.expectedState = 'paused';
+            this.sttState.syncRetries = 0; // Reset retries for new command
             return this.sendSTTCommand('pause');
         }
     }
@@ -911,19 +914,22 @@ class RobotAPI extends EventEmitter {
         
         // Only update sttPaused if the STT server is actually in paused state  
         if (this.sttState.actualState === 'paused') {
-        this.sttPaused = false;
-        this.sttState.expectedState = 'running';
-        return this.sendSTTCommand('resume');
+            this.sttPaused = false;
+            this.sttState.expectedState = 'running';
+            this.sttState.syncRetries = 0; // Reset retries for new command
+            return this.sendSTTCommand('resume');
         } else if (this.sttState.actualState === 'running') {
             // Server is already running, just update our internal state
             console.log('[RobotAPI] ✅ STT server already running, updating internal state');
             this.sttPaused = false;
             this.sttState.expectedState = 'running';
+            this.sttState.syncRetries = 0; // States are aligned
             return true;
         } else {
             // Server state unknown, send resume command but don't set sttPaused yet
             console.log('[RobotAPI] ⚠️ STT server state unknown, sending resume command');
             this.sttState.expectedState = 'running';
+            this.sttState.syncRetries = 0; // Reset retries for new command
             return this.sendSTTCommand('resume');
         }
     }
@@ -983,11 +989,28 @@ class RobotAPI extends EventEmitter {
         // Check if state sync is needed
         if (this.sttState.expectedState !== this.sttState.actualState) {
             console.log(`[RobotAPI] 🔄 STT state mismatch - expected: ${this.sttState.expectedState}, actual: ${this.sttState.actualState}`);
+            
+            // Check if enough time has passed since last sync attempt to avoid spam
+            const timeSinceLastSync = this.sttState.lastStateSync ? (now - this.sttState.lastStateSync) : Infinity;
+            const MIN_SYNC_INTERVAL = 2000; // Minimum 2 seconds between sync attempts
+            
+            if (timeSinceLastSync < MIN_SYNC_INTERVAL) {
+                console.log(`[RobotAPI] ⏳ Waiting for sync cooldown (${MIN_SYNC_INTERVAL - timeSinceLastSync}ms remaining)`);
+                return;
+            }
+            
             if (this.sttState.syncRetries < this.sttState.maxSyncRetries) {
                 this.syncSTTState();
             } else {
-                console.error('[RobotAPI] ❌ STT state sync failed after max retries');
+                console.error('[RobotAPI] ❌ STT state sync failed after max retries - resetting retry counter and trying once more');
+                // Reset retry counter to give it another chance, but only after a longer delay
+                this.sttState.syncRetries = 0;
+                this.sttState.lastStateSync = now + 5000; // Wait 5 seconds before trying again
             }
+        } else if (this.sttState.syncRetries > 0) {
+            // States match - reset retry counter
+            this.sttState.syncRetries = 0;
+            console.log(`[RobotAPI] ✅ STT state synchronized: ${this.sttState.actualState}`);
         }
     }
     
@@ -1050,6 +1073,7 @@ class RobotAPI extends EventEmitter {
                         // Server started in a processing state, align with it
                         console.log(`[RobotAPI] 🔄 Aligning expected state with server state: ${message.status}`);
                         this.sttState.expectedState = message.status;
+                        this.sttState.syncRetries = 0; // Reset retries for initial alignment
                         
                         // Check if we need to change the state for turn-taking reasons
                         const anyRobotSpeaking = Array.from(this.detailedRobotStatus.values()).some(status => status.speaking);
@@ -1072,16 +1096,32 @@ class RobotAPI extends EventEmitter {
                         return;
                     }
                     
+                    // Check if this state update resolves our expected state
                     if (this.sttState.expectedState === this.sttState.actualState) {
+                        if (this.sttState.syncRetries > 0) {
+                            console.log(`[RobotAPI] ✅ STT state synchronized after ${this.sttState.syncRetries} attempts: ${message.status}`);
+                        } else {
+                            console.log(`[RobotAPI] ✅ STT state confirmed: ${message.status}`);
+                        }
                         this.sttState.syncRetries = 0;
-                        console.log(`[RobotAPI] ✅ STT state synchronized: ${message.status}`);
                     } else {
-                        console.log(`[RobotAPI] 🔄 STT state mismatch - expected: ${this.sttState.expectedState}, actual: ${message.status}`);
+                        console.log(`[RobotAPI] 🔄 STT state mismatch persists - expected: ${this.sttState.expectedState}, actual: ${message.status}`);
+                        
+                        // If we're in the middle of syncing, be more patient
+                        if (this.sttState.syncRetries > 0) {
+                            const timeSinceLastSync = this.sttState.lastStateSync ? (Date.now() - this.sttState.lastStateSync) : Infinity;
+                            if (timeSinceLastSync < 3000) { // Give 3 seconds for sync to complete
+                                console.log(`[RobotAPI] ⏳ Recent sync in progress, waiting for completion...`);
+                                return;
+                            }
+                        }
                     }
                 }
             }
         } else if (message.type === 'command_ack') {
             console.log(`[RobotAPI] ✅ STT command acknowledged: ${message.action}`);
+            // Command was received, but state might not have changed yet
+            // Don't reset retries here, wait for actual state change
         } else if (message.type === 'pong' || (message.type === 'status' && message.healthCheck)) {
             // Health check response
             this.sttState.lastHealthCheck = Date.now();
@@ -1649,10 +1689,21 @@ class RobotAPI extends EventEmitter {
                 return; // Ignore the message
             }
             
-            // Broadcast user input to tablet displays for both partial and complete transcripts
+            // Only broadcast user input to tablet displays if LLM is active or robots are speaking
             if ((message.type === 'complete' || message.type === 'partial') && message.text && message.text.trim() && this.broadcastLLMCommunication) {
-                console.log(`[RobotAPI] 📢 Broadcasting user input to tablet: "${message.text}" (type: ${message.type})`);
-                this.broadcastLLMCommunication('llm-user-input', message.text, 'Haku');
+                const activeLLMSessions = this.llmActiveSessions.size > 0;
+                const anyRobotSpeaking = Array.from(this.detailedRobotStatus.values()).some(status => status.speaking);
+                
+                console.log(`[RobotAPI] 🔍 STT broadcast check - LLM sessions: ${activeLLMSessions} (${Array.from(this.llmActiveSessions).join(', ')}), robot speaking: ${anyRobotSpeaking}, message: "${message.text?.substring(0, 30)}"`);
+                
+                if (activeLLMSessions || anyRobotSpeaking) {
+                    console.log(`[RobotAPI] 📢 Broadcasting user input to tablet: "${message.text}" (type: ${message.type}) - LLM active: ${activeLLMSessions}, robot speaking: ${anyRobotSpeaking}`);
+                    this.broadcastLLMCommunication('llm-user-input', message.text, 'Haku');
+                } else {
+                    console.log(`[RobotAPI] 🔇 Skipping tablet broadcast - no active LLM sessions or speaking robots`);
+                }
+            } else if ((message.type === 'complete' || message.type === 'partial') && message.text && message.text.trim()) {
+                console.log(`[RobotAPI] 🚫 No broadcastLLMCommunication function available`);
             }
         }
         

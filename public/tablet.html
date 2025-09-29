@@ -649,9 +649,10 @@
 
         <div class="main-content">
             <div class="video-container" id="video-container">
+                <!-- <img src="http://198.18.0.1:3000/a.jpg"></img> -->
                 <video autoplay muted loop playsinline>
-                    <source src="out_0p5x.mp4" type="video/mp4">
-                    <source src="out_0p5x.webm" type="video/webm">
+                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.mp4" type="video/mp4">
+                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.webm" type="video/webm">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -726,28 +727,26 @@
                 }
             })
 
-            // ---- City North 弹出动画控制 ----
+            // ---- City North ----
             var cnOverlays = {
-                'a.jpg': document.getElementById('cn-overlay-a'),
-                'b.jpg': document.getElementById('cn-overlay-b'),
-                'c.jpg': document.getElementById('cn-overlay-c')
+                'http://198.18.0.1:3000/a.jpg': document.getElementById('cn-overlay-a'),
+                'http://198.18.0.1:3000/b.jpg': document.getElementById('cn-overlay-b'),
+                'http://198.18.0.1:3000/c.jpg': document.getElementById('cn-overlay-c')
             }
             var particles = []
             var _cnBusy = 0
             var currentOverlay = null
-            var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
+            var CN_IMAGES = ['http://198.18.0.1:3000/a.jpg', 'http://198.18.0.1:3000/b.jpg', 'http://198.18.0.1:3000/c.jpg']
 
             function showCityNorth (imageSrc) {
                 if (_cnBusy) return
                 _cnBusy = 1
 
-                // 如果没有指定图片，随机选择一个
+                // If no image source is provided, use a default one
                 if (!imageSrc) {
-                    var randomIndex = Math.floor(Math.random() * CN_IMAGES.length)
-                    imageSrc = CN_IMAGES[randomIndex]
+                    imageSrc = 'http://198.18.0.1:3000/a.jpg';
                 }
 
-                // 获取对应的图片元素
                 var overlay = cnOverlays[imageSrc]
                 if (!overlay) {
                     console.error('City North image not found:', imageSrc)
@@ -757,15 +756,12 @@
 
                 currentOverlay = overlay
 
-                // 创建浮动粒子
                 createParticles()
 
-                // 显示动画
                 overlay.className = 'cn-overlay-img show'
 
                 console.log('City North popup shown with animation:', imageSrc)
 
-                // 5秒后自动隐藏
                 setTimeout(function () {
                     hideCityNorth()
                 }, 5000)
@@ -1084,6 +1080,9 @@
                 console.log('updateLLMDisplay called:', type, content ? content.substring(0, 50) : 'empty', isChunk, isFinal)
                 if (!content) content = ''
 
+                // Show the City North image popup for any text received
+                showCityNorth();
+
                 if (type === 'user') {
                     currentAIResponse = ''
                     currentAIResponseText = ''
@@ -1229,6 +1228,18 @@
                         }
                         if (msg.cmd === 'video-stop') {
                             hideVideoOverlay()
+                        }
+                        if (msg.type === 'show-city-north-video') {
+                            showCityNorthVideo(msg.videoSrc)
+                            return
+                        }
+                        if (msg.type === 'hide-city-north-video') {
+                            hideCityNorthVideo()
+                        }
+
+                        // Text bubble control (TODO)
+                        if (msg.type === 'robot-status-update') {
+                            // TODO: Handle if converstation active - should we display text bubble or not?
                             return
                         }
 
