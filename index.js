@@ -384,6 +384,16 @@ app.ws('/api/sync', (ws, req)=>{
 					// Use Robot API instead of direct socket calls
 					robotAPI.sendMessage({ cmd, type, message, robot }, robot);
 					break;
+				case 'play-video':
+					// Broadcast video play event to all tablets
+					syncWSWithAll('video-play', { robot });
+					console.log(`[WebSocket] Broadcasting video play to ${robot}`);
+					break;
+				case 'stop-video':
+					// Broadcast video stop event to all tablets
+					syncWSWithAll('video-stop', { robot });
+					console.log(`[WebSocket] Broadcasting video stop to ${robot}`);
+					break;
 				default:
 					console.log(`[WebSocket] Unknown command: ${cmd}`);
 			}
@@ -1718,6 +1728,34 @@ router.post("/api/test-llm-broadcast", (req, res) => {
         type: type,
         content: content,
         robot: targetRobot,
+        connections: sendWebSockets.length
+    });
+});
+
+// Video control endpoints
+router.post("/api/video/play", (req, res) => {
+    const { robot } = req.body;
+    
+    syncWSWithAll('video-play', { robot: robot || 'Haku' });
+    
+    res.status(200).json({ 
+        success: true, 
+        message: 'Video play command sent',
+        robot: robot || 'Haku',
+        connections: sendWebSockets.length
+    });
+});
+
+router.post("/api/video/stop", (req, res) => {
+    const { robot } = req.body;
+    
+    syncWSWithAll('video-stop', { robot: robot || 'Haku' });
+    
+    
+    res.status(200).json({ 
+        success: true, 
+        message: 'Video stop command sent',
+        robot: robot || 'Haku',
         connections: sendWebSockets.length
     });
 });
