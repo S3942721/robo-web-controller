@@ -84,19 +84,14 @@
             right: 0;
             bottom: 0;
             opacity: 0;
-            transform: scale(0.85) translateY(20px);
-            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             background: rgba(0, 0, 0, 0.8);
             pointer-events: none;
-            filter: blur(5px);
         }
 
         .conversation-interface.active {
             display: block;
             opacity: 1;
-            transform: scale(1) translateY(0);
             pointer-events: auto;
-            filter: blur(0);
         }
 
         .user-message-container {
@@ -227,46 +222,37 @@
             left: 5%;
             width: 90%;
             height: 8%;
-            background: linear-gradient(135deg, rgba(40, 40, 40, 0.95) 0%, rgba(60, 60, 60, 0.95) 100%);
+            background: rgba(50, 50, 50, 0.95);
             border: 2px solid #666666;
             border-radius: 15px;
             padding: 0;
             color: #ffffff;
-            box-shadow: 0 5px 20px rgba(255, 255, 255, 0.1);
-            z-index: 8888;
+            z-index: 999999;
+            isolation: isolate;
+            will-change: opacity;
             opacity: 0;
-            transform: translateY(-80px) scale(0.8);
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: none;
             overflow: hidden;
-            -webkit-box-align: center;
-            -ms-flex-align: center;
-            align-items: center;
-            filter: blur(3px);
+            text-align: center;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
         }
 
         .text-bubble.show {
             opacity: 1;
-            transform: translateY(0) scale(1);
-            display: -webkit-box;
-            display: -ms-flexbox;
-            display: flex;
-            filter: blur(0);
+            display: block;
         }
 
         .text-bubble.hide {
             opacity: 0;
-            transform: translateY(-30px) scale(0.9);
-            filter: blur(2px);
         }
 
         .text-bubble .bubble-content {
             font-size: 24px;
             color: #ffffff;
             line-height: 1.2;
-            padding: 0 20px;
+            padding: 20px;
             word-wrap: break-word;
-            overflow-wrap: break-word;
             white-space: normal;
             text-align: center;
         }
@@ -276,14 +262,15 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            display: block;
+            z-index: -1;
         }
 
         .video-container video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
             border: none;
-            display: block;
+            display: block !important;
             margin: 0;
             padding: 0;
             position: absolute;
@@ -309,112 +296,7 @@
             line-height: 30px;
         }
 
-        /* 音频波形图 */
-        .audio-visualizer {
-            position: absolute;
-            bottom: 80px;
-            left: 10px;
-            right: 10px;
-            height: 120px;
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
-            border: 2px solid rgba(148, 163, 184, 0.3);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
 
-        .waveform {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            width: 100%;
-            gap: 3px;
-            padding: 0 20px;
-        }
-
-        .bar {
-            width: 8px;
-            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%);
-            border-radius: 4px;
-            animation: wave 1.8s ease-in-out infinite;
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        @keyframes wave {
-
-            0%,
-            100% {
-                height: 12px;
-                opacity: 0.6;
-                transform: scaleY(1);
-            }
-
-            50% {
-                height: 70px;
-                opacity: 1;
-                transform: scaleY(1.1);
-            }
-        }
-
-        @keyframes waveIntense {
-
-            0%,
-            100% {
-                height: 8px;
-                opacity: 0.8;
-                transform: scaleY(1);
-            }
-
-            25% {
-                height: 95px;
-                opacity: 1;
-                transform: scaleY(1.2);
-            }
-
-            50% {
-                height: 50px;
-                opacity: 0.9;
-                transform: scaleY(1.1);
-            }
-
-            75% {
-                height: 110px;
-                opacity: 1;
-                transform: scaleY(1.3);
-            }
-        }
-
-        .bar.intense {
-            animation: waveIntense 0.6s ease-in-out infinite;
-            background: linear-gradient(180deg, #f59e0b 0%, #d97706 30%, #dc2626 60%, #b91c1c 100%);
-            box-shadow: 0 0 12px rgba(245, 158, 11, 0.5), 0 0 24px rgba(220, 38, 38, 0.3);
-        }
-
-        .bar:nth-child(odd) {
-            animation-delay: -0.2s;
-        }
-
-        .bar:nth-child(even) {
-            animation-delay: -0.4s;
-        }
-
-        .bar:nth-child(3n) {
-            animation-delay: -0.6s;
-        }
-
-        .bar:nth-child(4n) {
-            animation-delay: -0.8s;
-        }
-
-        .bar:nth-child(5n) {
-            animation-delay: -1s;
-        }
 
         .footer img {
             height: 35px;
@@ -483,155 +365,27 @@
             position: fixed;
             left: 50%;
             top: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            -webkit-transform: translate(-50%, -50%) scale(0);
-            -moz-transform: translate(-50%, -50%) scale(0);
-            -ms-transform: translate(-50%, -50%) scale(0);
-            width: 120vw;
-            max-width: 960px;
-            max-height: 140vh;
-            object-fit: contain;
+            margin-left: -480px;
+            margin-top: -360px;
+            width: 960px;
+            height: 720px;
             border: 2px solid #E60028;
             border-radius: 12px;
-            box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
-                0 0 80px rgba(230, 0, 40, 0.4),
-                inset 0 0 20px rgba(230, 0, 40, 0.1);
-            background: linear-gradient(135deg, #000 0%, #1a0000 50%, #000 100%);
-            z-index: 9999;
+            background: #000000;
+            z-index: 9999999;
+            isolation: isolate;
             opacity: 0;
             pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            -webkit-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            -moz-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            -ms-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: none;
         }
 
         .cn-overlay-img.show {
-            transform: translate(-50%, -50%) scale(1);
-            -webkit-transform: translate(-50%, -50%) scale(1);
-            -moz-transform: translate(-50%, -50%) scale(1);
-            -ms-transform: translate(-50%, -50%) scale(1);
+            display: block;
             opacity: 1;
-            animation: pulseGlow 2s ease-in-out infinite alternate;
-            -webkit-animation: pulseGlow 2s ease-in-out infinite alternate;
         }
 
         .cn-overlay-img.hide {
-            transform: translate(-50%, -50%) scale(0) rotate(180deg);
-            -webkit-transform: translate(-50%, -50%) scale(0) rotate(180deg);
-            -moz-transform: translate(-50%, -50%) scale(0) rotate(180deg);
-            -ms-transform: translate(-50%, -50%) scale(0) rotate(180deg);
             opacity: 0;
-        }
-
-        @keyframes pulseGlow {
-            0% {
-                box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
-                    0 0 80px rgba(230, 0, 40, 0.4),
-                    inset 0 0 20px rgba(230, 0, 40, 0.1);
-                border-color: #E60028;
-            }
-
-            100% {
-                box-shadow: 0 0 60px rgba(230, 0, 40, 1),
-                    0 0 120px rgba(230, 0, 40, 0.6),
-                    inset 0 0 30px rgba(230, 0, 40, 0.2);
-                border-color: #ff1a4d;
-            }
-        }
-
-        @-webkit-keyframes pulseGlow {
-            0% {
-                box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
-                    0 0 80px rgba(230, 0, 40, 0.4),
-                    inset 0 0 20px rgba(230, 0, 40, 0.1);
-                border-color: #E60028;
-            }
-
-            100% {
-                box-shadow: 0 0 60px rgba(230, 0, 40, 1),
-                    0 0 120px rgba(230, 0, 40, 0.6),
-                    inset 0 0 30px rgba(230, 0, 40, 0.2);
-                border-color: #ff1a4d;
-            }
-        }
-
-        /* Backdrop blur effect */
-        .cn-overlay-img::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            z-index: -1;
-        }
-
-        /* Floating particles effect */
-        .particle {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: #E60028;
-            border-radius: 50%;
-            pointer-events: none;
-            animation: float 3s ease-in-out infinite;
-            -webkit-animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0px) rotate(0deg);
-                opacity: 0;
-            }
-
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-                opacity: 1;
-            }
-        }
-
-        @-webkit-keyframes float {
-
-            0%,
-            100% {
-                -webkit-transform: translateY(0px) rotate(0deg);
-                opacity: 0;
-            }
-
-            50% {
-                -webkit-transform: translateY(-20px) rotate(180deg);
-                opacity: 1;
-            }
-        }
-        
-        /* Video Overlay */
-        .video-overlay {
-            position: fixed;
-            top: 75px;
-            left: 10px;
-            right: 10px;
-            bottom: 60px;
-            background: #000;
-            z-index: 9998;
-            display: none;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        .video-overlay.show {
-            display: block;
-        }
-        
-        .video-overlay video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
         }
     </style>
 </head>
@@ -683,25 +437,17 @@
         <div class="text-bubble" id="text-bubble">
             <div class="bubble-content" id="bubble-content">Waiting for message...</div>
         </div>
-        <div class="audio-visualizer" id="audio-visualizer" style="display: none;">
-            <div class="waveform" id="waveform"></div>
-        </div>
+
         <div class="footer">
             <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
         </div>
 
         <!-- Preloaded City North Images -->
-        <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
-        <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
-        <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
-        
-        <!-- Preloaded Video Overlay -->
-        <div id="video-overlay" class="video-overlay">
-            <video id="overlay-video" autoplay controls preload="auto">
-                <source src="video.mp4" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-        </div>
+        <img id="cn-overlay-a" src="http://198.18.0.1:3000/a.jpg" alt="City North A" class="cn-overlay-img">
+        <img id="cn-overlay-b" src="http://198.18.0.1:3000/b.jpg" alt="City North B" class="cn-overlay-img">
+        <img id="cn-overlay-c" src="http://198.18.0.1:3000/c.jpg" alt="City North C" class="cn-overlay-img">
+
+
     </div>
     <script>
         (function () {
@@ -727,6 +473,41 @@
                 }
             })
 
+            // ---- preload & safe show/hide helpers ----
+            var ASSETS = {
+                images: [
+                    'http://198.18.0.1:3000/a.jpg',
+                    'http://198.18.0.1:3000/b.jpg',
+                    'http://198.18.0.1:3000/c.jpg'
+                ],
+
+            }
+            var ready = { images: {} }
+
+            function preloadAssets () {
+                ASSETS.images.forEach(function (src) {
+                    var img = new Image()
+                    img.onload = function () { ready.images[src] = true }
+                    img.onerror = function () { ready.images[src] = false }
+                    img.src = src
+                })
+
+            }
+            preloadAssets()
+
+            function showEl (el, showClass) {
+                if (!el) return
+                el.style.removeProperty('display')
+                el.classList.remove('hide')
+                el.classList.add(showClass || 'show')
+            }
+            function hideEl (el) {
+                if (!el) return
+                el.classList.remove('show')
+                el.classList.add('hide')
+                setTimeout(function () { el.classList.remove('hide') }, 400) // 结束后回到基础类
+            }
+
             // ---- City North ----
             var cnOverlays = {
                 'http://198.18.0.1:3000/a.jpg': document.getElementById('cn-overlay-a'),
@@ -742,59 +523,33 @@
                 if (_cnBusy) return
                 _cnBusy = 1
 
-                // If no image source is provided, use a default one
-                if (!imageSrc) {
-                    imageSrc = 'http://198.18.0.1:3000/a.jpg';
-                }
+                var src = imageSrc || 'http://198.18.0.1:3000/a.jpg'
+                var overlay = cnOverlays[src]
+                if (!overlay) { console.error('City North image not found:', src); _cnBusy = 0; return }
 
-                var overlay = cnOverlays[imageSrc]
-                if (!overlay) {
-                    console.error('City North image not found:', imageSrc)
-                    _cnBusy = 0
-                    return
-                }
-
-                currentOverlay = overlay
-
-                createParticles()
-
-                overlay.className = 'cn-overlay-img show'
-
-                console.log('City North popup shown with animation:', imageSrc)
-
-                setTimeout(function () {
-                    hideCityNorth()
-                }, 5000)
+                var tries = 0;
+                (function waitReady () {
+                    if (ready.images[src] || tries > 10) {
+                        currentOverlay = overlay
+                        showEl(currentOverlay, 'show')
+                        setTimeout(hideCityNorth, 10000)
+                    } else {
+                        tries++; setTimeout(waitReady, 100)
+                    }
+                })()
             }
 
             function hideCityNorth () {
-                if (!currentOverlay) return
-
-                // 隐藏动画
-                currentOverlay.className = 'cn-overlay-img hide'
-
-                // 清理粒子
-                clearParticles()
-
-                // 动画完成后重置
-                setTimeout(function () {
-                    if (currentOverlay) {
-                        currentOverlay.className = 'cn-overlay-img'
-                    }
-                    currentOverlay = null
-                    _cnBusy = 0
-                }, 400)
-
-                console.log('City North popup hidden with animation')
+                if (!currentOverlay) { _cnBusy = 0; return }
+                hideEl(currentOverlay)
+                currentOverlay = null
+                _cnBusy = 0
             }
-
-
 
             function createParticles () {
                 var container = document.querySelector('.container')
                 if (!container) return
 
-                // 创建10个粒子
                 for (var i = 0; i < 10; i++) {
                     var particle = document.createElement('div')
                     particle.className = 'particle'
@@ -815,71 +570,73 @@
                 particles = []
             }
 
-
-
-            // 暴露给外部调用
             window.showCityNorth = showCityNorth
             window.hideCityNorth = hideCityNorth
-            
-            // ---- Video Overlay Control ----
-            var videoOverlay = document.getElementById('video-overlay')
-            var overlayVideo = document.getElementById('overlay-video')
-            var videoTimer = null
-            
-            function showVideoOverlay() {
-                if (!videoOverlay || !overlayVideo) return
-                
-                // 清除之前的定时器
-                if (videoTimer) {
-                    clearTimeout(videoTimer)
-                    videoTimer = null
+
+            // ---- Tablet Video Control ----
+            var backgroundVideo = null
+            var originalVideoSrc = ''
+
+            function playTabletVideo (videoUrl) {
+                var videoContainer = document.getElementById('video-container')
+                if (!videoContainer) return
+
+                var video = videoContainer.querySelector('video')
+                if (!video) return
+
+                // Store original video source if not already stored
+                if (!originalVideoSrc) {
+                    var source = video.querySelector('source')
+                    if (source) {
+                        originalVideoSrc = source.src
+                    }
                 }
-                
-                videoOverlay.className = 'video-overlay show'
-                overlayVideo.currentTime = 0
-                
-                // 确保视频播放
-                var playPromise = overlayVideo.play()
-                if (playPromise !== undefined) {
-                    playPromise.then(function() {
-                        console.log('Video started playing')
-                    }).catch(function(error) {
-                        console.error('Video play failed:', error)
+
+                console.log('Playing tablet video:', videoUrl)
+
+                // Replace video source
+                video.pause()
+                var source = video.querySelector('source')
+                if (source) {
+                    source.src = videoUrl || 'http://198.18.0.1:3000/video.mp4'
+                } else {
+                    video.src = videoUrl || 'http://198.18.0.1:3000/video.mp4'
+                }
+
+                video.load()
+                video.play().catch(function (error) {
+                    console.error('Error playing video:', error)
+                })
+            }
+
+            function stopTabletVideo () {
+                var videoContainer = document.getElementById('video-container')
+                if (!videoContainer) return
+
+                var video = videoContainer.querySelector('video')
+                if (!video) return
+
+                console.log('Stopping tablet video, restoring original')
+
+                // Restore original video source
+                video.pause()
+                if (originalVideoSrc) {
+                    var source = video.querySelector('source')
+                    if (source) {
+                        source.src = originalVideoSrc
+                    } else {
+                        video.src = originalVideoSrc
+                    }
+                    video.load()
+                    video.play().catch(function (error) {
+                        console.error('Error restoring video:', error)
                     })
                 }
-                
-                console.log('Video overlay shown')
-                
-                // 8秒后自动隐藏
-                videoTimer = setTimeout(function() {
-                    hideVideoOverlay()
-                }, 8000)
             }
-            
-            function hideVideoOverlay() {
-                if (!videoOverlay || !overlayVideo) return
-                
-                // 清除定时器
-                if (videoTimer) {
-                    clearTimeout(videoTimer)
-                    videoTimer = null
-                }
-                
-                videoOverlay.className = 'video-overlay'
-                overlayVideo.pause()
-                overlayVideo.currentTime = 0
-                
-                console.log('Video overlay hidden')
-            }
-            
-            // 暴露给外部调用
-            window.showVideoOverlay = showVideoOverlay
-            window.hideVideoOverlay = hideVideoOverlay
 
-            // 检测关键词触发
-            function maybeShowCityNorth () {
-                showCityNorth()
-            }
+            window.playTabletVideo = playTabletVideo
+            window.stopTabletVideo = stopTabletVideo
+
 
 
             function getParam (name) {
@@ -912,7 +669,7 @@
                 xhr('POST', abs('/api/robot-tablet/heartbeat'), JSON.stringify({ robot: robot, tag: tag || 'tick' }), function () { })
             }
 
-            // ---- 文本气泡显示 ----
+            // ---- textBubble ----
             var textBubble = document.getElementById('text-bubble')
             var bubbleContent = document.getElementById('bubble-content')
 
@@ -922,20 +679,16 @@
             var conversationHistory = []
             var currentAIResponseText = ''
             var inactivityTimer = null
-            var waveformBars = []
-            var waveAnimationTimer = null
-            var waveAnimationMode = 'idle'
+
 
             function showConversationInterface () {
                 var videoContainer = document.getElementById('video-container')
                 var conversationInterface = document.getElementById('conversation-interface')
 
                 if (videoContainer && conversationInterface) {
-                    // 先显示元素
                     conversationInterface.style.display = 'block'
                     conversationInterface.className = 'conversation-interface'
 
-                    // 延迟一帧后开始动画
                     setTimeout(function () {
                         conversationInterface.className = 'conversation-interface active'
                     }, 50)
@@ -957,15 +710,15 @@
                 var conversationInterface = document.getElementById('conversation-interface')
 
                 if (videoContainer && conversationInterface) {
-                    // 开始隐藏动画
                     conversationInterface.className = 'conversation-interface'
 
-                    // 动画完成后隐藏元素
                     setTimeout(function () {
                         conversationInterface.style.display = 'none'
                     }, 500)
 
+                    // Ensure video container is always visible
                     videoContainer.style.display = 'block'
+                    videoContainer.style.visibility = 'visible'
                     conversationActive = false
 
                     // Clear any existing timer
@@ -974,8 +727,6 @@
                         inactivityTimer = null
                     }
 
-                    // Stop waveform animation when conversation interface is hidden
-                    stopWaveAnimation()
                     aiResponseStarted = false
 
                     console.log('Conversation interface hidden, returned to video')
@@ -993,14 +744,13 @@
                     if (conversationActive) {
                         hideConversationInterface()
                     }
-                }, 5000) // 5 seconds
+                }, 10000) // 5 seconds
 
                 console.log('Auto-return timer started (5 seconds)')
             }
 
             function forceStopAIResponse () {
                 aiResponseStarted = false
-                stopWaveAnimation()
                 if (aiResponseTimeout) {
                     clearTimeout(aiResponseTimeout)
                     aiResponseTimeout = null
@@ -1016,7 +766,6 @@
                 var userMessageContent = document.getElementById('user-message-content')
                 if (userMessageContent) {
                     userMessageContent.textContent = content || 'Waiting for your message...'
-                    // 自动滚动到最新内容
                     userMessageContent.scrollTop = userMessageContent.scrollHeight
                 }
             }
@@ -1025,7 +774,6 @@
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
                     aiMessageContent.textContent = content || 'Waiting for Haku\'s response...'
-                    // 自动滚动到最新内容
                     aiMessageContent.scrollTop = aiMessageContent.scrollHeight
                 }
             }
@@ -1034,6 +782,8 @@
 
             function showUserBubble (content) {
                 console.log('showUserBubble called with:', content)
+                console.log('textBubble element:', textBubble)
+                console.log('bubbleContent element:', bubbleContent)
                 if (!textBubble || !content) {
                     console.log('showUserBubble: missing elements or content')
                     return
@@ -1044,23 +794,17 @@
                     bubbleTimer = null
                 }
 
-                // 设置内容
                 bubbleContent.textContent = '👤 ' + content
                 bubbleContent.className = 'bubble-content'
 
-                // 先显示元素但保持隐藏状态
                 textBubble.style.display = 'flex'
                 textBubble.className = 'text-bubble'
 
-                // 延迟一帧后开始动画
                 setTimeout(function () {
                     textBubble.className = 'text-bubble show'
                 }, 50)
 
                 console.log('User bubble should be visible now')
-
-                // 启动波形动画
-                startWaveAnimation()
 
                 bubbleTimer = setTimeout(function () {
                     textBubble.className = 'text-bubble hide'
@@ -1068,7 +812,6 @@
                         textBubble.style.display = 'none'
                         textBubble.className = 'text-bubble'
                     }, 600)
-                    stopWaveAnimation()
                 }, 12000)
             }
 
@@ -1080,24 +823,17 @@
                 console.log('updateLLMDisplay called:', type, content ? content.substring(0, 50) : 'empty', isChunk, isFinal)
                 if (!content) content = ''
 
-                // Show the City North image popup for any text received
-                showCityNorth();
+                var KEY_CITY = /(?:\bcity\s*north\b)/i
+
 
                 if (type === 'user') {
                     currentAIResponse = ''
                     currentAIResponseText = ''
                     aiResponseStarted = false
 
-                    // 显示对话界面
                     showConversationInterface()
-
-                    // 更新用户消息区域
                     updateUserMessage(content)
-
-                    // 重置AI消息区域
                     updateAIMessage('Waiting for Haku\'s response...')
-
-                    // 启动10秒自动返回计时器
                     startAutoReturnTimer()
                     return
                 }
@@ -1107,26 +843,18 @@
                     currentAIResponseText += content
                     console.log('AI processing:', isChunk, isFinal, currentAIResponse.length)
 
-                    if (!aiResponseStarted && isChunk) {
-                        aiResponseStarted = true
-                        startIntenseWaveAnimation()
-                    }
-
-                    // 更新AI消息显示
                     updateAIMessage(currentAIResponseText)
 
-                    if (isFinal === true) {
-                        console.log('AI response finished, stopping animation')
-                        setTimeout(function () {
-                            stopWaveAnimation()
-                            aiResponseStarted = false
-                        }, 500)
+                    // Check for keywords in current content
+                    if (KEY_CITY.test(content)) {
+                        console.log('City North keyword detected in current content:', content)
+                        showCityNorth()
                     }
 
-                    var probe = (currentAIResponse || content).toLowerCase()
-                    if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
-                    if (probe.indexOf('video') > -1) { showVideoOverlay() }
+
                     if (isFinal === true) {
+                        console.log('AI response finished')
+                        aiResponseStarted = false
                         currentAIResponse = ''
                         currentAIResponseText = ''
                     }
@@ -1203,11 +931,15 @@
                         var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
                         if (!toMe) return
                         if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
-                        if (msg.type === 'llm-user-input') { updateLLMDisplay('user', msg.content, false); return }
+                        if (msg.type === 'llm-user-input') {
+                            // Use pushMsg to avoid duplicate processing
+                            window.pushMsg(msg)
+                            return
+                        }
                         if (msg.type === 'llm-ai-response') {
                             console.log('AI message received:', msg)
-                            var flags = parseStreamFlags(msg)
-                            updateLLMDisplay('ai', msg.content, flags.isChunk, flags.isFinal)
+                            // Use pushMsg to avoid duplicate processing
+                            window.pushMsg(msg)
                             return
                         }
 
@@ -1220,21 +952,17 @@
                             hideCityNorth()
                             return
                         }
-                        
-                        // Video control
-                        if (msg.cmd === 'video-play') {
-                            showVideoOverlay()
+
+
+
+                        // Tablet video control
+                        if (msg.cmd === 'tablet-video-play') {
+                            playTabletVideo(msg.videoUrl)
                             return
                         }
-                        if (msg.cmd === 'video-stop') {
-                            hideVideoOverlay()
-                        }
-                        if (msg.type === 'show-city-north-video') {
-                            showCityNorthVideo(msg.videoSrc)
+                        if (msg.cmd === 'tablet-video-stop') {
+                            stopTabletVideo()
                             return
-                        }
-                        if (msg.type === 'hide-city-north-video') {
-                            hideCityNorthVideo()
                         }
 
                         // Text bubble control (TODO)
@@ -1273,131 +1001,20 @@
                 })
             }
 
-            // ---- 音频波形图 ----
-            function initWaveform () {
-                var waveform = document.getElementById('waveform')
-                if (!waveform) return
 
-                waveform.innerHTML = ''
-                waveformBars = []
-                for (var i = 0; i < 80; i++) {
-                    var bar = document.createElement('div')
-                    bar.className = 'bar'
-                    bar.style.animationPlayState = 'paused'
-                    bar.style.transition = 'height 0.25s ease, opacity 0.25s ease'
-                    waveform.appendChild(bar)
-                    waveformBars.push(bar)
-                }
-            }
-
-            function startWaveAnimation () {
-                setWaveformMode('normal')
-            }
-
-            function startIntenseWaveAnimation () {
-                console.log('Starting intense wave animation')
-                setWaveformMode('intense')
-            }
-
-            function stopWaveAnimation () {
-                setWaveformMode('idle')
-            }
-
-            function setWaveformMode (mode) {
-                if (waveAnimationTimer) {
-                    clearInterval(waveAnimationTimer)
-                    waveAnimationTimer = null
-                }
-
-                waveAnimationMode = mode
-                console.log('Setting waveform mode to:', mode)
-
-                if (!waveformBars || !waveformBars.length) return
-
-                if (mode === 'idle') {
-                    for (var i = 0; i < waveformBars.length; i++) {
-                        var idleBar = waveformBars[i]
-                        idleBar.className = 'bar'
-                        idleBar.style.animation = 'none'
-                        idleBar.style.height = '10px'
-                        idleBar.style.opacity = '0.25'
-                        idleBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
-                    }
-                    return
-                }
-
-                var intense = (mode === 'intense')
-                console.log('Starting', intense ? 'intense' : 'normal', 'wave animation')
-
-                // 设置初始状态
-                for (var j = 0; j < waveformBars.length; j++) {
-                    var activeBar = waveformBars[j]
-                    activeBar.style.animation = 'none'
-                    if (intense) {
-                        activeBar.className = 'bar intense'
-                        activeBar.style.background = 'linear-gradient(180deg, #f59e0b 0%, #d97706 30%, #dc2626 60%, #b91c1c 100%)'
-                    } else {
-                        activeBar.className = 'bar'
-                        activeBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
-                    }
-                }
-
-                var updateWaveHeights = function () {
-                    if (waveAnimationMode !== mode || !waveformBars || !waveformBars.length) return
-
-                    var minHeight = intense ? 8 : 8
-                    var maxHeight = intense ? 110 : 70
-                    var baseOpacity = intense ? 0.3 : 0.2
-                    var opacityRange = intense ? 0.6 : 0.6
-
-                    for (var k = 0; k < waveformBars.length; k++) {
-                        var bar = waveformBars[k]
-                        if (!bar) continue
-
-                        if (intense) {
-                            // 创建更剧烈的随机变化
-                            var rand1 = Math.random()
-                            var rand2 = Math.random()
-                            var rand3 = Math.random()
-
-                            // 混合不同的随机模式
-                            var heightFactor
-                            if (rand1 < 0.3) {
-                                // 30% 概率产生低高度
-                                heightFactor = Math.pow(rand2, 2.5)
-                            } else if (rand1 < 0.6) {
-                                // 30% 概率产生中等高度
-                                heightFactor = 0.3 + rand2 * 0.4
-                            } else {
-                                // 40% 概率产生高高度
-                                heightFactor = 0.6 + Math.pow(rand2, 0.5) * 0.4
-                            }
-
-                            var height = minHeight + heightFactor * (maxHeight - minHeight)
-                            var opacity = baseOpacity + rand3 * opacityRange
-                        } else {
-                            var noise = Math.random()
-                            var heightFactor = Math.pow(noise, 1.2)
-                            var height = minHeight + heightFactor * (maxHeight - minHeight)
-                            var opacity = baseOpacity + Math.random() * opacityRange
-                        }
-
-                        bar.style.height = Math.round(height) + 'px'
-                        bar.style.opacity = opacity.toFixed(2)
-                    }
-                }
-
-                // 立即更新一次
-                updateWaveHeights()
-
-                // 开始定时更新
-                waveAnimationTimer = setInterval(updateWaveHeights, intense ? 120 : 200)
-            }
 
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
-            initWaveform()
-            setWaveformMode('idle')
+
+            // Ensure video container is visible on startup
+            var videoContainer = document.getElementById('video-container')
+            if (videoContainer) {
+                videoContainer.style.display = 'block'
+                videoContainer.style.visibility = 'visible'
+                console.log('Video container initialized and made visible')
+            }
+
+
             heartbeat('init')
             connectWS()
             pollLoop()
@@ -1405,7 +1022,7 @@
                 heartbeat('tick')
                 var s = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL'
                 var e = document.getElementById('network-status'); if (e) e.textContent = s
-            }, 5000)
+            }, 10000)
         })();
     </script>
 
