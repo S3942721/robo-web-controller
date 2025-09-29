@@ -980,6 +980,64 @@ export default function STTLLMTest() {
         }
     };
 
+    // Video control functions
+    const playVideo = async () => {
+        try {
+            console.log('🎬 Playing video on tablet...');
+            const response = await fetch('/api/tablet-video/play', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    robot: targetRobot,
+                    videoUrl: 'http://198.18.0.1:3000/video.mp4'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Video play command sent to ${targetRobot}`);
+                setOverallStatus('🎬 Video playing on tablet');
+            } else {
+                console.error(`❌ Failed to play video on ${targetRobot}:`, result.message);
+                setOverallStatus('❌ Failed to play video');
+            }
+        } catch (error) {
+            console.error('Error playing video:', error);
+            setOverallStatus('❌ Error playing video');
+        }
+    };
+
+    const stopVideo = async () => {
+        try {
+            console.log('⏹️ Stopping video on tablet...');
+            const response = await fetch('/api/tablet-video/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    robot: targetRobot
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Video stop command sent to ${targetRobot}`);
+                setOverallStatus('⏹️ Video stopped on tablet');
+            } else {
+                console.error(`❌ Failed to stop video on ${targetRobot}:`, result.message);
+                setOverallStatus('❌ Failed to stop video');
+            }
+        } catch (error) {
+            console.error('Error stopping video:', error);
+            setOverallStatus('❌ Error stopping video');
+        }
+    };
+
     // Buffer management functions
     const flushBuffer = async (sessionId) => {
         const a_sessionId = sessionId || currentLLMSession;
@@ -1470,6 +1528,40 @@ export default function STTLLMTest() {
                             }}
                         >
                             {reloadingTablet ? 'Reloading...' : '🔄 Reload Tablet'}
+                        </button>
+                        
+                        <button 
+                            onClick={playVideo}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: '#e91e63',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                        >
+                            ▶️ Play Video
+                        </button>
+                        
+                        <button 
+                            onClick={stopVideo}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: '#795548',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                        >
+                            ⏹️ Stop Video
                         </button>
                     </>
                 )}
