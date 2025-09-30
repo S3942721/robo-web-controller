@@ -395,13 +395,32 @@ app.ws('/api/sync', (ws, req) => {
                     console.log(`[WebSocket] Broadcasting video stop to ${robot}`)
                     break
                 case 'tablet-video-play':
-                    // Broadcast tablet video play event
-                    syncWSWithAll('tablet-video-play', { robot, videoUrl: message.videoUrl })
+                    // Broadcast tablet video play event with proper message format
+                    const playMessage = JSON.stringify({
+                        cmd: 'tablet-video-play',
+                        robot: robot,
+                        videoUrl: message.videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+                        timestamp: Date.now()
+                    })
+                    sendWebSockets.forEach(ws => {
+                        if (ws.readyState === 1) {
+                            ws.send(playMessage)
+                        }
+                    })
                     console.log(`[WebSocket] Broadcasting tablet video play to ${robot}`)
                     break
                 case 'tablet-video-stop':
-                    // Broadcast tablet video stop event
-                    syncWSWithAll('tablet-video-stop', { robot })
+                    // Broadcast tablet video stop event with proper message format
+                    const stopMessage = JSON.stringify({
+                        cmd: 'tablet-video-stop',
+                        robot: robot,
+                        timestamp: Date.now()
+                    })
+                    sendWebSockets.forEach(ws => {
+                        if (ws.readyState === 1) {
+                            ws.send(stopMessage)
+                        }
+                    })
                     console.log(`[WebSocket] Broadcasting tablet video stop to ${robot}`)
                     break
                 default:
@@ -1742,31 +1761,64 @@ router.post("/api/test-llm-broadcast", (req, res) => {
     })
 })
 
-// Video control endpoints
-router.post("/api/video/play", (req, res) => {
-    const { robot } = req.body
 
-    syncWSWithAll('video-play', { robot: robot || 'Haku' })
+
+// Tablet video control endpoints
+router.post("/api/tablet-video/play", (req, res) => {
+    const { robot, videoUrl } = req.body
+
+    const message = JSON.stringify({
+        cmd: 'tablet-video-play',
+        robot: robot || 'Haku',
+        videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+        timestamp: Date.now()
+    })
+
+    console.log('[Tablet Video] Broadcasting play command to', sendWebSockets.length, 'connections')
+
+    let sentCount = 0
+    sendWebSockets.forEach(ws => {
+        if (ws.readyState === 1) {
+            ws.send(message)
+            sentCount++
+        }
+    })
 
     res.status(200).json({
         success: true,
-        message: 'Video play command sent',
+        message: 'Tablet video play command sent',
         robot: robot || 'Haku',
-        connections: sendWebSockets.length
+        videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+        connections: sendWebSockets.length,
+        sentTo: sentCount
     })
 })
 
-router.post("/api/video/stop", (req, res) => {
+router.post("/api/tablet-video/stop", (req, res) => {
     const { robot } = req.body
 
-    syncWSWithAll('video-stop', { robot: robot || 'Haku' })
+    const message = JSON.stringify({
+        cmd: 'tablet-video-stop',
+        robot: robot || 'Haku',
+        timestamp: Date.now()
+    })
 
+    console.log('[Tablet Video] Broadcasting stop command to', sendWebSockets.length, 'connections')
+
+    let sentCount = 0
+    sendWebSockets.forEach(ws => {
+        if (ws.readyState === 1) {
+            ws.send(message)
+            sentCount++
+        }
+    })
 
     res.status(200).json({
         success: true,
-        message: 'Video stop command sent',
+        message: 'Tablet video stop command sent',
         robot: robot || 'Haku',
-        connections: sendWebSockets.length
+        connections: sendWebSockets.length,
+        sentTo: sentCount
     })
 })
 

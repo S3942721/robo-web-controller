@@ -387,6 +387,50 @@
         .cn-overlay-img.hide {
             opacity: 0;
         }
+
+        /* Debug panel */
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 10000;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .debug-panel .debug-item {
+            margin: 2px 0;
+            padding: 2px;
+            border-bottom: 1px solid #333;
+        }
+
+        .test-buttons {
+            position: fixed;
+            bottom: 80px;
+            left: 10px;
+            z-index: 10000;
+        }
+
+        .test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .test-btn:hover {
+            background: #0056b3;
+        }
     </style>
 </head>
 
@@ -403,10 +447,15 @@
 
         <div class="main-content">
             <div class="video-container" id="video-container">
-                <!-- <img src="http://198.18.0.1:3000/a.jpg"></img> -->
-                <video autoplay muted loop playsinline>
+                <!-- Background video -->
+                <video id="background-video" autoplay muted loop playsinline preload="auto">
                     <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.mp4" type="video/mp4">
                     <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.webm" type="video/webm">
+                    Your browser does not support the video tag.
+                </video>
+                <!-- Preloaded video for playback -->
+                <video id="playback-video" style="display: none;" playsinline preload="auto">
+                    <source src="http://198.18.0.1/apps/rmit-race/TB_video.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -447,6 +496,23 @@
         <img id="cn-overlay-b" src="http://198.18.0.1:3000/b.jpg" alt="City North B" class="cn-overlay-img">
         <img id="cn-overlay-c" src="http://198.18.0.1:3000/c.jpg" alt="City North C" class="cn-overlay-img">
 
+        <!-- Debug Panel -->
+        <div class="debug-panel" id="debug-panel">
+            <div class="debug-item">Status: <span id="debug-status">Loading...</span></div>
+            <div class="debug-item">WebSocket: <span id="debug-ws">Disconnected</span></div>
+            <div class="debug-item">Last Message: <span id="debug-msg">None</span></div>
+            <div class="debug-item">Video State: <span id="debug-video">Unknown</span></div>
+        </div>
+
+        <!-- Test Buttons -->
+        <div class="test-buttons">
+            <button class="test-btn" onclick="playTabletVideo('http://198.18.0.1/apps/rmit-race/TB_video.mp4')">Play
+                Video</button>
+            <button class="test-btn" onclick="stopTabletVideo()">Stop Video</button>
+            <button class="test-btn" onclick="showCityNorth('http://198.18.0.1:3000/a.jpg')">Show Image</button>
+            <button class="test-btn" onclick="showUserBubble('Test message')">Test Bubble</button>
+        </div>
+
 
     </div>
     <script>
@@ -480,9 +546,11 @@
                     'http://198.18.0.1:3000/b.jpg',
                     'http://198.18.0.1:3000/c.jpg'
                 ],
-
+                videos: [
+                    'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                ]
             }
-            var ready = { images: {} }
+            var ready = { images: {}, videos: {} }
 
             function preloadAssets () {
                 ASSETS.images.forEach(function (src) {
@@ -492,6 +560,16 @@
                     img.src = src
                 })
 
+                // Preload videos
+                var playbackVideo = document.getElementById('playback-video')
+                if (playbackVideo) {
+                    playbackVideo.onloadeddata = function () {
+                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = true
+                    }
+                    playbackVideo.onerror = function () {
+                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = false
+                    }
+                }
             }
             preloadAssets()
 
@@ -524,19 +602,18 @@
                 _cnBusy = 1
 
                 var src = imageSrc || 'http://198.18.0.1:3000/a.jpg'
+                console.log('showCityNorth called with:', src)
                 var overlay = cnOverlays[src]
-                if (!overlay) { console.error('City North image not found:', src); _cnBusy = 0; return }
+                if (!overlay) {
+                    console.error('City North image not found:', src)
+                    _cnBusy = 0
+                    return
+                }
 
-                var tries = 0;
-                (function waitReady () {
-                    if (ready.images[src] || tries > 10) {
-                        currentOverlay = overlay
-                        showEl(currentOverlay, 'show')
-                        setTimeout(hideCityNorth, 10000)
-                    } else {
-                        tries++; setTimeout(waitReady, 100)
-                    }
-                })()
+                // Simplified - just show immediately
+                currentOverlay = overlay
+                showEl(currentOverlay, 'show')
+                setTimeout(hideCityNorth, 10000)
             }
 
             function hideCityNorth () {
@@ -573,65 +650,85 @@
             window.showCityNorth = showCityNorth
             window.hideCityNorth = hideCityNorth
 
+            // Test function for City North
+            window.testCityNorth = function () {
+                console.log('Testing City North display...')
+                showCityNorth('http://198.18.0.1:3000/a.jpg')
+            }
+
+            // ---- Debug Functions ----
+            function updateDebug (key, value) {
+                var el = document.getElementById('debug-' + key)
+                if (el) el.textContent = value
+            }
+
+            function debugLog (message) {
+                updateDebug('msg', new Date().toLocaleTimeString() + ': ' + message)
+                // Also show as text bubble for 3 seconds
+                var bubble = document.getElementById('text-bubble')
+                var content = document.getElementById('bubble-content')
+                if (bubble && content) {
+                    content.textContent = '🔧 ' + message
+                    bubble.style.display = 'block'
+                    bubble.className = 'text-bubble show'
+                    setTimeout(function () {
+                        bubble.className = 'text-bubble hide'
+                        setTimeout(function () {
+                            bubble.style.display = 'none'
+                        }, 300)
+                    }, 3000)
+                }
+            }
+
             // ---- Tablet Video Control ----
-            var backgroundVideo = null
-            var originalVideoSrc = ''
+            var isVideoPlaying = false
 
             function playTabletVideo (videoUrl) {
-                var videoContainer = document.getElementById('video-container')
-                if (!videoContainer) return
-
-                var video = videoContainer.querySelector('video')
-                if (!video) return
-
-                // Store original video source if not already stored
-                if (!originalVideoSrc) {
-                    var source = video.querySelector('source')
-                    if (source) {
-                        originalVideoSrc = source.src
-                    }
+                var backgroundVideo = document.getElementById('background-video')
+                var playbackVideo = document.getElementById('playback-video')
+                
+                if (!backgroundVideo || !playbackVideo) {
+                    return
                 }
 
-                console.log('Playing tablet video:', videoUrl)
+                // Hide background video
+                backgroundVideo.style.display = 'none'
+                backgroundVideo.pause()
 
-                // Replace video source
-                video.pause()
-                var source = video.querySelector('source')
-                if (source) {
-                    source.src = videoUrl || 'http://198.18.0.1:3000/video.mp4'
-                } else {
-                    video.src = videoUrl || 'http://198.18.0.1:3000/video.mp4'
-                }
+                // Show and play the preloaded video
+                playbackVideo.style.display = 'block'
+                playbackVideo.muted = false
+                playbackVideo.currentTime = 0
+                isVideoPlaying = true
+                updateDebug('video', 'Playing: UNMUTED')
 
-                video.load()
-                video.play().catch(function (error) {
-                    console.error('Error playing video:', error)
+                playbackVideo.play().catch(function (error) {
+                    updateDebug('video', 'ERROR: ' + error.message)
                 })
             }
 
             function stopTabletVideo () {
-                var videoContainer = document.getElementById('video-container')
-                if (!videoContainer) return
-
-                var video = videoContainer.querySelector('video')
-                if (!video) return
-
-                console.log('Stopping tablet video, restoring original')
-
-                // Restore original video source
-                video.pause()
-                if (originalVideoSrc) {
-                    var source = video.querySelector('source')
-                    if (source) {
-                        source.src = originalVideoSrc
-                    } else {
-                        video.src = originalVideoSrc
-                    }
-                    video.load()
-                    video.play().catch(function (error) {
-                        console.error('Error restoring video:', error)
-                    })
+                var backgroundVideo = document.getElementById('background-video')
+                var playbackVideo = document.getElementById('playback-video')
+                
+                if (!backgroundVideo || !playbackVideo) {
+                    return
                 }
+
+                // Hide and pause playback video
+                playbackVideo.style.display = 'none'
+                playbackVideo.pause()
+                playbackVideo.currentTime = 0
+
+                // Show and resume background video
+                backgroundVideo.style.display = 'block'
+                backgroundVideo.muted = true
+                isVideoPlaying = false
+                updateDebug('video', 'Background: MUTED')
+
+                backgroundVideo.play().catch(function (error) {
+                    updateDebug('video', 'ERROR: ' + error.message)
+                })
             }
 
             window.playTabletVideo = playTabletVideo
@@ -839,11 +936,21 @@
                 }
 
                 if (type === 'ai') {
+                    // Initialize AI response if not started
+                    if (!aiResponseStarted) {
+                        aiResponseStarted = true
+                        currentAIResponse = ''
+                        currentAIResponseText = ''
+                    }
+
                     currentAIResponse += content
                     currentAIResponseText += content
                     console.log('AI processing:', isChunk, isFinal, currentAIResponse.length)
 
-                    updateAIMessage(currentAIResponseText)
+                    // Only update if we have content to avoid showing default message
+                    if (currentAIResponseText.trim()) {
+                        updateAIMessage(currentAIResponseText)
+                    }
 
                     // Check for keywords in current content
                     if (KEY_CITY.test(content)) {
@@ -851,9 +958,12 @@
                         showCityNorth()
                     }
 
-
                     if (isFinal === true) {
                         console.log('AI response finished')
+                        // Show text bubble with complete AI response
+                        if (currentAIResponseText && currentAIResponseText.trim()) {
+                            showAIBubble(currentAIResponseText.trim())
+                        }
                         aiResponseStarted = false
                         currentAIResponse = ''
                         currentAIResponseText = ''
@@ -873,8 +983,53 @@
                     }
                 } catch (e) { console.error('pushMsg error', e) }
             }
+            function showAIBubble (content) {
+                console.log('showAIBubble called with:', content)
+                if (!textBubble || !content) {
+                    console.log('showAIBubble: missing elements or content')
+                    return
+                }
+
+                if (bubbleTimer) {
+                    clearTimeout(bubbleTimer)
+                    bubbleTimer = null
+                }
+
+                bubbleContent.textContent = '🤖 ' + content
+                bubbleContent.className = 'bubble-content'
+
+                textBubble.style.display = 'block'
+                textBubble.className = 'text-bubble'
+
+                setTimeout(function () {
+                    textBubble.className = 'text-bubble show'
+                }, 50)
+
+                console.log('AI bubble should be visible now')
+
+                bubbleTimer = setTimeout(function () {
+                    textBubble.className = 'text-bubble hide'
+                    setTimeout(function () {
+                        textBubble.style.display = 'none'
+                        textBubble.className = 'text-bubble'
+                    }, 600)
+                }, 8000)
+            }
+
             window.updateLLMDisplay = updateLLMDisplay
             window.showUserBubble = showUserBubble
+            window.showAIBubble = showAIBubble
+
+            // Test functions
+            window.testUserBubble = function () {
+                console.log('Testing user bubble...')
+                showUserBubble('This is a test user message')
+            }
+
+            window.testAIBubble = function () {
+                console.log('Testing AI bubble...')
+                showAIBubble('This is a test AI response')
+            }
 
 
             function isFinalMsg (msg) {
@@ -920,16 +1075,21 @@
                     mainWs = new WebSocket(url)
 
                     mainWs.onopen = function () {
-                        console.log('WS open')
+                        debugLog('WebSocket connected')
+                        updateDebug('ws', 'CONNECTED')
                         document.getElementById('network-indicator').className = 'network-dot active'
                         document.getElementById('network-status').textContent = 'ONLINE'
                         try { mainWs.send(JSON.stringify({ type: 'hello', role: 'tablet', robot: robot })) } catch (e) { }
                         heartbeat('ws-open')
                     }
                     mainWs.onmessage = function (evt) {
-                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { console.error('WS parse', e); return }
+                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { debugLog('WS parse error'); return }
+                        debugLog('WS msg: ' + (msg.cmd || msg.type || 'unknown'))
                         var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
-                        if (!toMe) return
+                        if (!toMe) {
+                            debugLog('Message not for me: ' + msg.robot)
+                            return
+                        }
                         if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
                         if (msg.type === 'llm-user-input') {
                             // Use pushMsg to avoid duplicate processing
@@ -957,10 +1117,12 @@
 
                         // Tablet video control
                         if (msg.cmd === 'tablet-video-play') {
+                            debugLog('Video play cmd received')
                             playTabletVideo(msg.videoUrl)
                             return
                         }
                         if (msg.cmd === 'tablet-video-stop') {
+                            debugLog('Video stop cmd received')
                             stopTabletVideo()
                             return
                         }
@@ -1005,14 +1167,20 @@
 
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
+            updateDebug('status', 'Initializing...')
 
             // Ensure video container is visible on startup
             var videoContainer = document.getElementById('video-container')
             if (videoContainer) {
                 videoContainer.style.display = 'block'
                 videoContainer.style.visibility = 'visible'
-                console.log('Video container initialized and made visible')
+                updateDebug('video', 'Background: MUTED')
+                debugLog('Video container initialized')
             }
+
+            updateDebug('status', 'Ready')
+
+
 
 
             heartbeat('init')

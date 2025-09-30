@@ -991,7 +991,7 @@ export default function STTLLMTest() {
                 },
                 body: JSON.stringify({ 
                     robot: targetRobot,
-                    videoUrl: 'http://198.18.0.1:3000/video.mp4'
+                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
                 })
             });
             
