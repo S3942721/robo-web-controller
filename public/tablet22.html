@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Brain Interface</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #000000;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            border: 1px solid #666666;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+            height: 35px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #ffffff;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .header .robot-name {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 14px;
+            padding: 5px 10px;
+            border: 1px solid #666666;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .main-content {
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            padding: 0;
+            overflow: hidden;
+            position: absolute;
+            top: 75px;
+            left: 10px;
+            right: 10px;
+            bottom: 60px;
+        }
+
+        .conversation-interface {
+            display: none;
+            height: 100%;
+            padding: 0;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transform: scale(0.85) translateY(20px);
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            filter: blur(5px);
+        }
+
+        .conversation-interface.active {
+            display: block;
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+            filter: blur(0);
+        }
+
+        .user-message-container {
+            position: absolute;
+            top: 5%;
+            left: 2%;
+            width: 75%;
+            height: 35%;
+        }
+
+        .user-message-area {
+            width: 100%;
+            height: 100%;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 12px;
+            padding: 3%;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .user-message-label {
+            position: absolute;
+            top: 15%;
+            right: -12%;
+            text-align: center;
+            width: 10%;
+        }
+
+        .user-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .user-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .ai-message-container {
+            position: absolute;
+            bottom: 5%;
+            right: 2%;
+            width: 75%;
+            height: 45%;
+        }
+
+        .ai-message-area {
+            width: 100%;
+            height: 100%;
+            background: #f3e5f5;
+            border: 3px solid #9c27b0;
+            border-radius: 12px;
+            padding: 3%;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .ai-message-label {
+            position: absolute;
+            top: 15%;
+            left: -12%;
+            text-align: center;
+            width: 10%;
+        }
+
+        .ai-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .ai-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .message-content {
+            font-size: 32px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 100%;
+            overflow-y: auto;
+            text-align: left;
+            padding: 0;
+        }
+
+        .user-message-area .message-content {
+            color: #1565c0;
+        }
+
+        .ai-message-area .message-content {
+            color: #7b1fa2;
+        }
+
+        .ai-response-streaming {
+            position: relative;
+        }
+
+        .ai-response-streaming::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #9c27b0;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .text-bubble {
+            position: fixed;
+            top: 2%;
+            left: 5%;
+            width: 90%;
+            height: 8%;
+            background: linear-gradient(135deg, rgba(40, 40, 40, 0.95) 0%, rgba(60, 60, 60, 0.95) 100%);
+            border: 2px solid #666666;
+            border-radius: 15px;
+            padding: 0;
+            color: #ffffff;
+            box-shadow: 0 5px 20px rgba(255, 255, 255, 0.1);
+            z-index: 8888;
+            opacity: 0;
+            transform: translateY(-80px) scale(0.8);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: none;
+            overflow: hidden;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center;
+            filter: blur(3px);
+        }
+
+        .text-bubble.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            filter: blur(0);
+        }
+
+        .text-bubble.hide {
+            opacity: 0;
+            transform: translateY(-30px) scale(0.9);
+            filter: blur(2px);
+        }
+
+        .text-bubble .bubble-content {
+            font-size: 24px;
+            color: #ffffff;
+            line-height: 1.2;
+            padding: 0 20px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            text-align: center;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: none;
+            display: block;
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .footer {
+            background: rgba(40, 40, 40, 0.9);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            opacity: 0.9;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 30px;
+            line-height: 30px;
+        }
+
+        /* 音频波形图 */
+        .audio-visualizer {
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            right: 10px;
+            height: 120px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .waveform {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            gap: 3px;
+            padding: 0 20px;
+        }
+
+        .bar {
+            width: 8px;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%);
+            border-radius: 4px;
+            animation: wave 1.8s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 12px;
+                opacity: 0.6;
+                transform: scaleY(1);
+            }
+
+            50% {
+                height: 70px;
+                opacity: 1;
+                transform: scaleY(1.1);
+            }
+        }
+
+        @keyframes waveIntense {
+
+            0%,
+            100% {
+                height: 8px;
+                opacity: 0.8;
+                transform: scaleY(1);
+            }
+
+            25% {
+                height: 95px;
+                opacity: 1;
+                transform: scaleY(1.2);
+            }
+
+            50% {
+                height: 50px;
+                opacity: 0.9;
+                transform: scaleY(1.1);
+            }
+
+            75% {
+                height: 110px;
+                opacity: 1;
+                transform: scaleY(1.3);
+            }
+        }
+
+        .bar.intense {
+            animation: waveIntense 0.6s ease-in-out infinite;
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 30%, #dc2626 60%, #b91c1c 100%);
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.5), 0 0 24px rgba(220, 38, 38, 0.3);
+        }
+
+        .bar:nth-child(odd) {
+            animation-delay: -0.2s;
+        }
+
+        .bar:nth-child(even) {
+            animation-delay: -0.4s;
+        }
+
+        .bar:nth-child(3n) {
+            animation-delay: -0.6s;
+        }
+
+        .bar:nth-child(4n) {
+            animation-delay: -0.8s;
+        }
+
+        .bar:nth-child(5n) {
+            animation-delay: -1s;
+        }
+
+        .footer img {
+            height: 35px;
+            vertical-align: middle;
+            margin-top: -5px;
+        }
+
+        /* Network activity indicator */
+        .network-activity {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 12px;
+            display: none;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center;
+        }
+
+        .network-activity span:last-child {
+            margin-left: 5px;
+        }
+
+        .network-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: networkBlink 2s infinite;
+        }
+
+        .network-dot.active {
+            background: #00ff00;
+            animation: networkActive 0.5s infinite;
+        }
+
+        @keyframes networkBlink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0.3;
+            }
+        }
+
+        @keyframes networkActive {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
+        }
+
+        /* City North image pop up */
+        .cn-overlay-img {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            -webkit-transform: translate(-50%, -50%) scale(0);
+            -moz-transform: translate(-50%, -50%) scale(0);
+            -ms-transform: translate(-50%, -50%) scale(0);
+            width: 120vw;
+            max-width: 960px;
+            max-height: 140vh;
+            object-fit: contain;
+            border: 2px solid #E60028;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
+                0 0 80px rgba(230, 0, 40, 0.4),
+                inset 0 0 20px rgba(230, 0, 40, 0.1);
+            background: linear-gradient(135deg, #000 0%, #1a0000 50%, #000 100%);
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            -webkit-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            -moz-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            -ms-transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .cn-overlay-img.show {
+            transform: translate(-50%, -50%) scale(1);
+            -webkit-transform: translate(-50%, -50%) scale(1);
+            -moz-transform: translate(-50%, -50%) scale(1);
+            -ms-transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+            -webkit-animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+
+        .cn-overlay-img.hide {
+            transform: translate(-50%, -50%) scale(0) rotate(180deg);
+            -webkit-transform: translate(-50%, -50%) scale(0) rotate(180deg);
+            -moz-transform: translate(-50%, -50%) scale(0) rotate(180deg);
+            -ms-transform: translate(-50%, -50%) scale(0) rotate(180deg);
+            opacity: 0;
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
+                    0 0 80px rgba(230, 0, 40, 0.4),
+                    inset 0 0 20px rgba(230, 0, 40, 0.1);
+                border-color: #E60028;
+            }
+
+            100% {
+                box-shadow: 0 0 60px rgba(230, 0, 40, 1),
+                    0 0 120px rgba(230, 0, 40, 0.6),
+                    inset 0 0 30px rgba(230, 0, 40, 0.2);
+                border-color: #ff1a4d;
+            }
+        }
+
+        @-webkit-keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 40px rgba(230, 0, 40, 0.8),
+                    0 0 80px rgba(230, 0, 40, 0.4),
+                    inset 0 0 20px rgba(230, 0, 40, 0.1);
+                border-color: #E60028;
+            }
+
+            100% {
+                box-shadow: 0 0 60px rgba(230, 0, 40, 1),
+                    0 0 120px rgba(230, 0, 40, 0.6),
+                    inset 0 0 30px rgba(230, 0, 40, 0.2);
+                border-color: #ff1a4d;
+            }
+        }
+
+        /* Backdrop blur effect */
+        .cn-overlay-img::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: -1;
+        }
+
+        /* Floating particles effect */
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #E60028;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 3s ease-in-out infinite;
+            -webkit-animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(0deg);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+                opacity: 1;
+            }
+        }
+
+        @-webkit-keyframes float {
+
+            0%,
+            100% {
+                -webkit-transform: translateY(0px) rotate(0deg);
+                opacity: 0;
+            }
+
+            50% {
+                -webkit-transform: translateY(-20px) rotate(180deg);
+                opacity: 1;
+            }
+        }
+        
+        /* Video Overlay */
+        .video-overlay {
+            position: fixed;
+            top: 75px;
+            left: 10px;
+            right: 10px;
+            bottom: 60px;
+            background: #000;
+            z-index: 9998;
+            display: none;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .video-overlay.show {
+            display: block;
+        }
+        
+        .video-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    </style>
+    <script src="http://198.18.0.1/libs/qimessaging/2/qimessaging.js"></script>
+</head>
+
+<body>
+    <div id="raw-word-output"
+    style="position:absolute; top:48px; left:18px; color:#00ff66; background:rgba(0,0,0,0.6); padding:6px 10px; border-radius:6px; z-index:9999; font-family:monospace; font-size:16px;">
+    Raw CurrentWord: (none)
+    </div>
+    <div class="container">
+        <div class="header">
+            <div class="network-activity">
+                <div class="network-dot" id="network-indicator"></div>
+                <span id="network-status">OFFLINE</span>
+            </div>
+            <h1>Hi, I'm HAKU</h1>
+            <div class="robot-name" id="robot-name">Haku</div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-container" id="video-container">
+                <!-- <img src="http://198.18.0.1:3000/a.jpg"></img> -->
+                <video autoplay muted loop playsinline>
+                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.mp4" type="video/mp4">
+                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.webm" type="video/webm">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="conversation-interface" id="conversation-interface">
+                <div class="user-message-container">
+                    <div class="user-message-label">
+                        <span class="emoji">👤</span>
+                        <span class="name">You</span>
+                    </div>
+                    <div class="user-message-area" id="user-message-area">
+                        <div class="message-content" id="user-message-content">Waiting for your message...</div>
+                    </div>
+                </div>
+
+                <div class="ai-message-container">
+                    <div class="ai-message-label">
+                        <span class="emoji">🤖</span>
+                        <span class="name">Haku</span>
+                    </div>
+                    <div class="ai-message-area" id="ai-message-area">
+                        <div class="message-content" id="ai-message-content">Waiting for Haku's response...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-bubble" id="text-bubble">
+            <div class="bubble-content" id="bubble-content">Waiting for message...</div>
+        </div>
+        <div class="audio-visualizer" id="audio-visualizer" style="display: none;">
+            <div class="waveform" id="waveform"></div>
+        </div>
+        <div class="footer">
+            <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
+        </div>
+
+        <!-- Preloaded City North Images -->
+        <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
+        <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
+        <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
+        
+        <!-- Preloaded Video Overlay -->
+        <div id="video-overlay" class="video-overlay">
+            <video id="overlay-video" autoplay controls preload="auto">
+                <source src="video.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var logEl = document.getElementById('log-content')
+            function addLog (s) {
+                try {
+                    var t = (new Date()).toLocaleTimeString()
+                    if (logEl) { logEl.innerHTML += '[' + t + '] ' + s + '<br>'; logEl.scrollTop = logEl.scrollHeight }
+                } catch (e) { }
+            }
+            window.onerror = function (msg, url, line, col, err) { addLog('ONERROR: ' + msg + ' @' + line + ':' + col) }
+
+            // cover console
+            var c = window.console = window.console || {};
+            ['log', 'warn', 'error'].forEach(function (k) {
+                var orig = c[k] || function () { }
+                c[k] = function () {
+                    try {
+                        var s = Array.prototype.slice.call(arguments).join(' ')
+                        addLog((k === 'log' ? '' : (k.toUpperCase() + ': ')) + s)
+                        orig.apply ? orig.apply(console, arguments) : orig(s)
+                    } catch (e) { }
+                }
+            })
+
+            // ---- Pepper Speech Events ----
+            var currentSentence = ''
+            var currentWordTimeout = null
+            var lastWordTime = 0
+
+            function showCurrentWord(word) {
+                if (!textBubble || !bubbleContent || !word) return
+
+                // Clear existing timeout
+                if (currentWordTimeout) {
+                    clearTimeout(currentWordTimeout)
+                    currentWordTimeout = null
+                }
+
+                // Show the City North image popup for any text received
+                showCityNorth()
+
+                // Set content and show bubble
+                bubbleContent.textContent = word
+                textBubble.style.display = 'flex'
+                textBubble.className = 'text-bubble show'
+
+                lastWordTime = Date.now()
+                console.log('Showing current word:', word)
+
+                // Hide bubble after 3 seconds of no new words
+                currentWordTimeout = setTimeout(function() {
+                    if (Date.now() - lastWordTime >= 2900) {
+                        textBubble.className = 'text-bubble hide'
+                        setTimeout(function() {
+                            textBubble.style.display = 'none'
+                            textBubble.className = 'text-bubble'
+                        }, 600)
+                        console.log('Hiding word bubble due to timeout')
+                    }
+                }, 3000)
+            }
+
+            function validateWordInSentence(word) {
+                if (!currentSentence || !word) return true
+                
+                // Simple validation - check if word exists in current sentence
+                var cleanWord = word.toLowerCase().replace(/[^\w]/g, '')
+                var cleanSentence = currentSentence.toLowerCase().replace(/[^\w\s]/g, '')
+                
+                return cleanSentence.indexOf(cleanWord) !== -1
+            }
+
+            // Initialize QI Session for Pepper events
+            if (typeof QiSession !== 'undefined') {
+                QiSession(function(session) {
+                    session.service("ALMemory").then(function(ALMemory) {
+                        // Subscribe to CurrentSentence
+                        ALMemory.subscriber("ALTextToSpeech/CurrentSentence").then(function(subscriber) {
+                            subscriber.signal.connect(function(sentence) {
+                                if (sentence && typeof sentence === 'string') {
+                                    currentSentence = sentence
+                                    console.log('Current sentence updated:', sentence)
+                                }
+                            })
+                        }).catch(function(error) {
+                            console.error('Failed to subscribe to CurrentSentence:', error)
+                        })
+
+                        // Subscribe to CurrentWord
+                        ALMemory.subscriber("ALTextToSpeech/CurrentWord").then(function(subscriber) {
+                            subscriber.signal.connect(function(word) {
+                                if (word && typeof word === 'string') {
+                                    // Validate word against current sentence
+                                    if (validateWordInSentence(word)) {
+                                        showCurrentWord(word)
+                                    } else {
+                                        console.log('Word not in current sentence, skipping:', word)
+                                    }
+                                }
+                            })
+                        }).catch(function(error) {
+                            console.error('Failed to subscribe to CurrentWord:', error)
+                        })
+
+                    }).catch(function(error) {
+                        console.error('Failed to get ALMemory service:', error)
+                        addLog('ALMemory service error: ' + error)
+                    })
+                }, function() {
+                    console.error('Failed to create QI session')
+                    addLog('QI session creation failed')
+                })
+            } else {
+                console.warn('QiSession not available, speech events disabled')
+                addLog('QiSession not available')
+            }
+
+            // ---- City North ----
+            var cnOverlays = {
+                'http://198.18.0.1:3000/a.jpg': document.getElementById('cn-overlay-a'),
+                'http://198.18.0.1:3000/b.jpg': document.getElementById('cn-overlay-b'),
+                'http://198.18.0.1:3000/c.jpg': document.getElementById('cn-overlay-c')
+            }
+            var particles = []
+            var _cnBusy = 0
+            var currentOverlay = null
+            var CN_IMAGES = ['http://198.18.0.1:3000/a.jpg', 'http://198.18.0.1:3000/b.jpg', 'http://198.18.0.1:3000/c.jpg']
+
+            function showCityNorth (imageSrc) {
+                if (_cnBusy) return
+                _cnBusy = 1
+
+                // If no image source is provided, use a default one
+                if (!imageSrc) {
+                    imageSrc = 'http://198.18.0.1:3000/a.jpg';
+                }
+
+                var overlay = cnOverlays[imageSrc]
+                if (!overlay) {
+                    console.error('City North image not found:', imageSrc)
+                    _cnBusy = 0
+                    return
+                }
+
+                currentOverlay = overlay
+
+                createParticles()
+
+                overlay.className = 'cn-overlay-img show'
+
+                console.log('City North popup shown with animation:', imageSrc)
+
+                setTimeout(function () {
+                    hideCityNorth()
+                }, 5000)
+            }
+
+            function hideCityNorth () {
+                if (!currentOverlay) return
+
+                // 隐藏动画
+                currentOverlay.className = 'cn-overlay-img hide'
+
+                // 清理粒子
+                clearParticles()
+
+                // 动画完成后重置
+                setTimeout(function () {
+                    if (currentOverlay) {
+                        currentOverlay.className = 'cn-overlay-img'
+                    }
+                    currentOverlay = null
+                    _cnBusy = 0
+                }, 400)
+
+                console.log('City North popup hidden with animation')
+            }
+
+
+
+            function createParticles () {
+                var container = document.querySelector('.container')
+                if (!container) return
+
+                // 创建10个粒子
+                for (var i = 0; i < 10; i++) {
+                    var particle = document.createElement('div')
+                    particle.className = 'particle'
+                    particle.style.left = Math.random() * 100 + '%'
+                    particle.style.top = Math.random() * 100 + '%'
+                    particle.style.animationDelay = Math.random() * 3 + 's'
+                    container.appendChild(particle)
+                    particles.push(particle)
+                }
+            }
+
+            function clearParticles () {
+                particles.forEach(function (particle) {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle)
+                    }
+                })
+                particles = []
+            }
+
+
+
+            // 暴露给外部调用
+            window.showCityNorth = showCityNorth
+            window.hideCityNorth = hideCityNorth
+            
+            // ---- Video Overlay Control ----
+            var videoOverlay = document.getElementById('video-overlay')
+            var overlayVideo = document.getElementById('overlay-video')
+            var videoTimer = null
+            
+            function showVideoOverlay() {
+                if (!videoOverlay || !overlayVideo) return
+                
+                // 清除之前的定时器
+                if (videoTimer) {
+                    clearTimeout(videoTimer)
+                    videoTimer = null
+                }
+                
+                videoOverlay.className = 'video-overlay show'
+                overlayVideo.currentTime = 0
+                
+                // 确保视频播放
+                var playPromise = overlayVideo.play()
+                if (playPromise !== undefined) {
+                    playPromise.then(function() {
+                        console.log('Video started playing')
+                    }).catch(function(error) {
+                        console.error('Video play failed:', error)
+                    })
+                }
+                
+                console.log('Video overlay shown')
+                
+                // 8秒后自动隐藏
+                videoTimer = setTimeout(function() {
+                    hideVideoOverlay()
+                }, 8000)
+            }
+            
+            function hideVideoOverlay() {
+                if (!videoOverlay || !overlayVideo) return
+                
+                // 清除定时器
+                if (videoTimer) {
+                    clearTimeout(videoTimer)
+                    videoTimer = null
+                }
+                
+                videoOverlay.className = 'video-overlay'
+                overlayVideo.pause()
+                overlayVideo.currentTime = 0
+                
+                console.log('Video overlay hidden')
+            }
+            
+            // 暴露给外部调用
+            window.showVideoOverlay = showVideoOverlay
+            window.hideVideoOverlay = hideVideoOverlay
+
+            // 检测关键词触发
+            function maybeShowCityNorth () {
+                showCityNorth()
+            }
+
+
+            function getParam (name) {
+                var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
+                return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''
+            }
+            var robot = (getParam('robot') || window.DEFAULT_ROBOT_NAME || 'Haku')
+            var BASE = getParam('base')
+            if (!/^https?:\/\//i.test(BASE || '')) { BASE = (location.origin || (location.protocol + '//' + location.host)); addLog('No ?base=, fallback to ' + BASE) }
+            document.getElementById('robot-name').textContent = robot
+
+            function abs (p) { return (BASE.replace(/\/$/, '') + p) }
+
+            // ---- XHR tool（replace fetch/await）----
+            function xhr (method, url, body, cb) {
+                try {
+                    var x = new XMLHttpRequest()
+                    x.open(method, url, true)
+                    if (method === 'POST') x.setRequestHeader('Content-Type', 'application/json')
+                    x.onreadystatechange = function () {
+                        if (x.readyState === 4) { cb(null, x.status, x.responseText) }
+                    }
+                    x.onerror = function () { cb(new Error('network')) }
+                    x.send(body || null)
+                } catch (e) { cb(e) }
+            }
+
+            // ---- heartbeat ----
+            function heartbeat (tag) {
+                xhr('POST', abs('/api/robot-tablet/heartbeat'), JSON.stringify({ robot: robot, tag: tag || 'tick' }), function () { })
+            }
+
+            // ---- 文本气泡显示 ----
+            var textBubble = document.getElementById('text-bubble')
+            var bubbleContent = document.getElementById('bubble-content')
+
+            var currentAIResponse = ''
+            var bubbleTimer = null
+            var conversationActive = false
+            var conversationHistory = []
+            var currentAIResponseText = ''
+            var inactivityTimer = null
+            var waveformBars = []
+            var waveAnimationTimer = null
+            var waveAnimationMode = 'idle'
+
+            function showConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    // 先显示元素
+                    conversationInterface.style.display = 'block'
+                    conversationInterface.className = 'conversation-interface'
+
+                    // 延迟一帧后开始动画
+                    setTimeout(function () {
+                        conversationInterface.className = 'conversation-interface active'
+                    }, 50)
+
+                    conversationActive = true
+
+                    // Clear any existing auto-return timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+
+                    console.log('Conversation interface shown')
+                }
+            }
+
+            function hideConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    // 开始隐藏动画
+                    conversationInterface.className = 'conversation-interface'
+
+                    // 动画完成后隐藏元素
+                    setTimeout(function () {
+                        conversationInterface.style.display = 'none'
+                    }, 500)
+
+                    videoContainer.style.display = 'block'
+                    conversationActive = false
+
+                    // Clear any existing timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+
+                    // Stop waveform animation when conversation interface is hidden
+                    stopWaveAnimation()
+                    aiResponseStarted = false
+
+                    console.log('Conversation interface hidden, returned to video')
+                }
+            }
+
+            function startAutoReturnTimer () {
+                // Clear any existing timer
+                if (inactivityTimer) {
+                    clearTimeout(inactivityTimer)
+                }
+
+                // Set 10-second timer to return to video
+                inactivityTimer = setTimeout(function () {
+                    if (conversationActive) {
+                        hideConversationInterface()
+                    }
+                }, 5000) // 5 seconds
+
+                console.log('Auto-return timer started (5 seconds)')
+            }
+
+            function forceStopAIResponse () {
+                aiResponseStarted = false
+                stopWaveAnimation()
+                if (aiResponseTimeout) {
+                    clearTimeout(aiResponseTimeout)
+                    aiResponseTimeout = null
+                }
+                console.log('AI response force stopped')
+            }
+
+
+
+
+
+            function updateUserMessage (content) {
+                var userMessageContent = document.getElementById('user-message-content')
+                if (userMessageContent) {
+                    userMessageContent.textContent = content || 'Waiting for your message...'
+                    // 自动滚动到最新内容
+                    userMessageContent.scrollTop = userMessageContent.scrollHeight
+                }
+            }
+
+            function updateAIMessage (content) {
+                var aiMessageContent = document.getElementById('ai-message-content')
+                if (aiMessageContent) {
+                    aiMessageContent.textContent = content || 'Waiting for Haku\'s response...'
+                    // 自动滚动到最新内容
+                    aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                }
+            }
+
+
+
+            function showUserBubble (content) {
+                console.log('showUserBubble called with:', content)
+                if (!textBubble || !content) {
+                    console.log('showUserBubble: missing elements or content')
+                    return
+                }
+
+                if (bubbleTimer) {
+                    clearTimeout(bubbleTimer)
+                    bubbleTimer = null
+                }
+
+                // 设置内容
+                bubbleContent.textContent = '👤 ' + content
+                bubbleContent.className = 'bubble-content'
+
+                // 先显示元素但保持隐藏状态
+                textBubble.style.display = 'flex'
+                textBubble.className = 'text-bubble'
+
+                // 延迟一帧后开始动画
+                setTimeout(function () {
+                    textBubble.className = 'text-bubble show'
+                }, 50)
+
+                console.log('User bubble should be visible now')
+
+                // 启动波形动画
+                startWaveAnimation()
+
+                bubbleTimer = setTimeout(function () {
+                    textBubble.className = 'text-bubble hide'
+                    setTimeout(function () {
+                        textBubble.style.display = 'none'
+                        textBubble.className = 'text-bubble'
+                    }, 600)
+                    stopWaveAnimation()
+                }, 12000)
+            }
+
+
+
+            var aiResponseStarted = false
+
+            function updateLLMDisplay (type, content, isChunk, isFinal) {
+                console.log('updateLLMDisplay called:', type, content ? content.substring(0, 50) : 'empty', isChunk, isFinal)
+                if (!content) content = ''
+
+                // Show the City North image popup for any text received
+                showCityNorth();
+
+                if (type === 'user') {
+                    currentAIResponse = ''
+                    currentAIResponseText = ''
+                    aiResponseStarted = false
+
+                    // 显示对话界面
+                    showConversationInterface()
+
+                    // 更新用户消息区域
+                    updateUserMessage(content)
+
+                    // 重置AI消息区域
+                    updateAIMessage('Waiting for Haku\'s response...')
+
+                    // 启动10秒自动返回计时器
+                    startAutoReturnTimer()
+                    return
+                }
+
+                if (type === 'ai') {
+                    currentAIResponse += content
+                    currentAIResponseText += content
+                    console.log('AI processing:', isChunk, isFinal, currentAIResponse.length)
+
+                    if (!aiResponseStarted && isChunk) {
+                        aiResponseStarted = true
+                        startIntenseWaveAnimation()
+                    }
+
+                    // 更新AI消息显示
+                    updateAIMessage(currentAIResponseText)
+
+                    if (isFinal === true) {
+                        console.log('AI response finished, stopping animation')
+                        setTimeout(function () {
+                            stopWaveAnimation()
+                            aiResponseStarted = false
+                        }, 500)
+                    }
+
+                    var probe = (currentAIResponse || content).toLowerCase()
+                    if (probe.indexOf('city north') > -1) { maybeShowCityNorth() }
+                    if (probe.indexOf('video') > -1) { showVideoOverlay() }
+                    if (isFinal === true) {
+                        currentAIResponse = ''
+                        currentAIResponseText = ''
+                    }
+                }
+            }
+
+            window.pushMsg = function (m) {
+                try {
+                    if (!m) return
+                    console.log('pushMsg received:', m.type, m.content ? m.content.substring(0, 20) : 'no content')
+                    if (m.type === 'llm-user-input') {
+                        updateLLMDisplay('user', m.content, false, false)
+                    } else if (m.type === 'llm-ai-response') {
+                        var flags = parseStreamFlags(m)
+                        updateLLMDisplay('ai', m.content, flags.isChunk, flags.isFinal)
+                    }
+                } catch (e) { console.error('pushMsg error', e) }
+            }
+            window.updateLLMDisplay = updateLLMDisplay
+            window.showUserBubble = showUserBubble
+
+
+            function isFinalMsg (msg) {
+                var v = msg && (msg.final || msg.done || msg.isFinal || msg.end)
+                var phase = msg && (msg.phase || msg.event)
+                return v === true || v === 1 || v === '1' || v === 'true' || phase === 'final' || phase === 'end' || phase === 'stop'
+            }
+            function isChunkMsg (msg) {
+                if (isFinalMsg(msg)) return false
+                var v = msg && (msg.isChunk || msg.chunk || msg.delta)
+                var phase = msg && (msg.phase || msg.event)
+                return v === true || v === 1 || v === '1' || v === 'true' || v === 'delta' || phase === 'delta' || phase === 'chunk'
+            }
+            function parseStreamFlags (msg) {
+                var phase = msg && (msg.phase || msg.event || msg.status)
+                var isFinal = false
+
+                // Check for various final indicators
+                if (msg && (msg.final || msg.done || msg.isFinal || msg.end || msg.isFinished)) isFinal = true
+                if (phase === 'final' || phase === 'end' || phase === 'stop' || phase === 'complete') isFinal = true
+
+                var v = msg && (msg.isChunk || msg.chunk || msg.delta)
+                var isChunk = !isFinal
+                if (!isFinal && (v === true || v === 1 || v === '1' || v === 'true' || v === 'delta')) isChunk = true
+                if (!isFinal && (phase === 'delta' || phase === 'chunk' || phase === 'stream')) isChunk = true
+
+                return { isChunk, isFinal }
+            }
+
+            // ---- WebSocket ----
+            var mainWs = null, wsTimer = null
+            function wsURL () {
+                var host = BASE.replace(/^https?:\/\//, '')
+                var scheme = (/^https:\/\//i).test(BASE) ? 'wss://' : 'ws://'
+                return scheme + host + '/api/sync'
+            }
+            function connectWS () {
+                try {
+                    if (!('WebSocket' in window)) { console.warn('No WebSocket support'); return }
+                    if (mainWs) { try { mainWs.close() } catch (e) { } mainWs = null }
+                    var url = wsURL()
+                    console.log('WS connect →', url, 'robot=', robot)
+                    mainWs = new WebSocket(url)
+
+                    mainWs.onopen = function () {
+                        console.log('WS open')
+                        document.getElementById('network-indicator').className = 'network-dot active'
+                        document.getElementById('network-status').textContent = 'ONLINE'
+                        try { mainWs.send(JSON.stringify({ type: 'hello', role: 'tablet', robot: robot })) } catch (e) { }
+                        heartbeat('ws-open')
+                    }
+                    mainWs.onmessage = function (evt) {
+                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { console.error('WS parse', e); return }
+                        var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
+                        if (!toMe) return
+                        if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
+                        if (msg.type === 'llm-user-input') { updateLLMDisplay('user', msg.content, false); return }
+                        if (msg.type === 'llm-ai-response') {
+                            console.log('AI message received:', msg)
+                            var flags = parseStreamFlags(msg)
+                            updateLLMDisplay('ai', msg.content, flags.isChunk, flags.isFinal)
+                            return
+                        }
+
+                        //City North pop up
+                        if (msg.type === 'show-city-north') {
+                            showCityNorth(msg.imageSrc)
+                            return
+                        }
+                        if (msg.type === 'hide-city-north') {
+                            hideCityNorth()
+                            return
+                        }
+                        
+                        // Video control
+                        if (msg.cmd === 'video-play') {
+                            showVideoOverlay()
+                            return
+                        }
+                        if (msg.cmd === 'video-stop') {
+                            hideVideoOverlay()
+                        }
+                        if (msg.type === 'show-city-north-video') {
+                            showCityNorthVideo(msg.videoSrc)
+                            return
+                        }
+                        if (msg.type === 'hide-city-north-video') {
+                            hideCityNorthVideo()
+                        }
+
+                        // Text bubble control (TODO)
+                        if (msg.type === 'robot-status-update') {
+                            // TODO: Handle if converstation active - should we display text bubble or not?
+                            return
+                        }
+
+                        console.log('WS other', evt.data)
+                    }
+                    mainWs.onerror = function (e) { console.error('WS error', e) }
+                    mainWs.onclose = function (ev) {
+                        console.warn('WS close', ev && ev.code, ev && ev.reason)
+                        document.getElementById('network-indicator').className = 'network-dot'
+                        document.getElementById('network-status').textContent = 'OFFLINE'
+                        if (wsTimer) clearTimeout(wsTimer)
+                        wsTimer = setTimeout(connectWS, 2000)
+                    }
+                } catch (e) {
+                    console.error('WS create failed', e)
+                    if (wsTimer) clearTimeout(wsTimer)
+                    wsTimer = setTimeout(connectWS, 2000)
+                }
+            }
+
+            // ---- Polling fallback (distinguish WS/router issues) ----
+            function pollLoop () {
+                xhr('GET', abs('/api/pull?robot=' + encodeURIComponent(robot)), null, function (err, status, text) {
+                    if (!err && status === 200) {
+                        try {
+                            var list = JSON.parse(text || '[]')
+                            if (list && list.length) { console.log('Poll got', list.length); for (var i = 0; i < list.length; i++) { window.pushMsg(list[i]) } }
+                        } catch (e) { console.error('Poll JSON', e) }
+                    } else if (err) { console.error('Poll err', err) }
+                    setTimeout(pollLoop, 2000)
+                })
+            }
+
+            // ---- 音频波形图 ----
+            function initWaveform () {
+                var waveform = document.getElementById('waveform')
+                if (!waveform) return
+
+                waveform.innerHTML = ''
+                waveformBars = []
+                for (var i = 0; i < 80; i++) {
+                    var bar = document.createElement('div')
+                    bar.className = 'bar'
+                    bar.style.animationPlayState = 'paused'
+                    bar.style.transition = 'height 0.25s ease, opacity 0.25s ease'
+                    waveform.appendChild(bar)
+                    waveformBars.push(bar)
+                }
+            }
+
+            function startWaveAnimation () {
+                setWaveformMode('normal')
+            }
+
+            function startIntenseWaveAnimation () {
+                console.log('Starting intense wave animation')
+                setWaveformMode('intense')
+            }
+
+            function stopWaveAnimation () {
+                setWaveformMode('idle')
+            }
+
+            function setWaveformMode (mode) {
+                if (waveAnimationTimer) {
+                    clearInterval(waveAnimationTimer)
+                    waveAnimationTimer = null
+                }
+
+                waveAnimationMode = mode
+                console.log('Setting waveform mode to:', mode)
+
+                if (!waveformBars || !waveformBars.length) return
+
+                if (mode === 'idle') {
+                    for (var i = 0; i < waveformBars.length; i++) {
+                        var idleBar = waveformBars[i]
+                        idleBar.className = 'bar'
+                        idleBar.style.animation = 'none'
+                        idleBar.style.height = '10px'
+                        idleBar.style.opacity = '0.25'
+                        idleBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
+                    }
+                    return
+                }
+
+                var intense = (mode === 'intense')
+                console.log('Starting', intense ? 'intense' : 'normal', 'wave animation')
+
+                // 设置初始状态
+                for (var j = 0; j < waveformBars.length; j++) {
+                    var activeBar = waveformBars[j]
+                    activeBar.style.animation = 'none'
+                    if (intense) {
+                        activeBar.className = 'bar intense'
+                        activeBar.style.background = 'linear-gradient(180deg, #f59e0b 0%, #d97706 30%, #dc2626 60%, #b91c1c 100%)'
+                    } else {
+                        activeBar.className = 'bar'
+                        activeBar.style.background = 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 50%, #1e40af 100%)'
+                    }
+                }
+
+                var updateWaveHeights = function () {
+                    if (waveAnimationMode !== mode || !waveformBars || !waveformBars.length) return
+
+                    var minHeight = intense ? 8 : 8
+                    var maxHeight = intense ? 110 : 70
+                    var baseOpacity = intense ? 0.3 : 0.2
+                    var opacityRange = intense ? 0.6 : 0.6
+
+                    for (var k = 0; k < waveformBars.length; k++) {
+                        var bar = waveformBars[k]
+                        if (!bar) continue
+
+                        if (intense) {
+                            // 创建更剧烈的随机变化
+                            var rand1 = Math.random()
+                            var rand2 = Math.random()
+                            var rand3 = Math.random()
+
+                            // 混合不同的随机模式
+                            var heightFactor
+                            if (rand1 < 0.3) {
+                                // 30% 概率产生低高度
+                                heightFactor = Math.pow(rand2, 2.5)
+                            } else if (rand1 < 0.6) {
+                                // 30% 概率产生中等高度
+                                heightFactor = 0.3 + rand2 * 0.4
+                            } else {
+                                // 40% 概率产生高高度
+                                heightFactor = 0.6 + Math.pow(rand2, 0.5) * 0.4
+                            }
+
+                            var height = minHeight + heightFactor * (maxHeight - minHeight)
+                            var opacity = baseOpacity + rand3 * opacityRange
+                        } else {
+                            var noise = Math.random()
+                            var heightFactor = Math.pow(noise, 1.2)
+                            var height = minHeight + heightFactor * (maxHeight - minHeight)
+                            var opacity = baseOpacity + Math.random() * opacityRange
+                        }
+
+                        bar.style.height = Math.round(height) + 'px'
+                        bar.style.opacity = opacity.toFixed(2)
+                    }
+                }
+
+                // 立即更新一次
+                updateWaveHeights()
+
+                // 开始定时更新
+                waveAnimationTimer = setInterval(updateWaveHeights, intense ? 120 : 200)
+            }
+
+            // ---- start ----
+            addLog('Init robot=' + robot + ' - Pepper speech events enabled')
+            initWaveform()
+            setWaveformMode('idle')
+            heartbeat('init')
+            connectWS()
+            pollLoop()
+            setInterval(function () {
+                heartbeat('tick')
+                var s = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL'
+                var e = document.getElementById('network-status'); if (e) e.textContent = s
+            }, 5000)
+        })();
+    </script>
+
+
+</body>
+
+</html>
