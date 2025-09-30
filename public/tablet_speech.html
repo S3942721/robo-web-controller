@@ -1,0 +1,202 @@
+<!--
+  QiMessaging JavaScript Test Page
+  
+  Version Constraints:
+  - Uses QiMessaging 2.0 JavaScript bindings
+  - Uses Promise/A+ pattern instead of jQuery-style done/fail
+  - Compatible with modern JavaScript engines
+  - Tested with Pepper robot NAOqi framework
+  
+  Purpose: Test ALTextToSpeech/CurrentWord event subscription
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+body {
+    margin: 0;
+    padding: 0;
+    font-family: ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji",Segoe UI Symbol,"Noto Color Emoji";
+    background-color: rgb(240, 240, 240);
+}
+
+#main {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    font-size: 24px;
+    line-height: 1.5;
+}
+
+#output {
+    white-space: pre-line;
+}
+    </style>
+    <script src="http://198.18.0.1/libs/qimessaging/2/qimessaging.js"></script>
+</head>
+<body>
+    <div id='main'>
+        <div id="output"></div>
+    </div>
+</body>
+<script type="text/javascript">
+
+var output = document.getElementById('output')
+var words = []
+var logs = []
+
+function addLog(message) {
+  logs.push(new Date().toLocaleTimeString() + ': ' + message)
+  updateDisplay()
+}
+
+function updateDisplay() {
+  var content = logs.join('\n')
+  if (words.length > 0) {
+    content += '\n\nWords received:\n' + words.join('\n')
+  }
+  output.textContent = content
+}
+
+function logError(prefix, error) {
+  var errorMsg = prefix + ': '
+  if (typeof error === 'string') {
+    errorMsg += error
+  } else if (error && error.message) {
+    errorMsg += error.message
+  } else if (error && error.toString && typeof error.toString === 'function') {
+    errorMsg += error.toString()
+  } else {
+    errorMsg += 'Unknown error'
+  }
+  addLog(errorMsg)
+}
+
+// Ensure DOM is loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init)
+} else {
+  init()
+}
+
+function init() {
+  addLog('Starting application...')
+  addLog('Current URL: ' + window.location.href)
+  addLog('Hostname: ' + window.location.hostname)
+  
+  try {
+    if (typeof QiSession === 'undefined') {
+      addLog('QiSession not available')
+      return
+    }
+    
+    addLog('Creating QiSession with version 2.0 API...')
+    
+    // Add timeout to detect if connection never happens
+    var connectionTimeout = setTimeout(function() {
+      addLog('Connection timeout - QiSession did not connect within 10 seconds')
+    }, 10000)
+    
+    // Try different initialization approaches
+    try {
+      // Method 1: No hostname (auto-detect)
+      addLog('Trying QiSession without hostname...')
+      QiSession(function (session) {
+        clearTimeout(connectionTimeout)
+        addLog('QiSession connected!')
+        
+        session.service("ALMemory").then(function (ALMemory) {
+          addLog('ALMemory service obtained')
+          
+          ALMemory.subscriber("ALTextToSpeech/CurrentWord").then(function (subscriber) {
+            addLog('Subscribed to CurrentWord events')
+            
+            subscriber.signal.connect(function (value) {
+              words.push(value)
+              addLog('Word received: ' + value)
+              updateDisplay()
+            }).then(function (link) {
+              addLog('Signal connection established with link: ' + link)
+            }, function (error) {
+              logError("Error connecting to CurrentWord signal", error)
+            })
+            
+          }, function (error) {
+            logError("Error subscribing to CurrentWord", error)
+          })
+          
+        }, function (error) {
+          logError("Error getting ALMemory service", error)
+        })
+        
+      }, function () {
+        addLog('QiSession disconnected!')
+      })
+      
+      addLog('QiSession constructor called successfully (no hostname)')
+      
+    } catch (qiError1) {
+      addLog('Method 1 failed, trying with explicit hostname...')
+      
+      try {
+        // Method 2: Explicit hostname
+        QiSession(function (session) {
+          clearTimeout(connectionTimeout)
+          addLog('QiSession connected!')
+          
+          session.service("ALMemory").then(function (ALMemory) {
+            addLog('ALMemory service obtained')
+            
+            ALMemory.subscriber("ALTextToSpeech/CurrentWord").then(function (subscriber) {
+              addLog('Subscribed to CurrentWord events')
+              
+              subscriber.signal.connect(function (value) {
+                words.push(value)
+                addLog('Word received: ' + value)
+                updateDisplay()
+              }).then(function (link) {
+                addLog('Signal connection established with link: ' + link)
+              }, function (error) {
+                logError("Error connecting to CurrentWord signal", error)
+              })
+              
+            }, function (error) {
+              logError("Error subscribing to CurrentWord", error)
+            })
+            
+          }, function (error) {
+            logError("Error getting ALMemory service", error)
+          })
+          
+        }, function () {
+          addLog('QiSession disconnected!')
+        }, '198.18.0.1')
+        
+        addLog('QiSession constructor called successfully (with hostname)')
+        
+      } catch (qiError2) {
+        clearTimeout(connectionTimeout)
+        logError('Both QiSession methods failed', qiError2)
+        
+        // Method 3: Try alternative syntax
+        try {
+          addLog('Trying alternative QiSession syntax...')
+          var session = new QiSession()
+          addLog('Alternative QiSession created, but may not connect automatically')
+        } catch (qiError3) {
+          logError('Alternative QiSession syntax failed', qiError3)
+        }
+      }
+    }
+
+  } catch (error) {
+    logError('Exception in init', error)
+  }
+}
+
+</script>
+</html>
