@@ -2,6 +2,7 @@
 """
 Pepper Robot Tablet Proxy Service with File-Based Runtime Updates
 Monitors a configuration file for changes and updates target without restart
+Only proxies requests targeting the configured port, leaves other traffic untouched
 """
 
 import BaseHTTPServer
@@ -265,8 +266,53 @@ class ProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_HEAD(self):
         self._handle_request('HEAD')
     
+    def _get_request_port(self):
+        """Extract the port from the incoming request"""
+        # Check Host header first
+        host_header = self.headers.get('Host', '')
+        if ':' in host_header:
+            try:
+                port = int(host_header.split(':')[1])
+                return port
+            except (ValueError, IndexError):
+                pass
+        
+        # If no port in Host header, assume default HTTP port 80
+        # unless this is an HTTPS request (which we don't handle here)
+        return 80
+    
+    def _should_proxy_request(self):
+        """Determine if this request should be proxied based on target port"""
+        request_port = self._get_request_port()
+        target_port = self.proxy_instance.target_port
+        
+        # Check if request contains qimessaging - these should not be proxied
+        # but should be allowed to pass through to local system
+        if '/qimessaging/' in self.path or 'qimessaging' in self.path:
+            self.logger.debug("QiMessaging request detected - allowing local handling: %s", self.path)
+            return False
+        
+        # Only proxy if the request is targeting our configured port
+        should_proxy = request_port == target_port
+        
+        self.logger.debug("Request port: %d, Target port: %d, Should proxy: %s", 
+                         request_port, target_port, should_proxy)
+        
+        return should_proxy
+    
     def _handle_request(self, method):
         """Handle HTTP requests with WebSocket upgrade support"""
+        
+        # Check if this is a qimessaging request - let it pass through without proxying
+        if '/qimessaging/' in self.path or 'qimessaging' in self.path:
+            self.logger.debug("QiMessaging request - passing through locally: %s %s", method, self.path)
+            self._send_passthrough_response(method)
+            return
+        
+        # Only proxy if the request is targeting our configured port
+        if not self._should_proxy_request():
+            self._send_not_found_response(method)
+            return
         
         try:
             # Get current target (may have been updated via file)
@@ -357,6 +403,40 @@ class ProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             except:
                 pass
     
+    def _send_passthrough_response(self, method):
+        """Send a response indicating the request should be handled locally"""
+        try:
+            self.logger.debug("Allowing local handling of %s %s", method, self.path)
+            # Return a simple response indicating the service should be handled locally
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            message = "Request handled locally - not proxied."
+            self.send_header('Content-Length', str(len(message)))
+            self.end_headers()
+            if method != 'HEAD':
+                self.wfile.write(message)
+        except Exception as e:
+            self.logger.debug("Error sending passthrough response: %s", e)
+    
+    def _send_not_found_response(self, method):
+        """Send a 404 response for non-target-port requests"""
+        try:
+            request_port = self._get_request_port()
+            target_port = self.proxy_instance.target_port
+            
+            self.logger.debug("Rejecting %s %s - request port %d does not match target port %d", 
+                            method, self.path, request_port, target_port)
+            message = "Service not available on port %d. Proxy only handles requests targeting port %d." % (request_port, target_port)
+            
+            self.send_response(404)
+            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Content-Length', str(len(message)))
+            self.end_headers()
+            if method != 'HEAD':
+                self.wfile.write(message)
+        except Exception as e:
+            self.logger.debug("Error sending not found response: %s", e)
+
     def _handle_websocket_upgrade(self, target_host, target_port):
         """Handle WebSocket upgrade requests"""
         self.logger.info("WebSocket upgrade request: %s [target: %s]", self.path, target_host)
@@ -435,7 +515,7 @@ class ProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         server_to_client.join()
         
         self.logger.debug("WebSocket connection closed: %s", self.path)
-    
+
     def log_message(self, format, *args):
         """Override default logging to reduce spam"""
         pass
