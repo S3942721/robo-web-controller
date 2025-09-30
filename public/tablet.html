@@ -86,12 +86,14 @@
             opacity: 0;
             background: rgba(0, 0, 0, 0.8);
             pointer-events: none;
+            z-index: 50;
         }
 
         .conversation-interface.active {
             display: block;
             opacity: 1;
             pointer-events: auto;
+            z-index: 50;
         }
 
         .user-message-container {
@@ -216,46 +218,7 @@
             }
         }
 
-        .text-bubble {
-            position: fixed;
-            top: 2%;
-            left: 5%;
-            width: 90%;
-            height: 8%;
-            background: rgba(50, 50, 50, 0.95);
-            border: 2px solid #666666;
-            border-radius: 15px;
-            padding: 0;
-            color: #ffffff;
-            z-index: 999999;
-            isolation: isolate;
-            will-change: opacity;
-            opacity: 0;
-            display: none;
-            overflow: hidden;
-            text-align: center;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
 
-        .text-bubble.show {
-            opacity: 1;
-            display: block;
-        }
-
-        .text-bubble.hide {
-            opacity: 0;
-        }
-
-        .text-bubble .bubble-content {
-            font-size: 24px;
-            color: #ffffff;
-            line-height: 1.2;
-            padding: 20px;
-            word-wrap: break-word;
-            white-space: normal;
-            text-align: center;
-        }
 
         .video-container {
             width: 100%;
@@ -277,6 +240,22 @@
             top: 0;
             left: 0;
             pointer-events: none;
+        }
+
+        #background-video {
+            z-index: 0;
+        }
+
+        #playback-video {
+            z-index: 2147483647;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #playback-video.playing {
+            opacity: 1;
+            visibility: visible;
+            z-index: 2147483647;
         }
 
         .footer {
@@ -404,6 +383,10 @@
             overflow-y: auto;
         }
 
+        .video-container.playing~.debug-panel {
+            z-index: 1;
+        }
+
         .debug-panel .debug-item {
             margin: 2px 0;
             padding: 2px;
@@ -415,6 +398,10 @@
             bottom: 80px;
             left: 10px;
             z-index: 10000;
+        }
+
+        .video-container.playing~.test-buttons {
+            z-index: 1;
         }
 
         .test-btn {
@@ -430,6 +417,34 @@
 
         .test-btn:hover {
             background: #0056b3;
+        }
+
+        .video-container.playing {
+            z-index: 2147483647;
+        }
+
+        .video-container.playing #playback-video {
+            z-index: 2147483647;
+        }
+
+        /* Force top-layer fullscreen video layer */
+        .force-top {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 2147483647 !important;
+            pointer-events: none !important;
+            background: #000 !important;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            contain: strict;
+        }
+
+        #playback-video.force-top {
+            opacity: 1 !important;
+            visibility: visible !important;
         }
     </style>
 </head>
@@ -454,7 +469,7 @@
                     Your browser does not support the video tag.
                 </video>
                 <!-- Preloaded video for playback -->
-                <video id="playback-video" style="display: none;" playsinline preload="auto">
+                <video id="playback-video" playsinline preload="auto">
                     <source src="http://198.18.0.1/apps/rmit-race/TB_video.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
@@ -483,9 +498,7 @@
             </div>
         </div>
 
-        <div class="text-bubble" id="text-bubble">
-            <div class="bubble-content" id="bubble-content">Waiting for message...</div>
-        </div>
+
 
         <div class="footer">
             <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
@@ -664,20 +677,7 @@
 
             function debugLog (message) {
                 updateDebug('msg', new Date().toLocaleTimeString() + ': ' + message)
-                // Also show as text bubble for 3 seconds
-                var bubble = document.getElementById('text-bubble')
-                var content = document.getElementById('bubble-content')
-                if (bubble && content) {
-                    content.textContent = '🔧 ' + message
-                    bubble.style.display = 'block'
-                    bubble.className = 'text-bubble show'
-                    setTimeout(function () {
-                        bubble.className = 'text-bubble hide'
-                        setTimeout(function () {
-                            bubble.style.display = 'none'
-                        }, 300)
-                    }, 3000)
-                }
+                // Remove text bubble display to avoid conflicts with AI messages
             }
 
             // ---- Tablet Video Control ----
@@ -686,21 +686,24 @@
             function playTabletVideo (videoUrl) {
                 var backgroundVideo = document.getElementById('background-video')
                 var playbackVideo = document.getElementById('playback-video')
-                
-                if (!backgroundVideo || !playbackVideo) {
-                    return
-                }
+                var videoContainer = document.getElementById('video-container')
 
-                // Hide background video
-                backgroundVideo.style.display = 'none'
-                backgroundVideo.pause()
+                if (!backgroundVideo || !playbackVideo || !videoContainer) return
 
-                // Show and play the preloaded video
-                playbackVideo.style.display = 'block'
+                // Hide conversation interface
+                hideConversationInterface()
+
+                // Setup video playback
+                videoContainer.classList.add('playing')
+                playbackVideo.classList.add('playing', 'force-top')
                 playbackVideo.muted = false
                 playbackVideo.currentTime = 0
                 isVideoPlaying = true
-                updateDebug('video', 'Playing: UNMUTED')
+                updateDebug('video', 'Playing')
+
+                playbackVideo.onended = function () {
+                    stopTabletVideo()
+                }
 
                 playbackVideo.play().catch(function (error) {
                     updateDebug('video', 'ERROR: ' + error.message)
@@ -710,25 +713,47 @@
             function stopTabletVideo () {
                 var backgroundVideo = document.getElementById('background-video')
                 var playbackVideo = document.getElementById('playback-video')
-                
+                var videoContainer = document.getElementById('video-container')
+
                 if (!backgroundVideo || !playbackVideo) {
                     return
                 }
 
-                // Hide and pause playback video
-                playbackVideo.style.display = 'none'
+                // Remove force-top classes and hide playback video
+                playbackVideo.classList.remove('force-top')
+                videoContainer.classList.remove('force-top', 'playing')
+                playbackVideo.className = ''     // Keep original logic: hide playback layer
                 playbackVideo.pause()
                 playbackVideo.currentTime = 0
 
-                // Show and resume background video
-                backgroundVideo.style.display = 'block'
-                backgroundVideo.muted = true
-                isVideoPlaying = false
-                updateDebug('video', 'Background: MUTED')
+                // Send resume command to robot via WebSocket
+                if (mainWs && mainWs.readyState === WebSocket.OPEN) {
+                    try {
+                        mainWs.send(JSON.stringify({
+                            cmd: 'req-execute',
+                            type: 'control',
+                            message: 'resume',
+                            robot: robot
+                        }))
+                        console.log('▶️ Sent resume command to robot')
+                    } catch (e) {
+                        console.error('Failed to send resume command:', e)
+                    }
+                }
 
-                backgroundVideo.play().catch(function (error) {
-                    updateDebug('video', 'ERROR: ' + error.message)
-                })
+                // Ensure background video is playing with proper z-index
+                backgroundVideo.muted = true
+                backgroundVideo.style.zIndex = '1'
+                isVideoPlaying = false
+                updateDebug('video', 'Background: MUTED - INPUT ENABLED')
+                console.log('⏹️ Video stopped - enabling user input processing')
+
+                var playPromise = backgroundVideo.play()
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(function (error) {
+                        updateDebug('video', 'ERROR: ' + error.message)
+                    })
+                }
             }
 
             window.playTabletVideo = playTabletVideo
@@ -766,16 +791,12 @@
                 xhr('POST', abs('/api/robot-tablet/heartbeat'), JSON.stringify({ robot: robot, tag: tag || 'tick' }), function () { })
             }
 
-            // ---- textBubble ----
-            var textBubble = document.getElementById('text-bubble')
-            var bubbleContent = document.getElementById('bubble-content')
-
-            var currentAIResponse = ''
-            var bubbleTimer = null
+            // ---- conversation interface ----
             var conversationActive = false
             var conversationHistory = []
             var currentAIResponseText = ''
             var inactivityTimer = null
+            var aiBubbleShown = false   // 防重复
 
 
             function showConversationInterface () {
@@ -867,6 +888,8 @@
                 }
             }
 
+
+
             function updateAIMessage (content) {
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
@@ -878,171 +901,83 @@
 
 
             function showUserBubble (content) {
-                console.log('showUserBubble called with:', content)
-                console.log('textBubble element:', textBubble)
-                console.log('bubbleContent element:', bubbleContent)
-                if (!textBubble || !content) {
-                    console.log('showUserBubble: missing elements or content')
-                    return
-                }
-
-                if (bubbleTimer) {
-                    clearTimeout(bubbleTimer)
-                    bubbleTimer = null
-                }
-
-                bubbleContent.textContent = '👤 ' + content
-                bubbleContent.className = 'bubble-content'
-
-                textBubble.style.display = 'flex'
-                textBubble.className = 'text-bubble'
-
-                setTimeout(function () {
-                    textBubble.className = 'text-bubble show'
-                }, 50)
-
-                console.log('User bubble should be visible now')
-
-                bubbleTimer = setTimeout(function () {
-                    textBubble.className = 'text-bubble hide'
-                    setTimeout(function () {
-                        textBubble.style.display = 'none'
-                        textBubble.className = 'text-bubble'
-                    }, 600)
-                }, 12000)
+                // User bubble functionality removed - content now shows in conversation interface
+                console.log('User message:', content)
             }
 
 
 
-            var aiResponseStarted = false
+            // ---- robust stream text merge: prefix-or-append ----
+            function mergeStreamText (prev, incoming) {
+                incoming = incoming || ''
+                if (!prev) return incoming
 
+                // 完全相同：不变
+                if (incoming === prev) return prev
+
+                // incoming 已经包含在 prev 中：不变（处理重复 delta）
+                if (prev.indexOf(incoming) !== -1) return prev
+
+                // 累积帧：incoming 以 prev 为前缀，直接覆盖
+                if (incoming.indexOf(prev) === 0) return incoming
+
+                // 处理边界重叠：找最长“prev 的后缀 == incoming 的前缀”
+                var max = Math.min(prev.length, incoming.length)
+                for (var k = max; k > 0; k--) {
+                    if (prev.slice(-k) === incoming.slice(0, k)) {
+                        return prev + incoming.slice(k)
+                    }
+                }
+
+                // 其余情况直接追加
+                return prev + incoming
+            }
+
+            // ---- REPLACE the whole function ----
             function updateLLMDisplay (type, content, isChunk, isFinal) {
-                console.log('updateLLMDisplay called:', type, content ? content.substring(0, 50) : 'empty', isChunk, isFinal)
-                if (!content) content = ''
-
-                var KEY_CITY = /(?:\bcity\s*north\b)/i
-
+                content = content || ''
 
                 if (type === 'user') {
-                    currentAIResponse = ''
+                    aiBubbleShown = false
                     currentAIResponseText = ''
-                    aiResponseStarted = false
-
                     showConversationInterface()
                     updateUserMessage(content)
-                    updateAIMessage('Waiting for Haku\'s response...')
+                    updateAIMessage("Waiting for Haku's response...")
                     startAutoReturnTimer()
                     return
                 }
 
                 if (type === 'ai') {
-                    // Initialize AI response if not started
-                    if (!aiResponseStarted) {
-                        aiResponseStarted = true
-                        currentAIResponse = ''
-                        currentAIResponseText = ''
+                    // No longer rely on isChunk; unified prefix detection for "overwrite or append"
+                    currentAIResponseText = mergeStreamText(currentAIResponseText, content)
+
+                    // rAF debounce to avoid high-frequency reflow
+                    if (!updateLLMDisplay._raf) {
+                        updateLLMDisplay._raf = requestAnimationFrame(function () {
+                            updateLLMDisplay._raf = null
+                            updateAIMessage(currentAIResponseText)
+                        })
                     }
 
-                    currentAIResponse += content
-                    currentAIResponseText += content
-                    console.log('AI processing:', isChunk, isFinal, currentAIResponse.length)
-
-                    // Only update if we have content to avoid showing default message
-                    if (currentAIResponseText.trim()) {
-                        updateAIMessage(currentAIResponseText)
+                    if (isFinal) {
+                        if (!currentAIResponseText || aiBubbleShown) return
+                        aiBubbleShown = true
+                        startAutoReturnTimer()
                     }
-
-                    // Check for keywords in current content
-                    if (KEY_CITY.test(content)) {
-                        console.log('City North keyword detected in current content:', content)
-                        showCityNorth()
-                    }
-
-                    if (isFinal === true) {
-                        console.log('AI response finished')
-                        // Show text bubble with complete AI response
-                        if (currentAIResponseText && currentAIResponseText.trim()) {
-                            showAIBubble(currentAIResponseText.trim())
-                        }
-                        aiResponseStarted = false
-                        currentAIResponse = ''
-                        currentAIResponseText = ''
-                    }
-                }
-            }
-
-            window.pushMsg = function (m) {
-                try {
-                    if (!m) return
-                    console.log('pushMsg received:', m.type, m.content ? m.content.substring(0, 20) : 'no content')
-                    if (m.type === 'llm-user-input') {
-                        updateLLMDisplay('user', m.content, false, false)
-                    } else if (m.type === 'llm-ai-response') {
-                        var flags = parseStreamFlags(m)
-                        updateLLMDisplay('ai', m.content, flags.isChunk, flags.isFinal)
-                    }
-                } catch (e) { console.error('pushMsg error', e) }
-            }
-            function showAIBubble (content) {
-                console.log('showAIBubble called with:', content)
-                if (!textBubble || !content) {
-                    console.log('showAIBubble: missing elements or content')
                     return
                 }
-
-                if (bubbleTimer) {
-                    clearTimeout(bubbleTimer)
-                    bubbleTimer = null
-                }
-
-                bubbleContent.textContent = '🤖 ' + content
-                bubbleContent.className = 'bubble-content'
-
-                textBubble.style.display = 'block'
-                textBubble.className = 'text-bubble'
-
-                setTimeout(function () {
-                    textBubble.className = 'text-bubble show'
-                }, 50)
-
-                console.log('AI bubble should be visible now')
-
-                bubbleTimer = setTimeout(function () {
-                    textBubble.className = 'text-bubble hide'
-                    setTimeout(function () {
-                        textBubble.style.display = 'none'
-                        textBubble.className = 'text-bubble'
-                    }, 600)
-                }, 8000)
             }
+
+
+
 
             window.updateLLMDisplay = updateLLMDisplay
             window.showUserBubble = showUserBubble
-            window.showAIBubble = showAIBubble
-
-            // Test functions
-            window.testUserBubble = function () {
-                console.log('Testing user bubble...')
-                showUserBubble('This is a test user message')
-            }
-
-            window.testAIBubble = function () {
-                console.log('Testing AI bubble...')
-                showAIBubble('This is a test AI response')
-            }
 
 
-            function isFinalMsg (msg) {
-                var v = msg && (msg.final || msg.done || msg.isFinal || msg.end)
-                var phase = msg && (msg.phase || msg.event)
-                return v === true || v === 1 || v === '1' || v === 'true' || phase === 'final' || phase === 'end' || phase === 'stop'
-            }
-            function isChunkMsg (msg) {
-                if (isFinalMsg(msg)) return false
-                var v = msg && (msg.isChunk || msg.chunk || msg.delta)
-                var phase = msg && (msg.phase || msg.event)
-                return v === true || v === 1 || v === '1' || v === 'true' || v === 'delta' || phase === 'delta' || phase === 'chunk'
-            }
+
+
+
             function parseStreamFlags (msg) {
                 var phase = msg && (msg.phase || msg.event || msg.status)
                 var isFinal = false
@@ -1051,10 +986,14 @@
                 if (msg && (msg.final || msg.done || msg.isFinal || msg.end || msg.isFinished)) isFinal = true
                 if (phase === 'final' || phase === 'end' || phase === 'stop' || phase === 'complete') isFinal = true
 
+                // Only mark as chunk if explicitly indicated
                 var v = msg && (msg.isChunk || msg.chunk || msg.delta)
-                var isChunk = !isFinal
-                if (!isFinal && (v === true || v === 1 || v === '1' || v === 'true' || v === 'delta')) isChunk = true
-                if (!isFinal && (phase === 'delta' || phase === 'chunk' || phase === 'stream')) isChunk = true
+                var isChunk = false
+                if (v === true || v === 1 || v === '1' || v === 'true') isChunk = true
+                if (phase === 'delta' || phase === 'chunk' || phase === 'stream') isChunk = true
+
+                // Add fallback at end of parseStreamFlags
+                if (!isFinal && !isChunk) isChunk = true
 
                 return { isChunk, isFinal }
             }
@@ -1092,14 +1031,40 @@
                         }
                         if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
                         if (msg.type === 'llm-user-input') {
-                            // Use pushMsg to avoid duplicate processing
-                            window.pushMsg(msg)
+                            // Check if video is playing - if so, ignore user input
+                            if (isVideoPlaying) {
+                                console.log('🚫 Ignoring user input while video is playing:', msg.content)
+                                return
+                            }
+                            // Process directly to avoid duplicate processing
+                            updateLLMDisplay('user', msg.content, false, false)
                             return
                         }
                         if (msg.type === 'llm-ai-response') {
-                            console.log('AI message received:', msg)
-                            // Use pushMsg to avoid duplicate processing
-                            window.pushMsg(msg)
+                            if (isVideoPlaying) { console.log('🚫 Ignore AI while video'); return }
+
+                            // Unified text extraction
+                            function extractText (m) {
+                                if (!m || typeof m !== 'object') return ''
+                                if (typeof m.content === 'string') return m.content
+                                if (typeof m.delta === 'string') return m.delta
+                                if (typeof m.token === 'string') return m.token
+                                if (typeof m.text === 'string') return m.text
+                                if (m.choices && m.choices[0]) {
+                                    const ch = m.choices[0]
+                                    if (ch.delta && typeof ch.delta.content === 'string') return ch.delta.content
+                                    if (typeof ch.text === 'string') return ch.text
+                                    if (typeof ch.content === 'string') return ch.content
+                                }
+                                return ''
+                            }
+
+                            const flags = parseStreamFlags(msg)
+                            const piece = extractText(msg)
+                            if (piece === '') { return } // Don't overwrite with empty chunks
+
+                            // Use updateLLMDisplay instead of direct processing to avoid duplication
+                            updateLLMDisplay('ai', piece, flags.isChunk, flags.isFinal)
                             return
                         }
 
@@ -1113,23 +1078,15 @@
                             return
                         }
 
-
-
                         // Tablet video control
                         if (msg.cmd === 'tablet-video-play') {
-                            debugLog('Video play cmd received')
-                            playTabletVideo(msg.videoUrl)
+                            console.log('🎬 Received tablet video play command:', msg.videoUrl)
+                            playTabletVideo(msg.videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4')
                             return
                         }
                         if (msg.cmd === 'tablet-video-stop') {
-                            debugLog('Video stop cmd received')
+                            console.log('⏹️ Received tablet video stop command')
                             stopTabletVideo()
-                            return
-                        }
-
-                        // Text bubble control (TODO)
-                        if (msg.type === 'robot-status-update') {
-                            // TODO: Handle if converstation active - should we display text bubble or not?
                             return
                         }
 
@@ -1150,18 +1107,7 @@
                 }
             }
 
-            // ---- Polling fallback (distinguish WS/router issues) ----
-            function pollLoop () {
-                xhr('GET', abs('/api/pull?robot=' + encodeURIComponent(robot)), null, function (err, status, text) {
-                    if (!err && status === 200) {
-                        try {
-                            var list = JSON.parse(text || '[]')
-                            if (list && list.length) { console.log('Poll got', list.length); for (var i = 0; i < list.length; i++) { window.pushMsg(list[i]) } }
-                        } catch (e) { console.error('Poll JSON', e) }
-                    } else if (err) { console.error('Poll err', err) }
-                    setTimeout(pollLoop, 2000)
-                })
-            }
+
 
 
 
@@ -1185,7 +1131,6 @@
 
             heartbeat('init')
             connectWS()
-            pollLoop()
             setInterval(function () {
                 heartbeat('tick')
                 var s = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL'
