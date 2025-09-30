@@ -4,9 +4,11 @@ import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, Care
 import ScrollBar from "./../sub-components/ScrollBar";
 import FoldableSection from "./../FoldableSection";
 import SelectProfile from "../SelectProfile";
+import Chat from "../chat/Chat";
+import { ChatProvider } from "../chat/ChatProvider";
 
 // New slider config and persistence code:
-export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot, reloadTabletWebView, reloadingTablet }) {
+export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot, reloadTabletWebView, reloadingTablet, mode = "Puppet" }) {
     const [keys, setKeys] = useState({
         W: false,
         A: false,
@@ -333,8 +335,19 @@ export default function MoveController({ foldable, compact = false, profile_swit
             </FoldableSection>
         );
     }
-    return (
 
+    // In Chat mode, render the chat interface instead of movement controls
+    if (mode === "Chat") {
+        return (
+            <ChatProvider activeRobot={activeRobot}>
+                <FoldableSection title={"Chat Interface"} foldable={foldable}>
+                    <Chat activeRobot={activeRobot} />
+                </FoldableSection>
+            </ChatProvider>
+        );
+    }
+
+    return (
         <FoldableSection title={"Movement Controller"} foldable={foldable}>
             <div>X {x}</div>
             <div>Y {y}</div>
@@ -373,7 +386,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
                 value={sliderValues.MoveTimeout}
                 max={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.max}
                 min={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.min}
-                step={(sliderConfig[activeRobotRef.current] || sliderConfig["Default"])?.MoveTimeout.step}
+                step={(sliderConfig[activeRobot] || sliderConfig["Default"])?.MoveTimeout.step}
                 onChange={(val) => handleSliderChange("MoveTimeout", val)}
             />
         </FoldableSection>

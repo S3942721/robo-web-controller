@@ -4,7 +4,7 @@ import ScrollBar from "./sub-components/ScrollBar";
 import TriggerBehaviour from "./TriggerBehaviour";
 import { useEffect, useState } from "react";
 
-export default function ScrollControllers({ foldable, compact = false, triggers = false, activeRobot }) {
+export default function ScrollControllers({ foldable, compact = false, triggers = false, activeRobot, mode = "Puppet" }) {
     const [scrollConfig, setScrollConfig] = useState({});
     const [scrollValues, setScrollValues] = useState({});
     const [robotScrolls, setRobotScrolls] = useState({});
@@ -84,6 +84,43 @@ export default function ScrollControllers({ foldable, compact = false, triggers 
                             />
                         );
                     })}
+                    
+                    {/* Add movement controls when in Chat mode */}
+                    {mode === "Chat" && (
+                        <div className="movement-controls-compact">
+                            <div style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--primary-color)' }}>
+                                Movement Controls
+                            </div>
+                            {/* These would need to be hooked up to the movement system */}
+                            <ScrollBar
+                                name="Movement Speed"
+                                value={0.3}
+                                min={0}
+                                max={1}
+                                step={0.1}
+                                onChange={(val) => console.log("Movement speed:", val)}
+                                compact={compact}
+                            />
+                            <ScrollBar
+                                name="Turn Speed"
+                                value={0.5}
+                                min={0}
+                                max={2}
+                                step={0.1}
+                                onChange={(val) => console.log("Turn speed:", val)}
+                                compact={compact}
+                            />
+                            <ScrollBar
+                                name="Move Timeout"
+                                value={3}
+                                min={0}
+                                max={10}
+                                step={0.5}
+                                onChange={(val) => console.log("Move timeout:", val)}
+                                compact={compact}
+                            />
+                        </div>
+                    )}
                 </div>
                 {triggers && (
                     <div className="scroll-controllers-triggers">

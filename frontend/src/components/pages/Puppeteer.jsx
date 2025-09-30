@@ -3,10 +3,12 @@ import PreDefinedScripts from "../PreDefinedScripts";
 import ScrollControllers from "../ScrollControllers";
 import MoveController from "./MoveController";
 import PagedShortCuts from "./PagedShortCuts";
+import { ChatProvider, Chat } from "../chat";
 
 export default function Puppeteer() {
     const [activeButton, setActiveButton] = useState("Bandit");
     const [reloadingTablet, setReloadingTablet] = useState(false); // Tablet reload state
+    const [mode, setMode] = useState("Puppet"); // "Puppet" or "Chat"
 
     // Update global active robot variable whenever activeButton changes
     useEffect(() => {
@@ -71,12 +73,19 @@ export default function Puppeteer() {
                         activeRobot={activeButton}
                         reloadTabletWebView={reloadTabletWebView}
                         reloadingTablet={reloadingTablet}
+                        mode={mode}
                     />
                 </div>
                 <div className={'grid-item'}>
                     <div className={'grid-container robot-target-scripts'}>
                         <div className={'grid-item'}>
-                            <PreDefinedScripts foldable={false} compact={true} activeRobot={activeButton} />
+                            {mode === "Puppet" ? (
+                                <PreDefinedScripts foldable={false} compact={true} activeRobot={activeButton} />
+                            ) : (
+                                <ChatProvider targetRobot={activeButton}>
+                                    <Chat />
+                                </ChatProvider>
+                            )}
                         </div>
                         <div className={'grid-item'}>
                             <div className={'button-container'}>
@@ -94,7 +103,18 @@ export default function Puppeteer() {
                                 >
                                     Haku
                                 </button>
-
+                                
+                                {/* Mode Toggle Button */}
+                                <button 
+                                    className={`full-width ${mode === "Chat" ? "active" : ""}`} 
+                                    onClick={() => setMode(mode === "Chat" ? "Puppet" : "Chat")}
+                                    style={{ 
+                                        backgroundColor: mode === "Chat" ? '#28a745' : '#6c757d',
+                                        marginTop: '10px'
+                                    }}
+                                >
+                                    {mode === "Chat" ? "Chat Mode" : "Puppet Mode"}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -105,6 +125,7 @@ export default function Puppeteer() {
                         compact={true}
                         triggers={true}
                         activeRobot={activeButton}
+                        mode={mode}
                     />
                 </div>
                 <div className={'grid-item'}>
