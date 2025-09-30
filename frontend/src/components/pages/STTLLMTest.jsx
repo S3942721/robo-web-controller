@@ -50,6 +50,9 @@ export default function STTLLMTest() {
     const [sendToRobot, setSendToRobot] = useState(true);
     const [targetRobot, setTargetRobot] = useState('Haku');
     const [chunkConfig, setChunkConfig] = useState(null);
+    
+    // Add video playing state
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
     // Add state for buffer management
     const [bufferStatus, setBufferStatus] = useState(null);
@@ -396,6 +399,12 @@ export default function STTLLMTest() {
         
         switch(data.type) {
             case 'partial':
+                // Check if video is playing - if so, ignore STT messages
+                if (isVideoPlaying) {
+                    console.warn('🚫 IGNORING STT partial - video is playing');
+                    return;
+                }
+                
                 // Check turn-taking rules before processing
                 if (robotSpeaking) {
                     console.warn('⚠️ TURN-TAKING VIOLATION: Received STT partial while robot is speaking!');
@@ -427,6 +436,12 @@ export default function STTLLMTest() {
                 break;
                 
             case 'complete':
+                // Check if video is playing - if so, ignore STT messages
+                if (isVideoPlaying) {
+                    console.warn('🚫 IGNORING STT complete - video is playing');
+                    return;
+                }
+                
                 // Check turn-taking rules before processing
                 if (robotSpeaking) {
                     console.warn('⚠️ TURN-TAKING VIOLATION: Received STT complete while robot is speaking!');
@@ -733,6 +748,13 @@ export default function STTLLMTest() {
     };
 
     const sendToLLM = (message, historyOverride = null) => {
+        // Check if video is playing - if so, block LLM requests
+        if (isVideoPlaying) {
+            console.warn('🚫 BLOCKING LLM request - video is playing');
+            setOverallStatus('🚫 LLM blocked - video playing');
+            return;
+        }
+        
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
             console.log('✍️ Sending message to LLM:', message);
             
@@ -919,7 +941,7 @@ export default function STTLLMTest() {
         
         try {
             console.log('🎤 Starting transcription...');
-            sttWsRef.current.send(JSON.stringify({ action: 'start' }));
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'start' }));
             setOverallStatus('🎤 Started listening - speak now');
         } catch (error) {
             console.error('Failed to start transcription:', error);
@@ -934,7 +956,7 @@ export default function STTLLMTest() {
         
         try {
             console.log('⏹️ Stopping transcription...');
-            sttWsRef.current.send(JSON.stringify({ action: 'stop' }));
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'stop' }));
             setOverallStatus('⏹️ Stopped listening');
             setCurrentTranscription('');
         } catch (error) {
@@ -984,6 +1006,17 @@ export default function STTLLMTest() {
     const playVideo = async () => {
         try {
             console.log('🎬 Playing video on tablet...');
+            
+            // Clear any ongoing LLM state
+            setLLMActive(false);
+            setCurrentTranscription('');
+            
+            // Send pause command to STT if connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('📤 Sending pause command to STT...');
+                sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'pause' }));
+            }
+            
             const response = await fetch('/api/tablet-video/play', {
                 method: 'POST',
                 headers: {
@@ -999,7 +1032,8 @@ export default function STTLLMTest() {
             
             if (result.success) {
                 console.log(`✅ Video play command sent to ${targetRobot}`);
-                setOverallStatus('🎬 Video playing on tablet');
+                setIsVideoPlaying(true);
+                setOverallStatus('🎬 Video playing - STT/LLM disabled');
             } else {
                 console.error(`❌ Failed to play video on ${targetRobot}:`, result.message);
                 setOverallStatus('❌ Failed to play video');
@@ -1013,6 +1047,13 @@ export default function STTLLMTest() {
     const stopVideo = async () => {
         try {
             console.log('⏹️ Stopping video on tablet...');
+            
+            // Send resume command to STT if connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('📤 Sending resume command to STT...');
+                sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'resume' }));
+            }
+            
             const response = await fetch('/api/tablet-video/stop', {
                 method: 'POST',
                 headers: {
@@ -1027,7 +1068,10 @@ export default function STTLLMTest() {
             
             if (result.success) {
                 console.log(`✅ Video stop command sent to ${targetRobot}`);
-                setOverallStatus('⏹️ Video stopped on tablet');
+                setIsVideoPlaying(false);
+                setOverallStatus('⏹️ Video stopped - STT/LLM enabled');
+                
+                // STT/LLM will be automatically re-enabled by the server
             } else {
                 console.error(`❌ Failed to stop video on ${targetRobot}:`, result.message);
                 setOverallStatus('❌ Failed to stop video');
@@ -1443,34 +1487,36 @@ export default function STTLLMTest() {
                             onClick={startTranscription}
                             style={{
                                 padding: '12px 25px',
-                                backgroundColor: '#28a745',
+                                backgroundColor: (sttStatus !== 'connected' || isVideoPlaying) ? '#666' : '#28a745',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
-                                cursor: 'pointer',
+                                cursor: (sttStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
                                 fontSize: '16px',
                                 fontWeight: 'bold',
-                                marginRight: '10px'
+                                marginRight: '10px',
+                                opacity: (sttStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
                             }}
-                            disabled={sttStatus !== 'connected'}
+                            disabled={sttStatus !== 'connected' || isVideoPlaying}
                         >
-                            🎤 Start
+                            {isVideoPlaying ? '🚫 STT Disabled' : '🎤 Start'}
                         </button>
                         
                         <button 
                             onClick={stopTranscription}
                             style={{
                                 padding: '12px 25px',
-                                backgroundColor: '#fd7e14',
+                                backgroundColor: (sttStatus !== 'connected' || isVideoPlaying) ? '#666' : '#fd7e14',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
-                                cursor: 'pointer',
+                                cursor: (sttStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
                                 fontSize: '16px',
                                 fontWeight: 'bold',
-                                marginRight: '10px'
+                                marginRight: '10px',
+                                opacity: (sttStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
                             }}
-                            disabled={sttStatus !== 'connected'}
+                            disabled={sttStatus !== 'connected' || isVideoPlaying}
                         >
                             ⏹️ Stop
                         </button>
@@ -1479,18 +1525,19 @@ export default function STTLLMTest() {
                             onClick={sendManualMessage}
                             style={{
                                 padding: '12px 25px',
-                                backgroundColor: '#6f42c1',
+                                backgroundColor: (llmStatus !== 'connected' || isVideoPlaying) ? '#666' : '#6f42c1',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
-                                cursor: 'pointer',
+                                cursor: (llmStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
                                 fontSize: '16px',
                                 fontWeight: 'bold',
-                                marginRight: '10px'
+                                marginRight: '10px',
+                                opacity: (llmStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
                             }}
-                            disabled={llmStatus !== 'connected'}
+                            disabled={llmStatus !== 'connected' || isVideoPlaying}
                         >
-                            ✍️ Manual Message
+                            {isVideoPlaying ? '🚫 LLM Disabled' : '✍️ Manual Message'}
                         </button>
                         
                         <button 
@@ -1532,33 +1579,37 @@ export default function STTLLMTest() {
                         
                         <button 
                             onClick={playVideo}
+                            disabled={isVideoPlaying}
                             style={{
                                 padding: '12px 25px',
-                                backgroundColor: '#e91e63',
+                                backgroundColor: isVideoPlaying ? '#666' : '#e91e63',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
-                                cursor: 'pointer',
+                                cursor: isVideoPlaying ? 'not-allowed' : 'pointer',
                                 fontSize: '16px',
                                 fontWeight: 'bold',
-                                marginRight: '10px'
+                                marginRight: '10px',
+                                opacity: isVideoPlaying ? 0.6 : 1
                             }}
                         >
-                            ▶️ Play Video
+                            {isVideoPlaying ? '🚫 Video Playing' : '▶️ Play Video'}
                         </button>
                         
                         <button 
                             onClick={stopVideo}
+                            disabled={!isVideoPlaying}
                             style={{
                                 padding: '12px 25px',
-                                backgroundColor: '#795548',
+                                backgroundColor: !isVideoPlaying ? '#666' : '#795548',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '8px',
-                                cursor: 'pointer',
+                                cursor: !isVideoPlaying ? 'not-allowed' : 'pointer',
                                 fontSize: '16px',
                                 fontWeight: 'bold',
-                                marginRight: '10px'
+                                marginRight: '10px',
+                                opacity: !isVideoPlaying ? 0.6 : 1
                             }}
                         >
                             ⏹️ Stop Video
@@ -1604,7 +1655,7 @@ export default function STTLLMTest() {
                             marginTop: '5px',
                             fontSize: '16px'
                         }}>
-                            "{currentTranscription}"
+                            &quot;{currentTranscription}&quot;
                         </div>
                     </div>
                 )}
@@ -1653,7 +1704,7 @@ export default function STTLLMTest() {
                                         {item.accumulating && <span style={{ color: '#999', fontSize: '12px' }}> (streaming...)</span>}
                                     </div>
                                     <div style={{ fontSize: '16px', marginBottom: '4px' }}>
-                                        "{item.text}"
+                                        &quot;{item.text}&quot;
                                     </div>
                                     <div style={{ 
                                         fontSize: '12px', 
@@ -1765,7 +1816,7 @@ export default function STTLLMTest() {
                                     fontSize: '12px'
                                 }}>
                                     <strong>Buffer Content:</strong><br />
-                                    "{bufferStatus.bufferContent}"
+                                    &quot;{bufferStatus.bufferContent}&quot;
                                 </div>
                             )}
                         </div>

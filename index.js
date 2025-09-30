@@ -41,6 +41,12 @@ robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
 robotAPI.on('sttMessage', (message) => {
     console.log(`[Server] 🎤 STT message received: ${message.type}`)
 
+    // Check if video is playing - if so, block STT message processing
+    if (isVideoPlaying) {
+        console.log(`[Server] 🚫 Blocking STT message processing - video playing for robot ${videoPlayingRobot}`)
+        return
+    }
+
     // Forward STT messages to frontend WebSocket clients for debugging/monitoring
     if (message.type === 'complete' || message.type === 'partial') {
         sendWebSockets.forEach(ws => {
@@ -137,6 +143,12 @@ robotAPI.on('turnTakingViolation', ({ type, robot, sessionId, message, timestamp
 
 // Function to broadcast LLM communication to tablet displays
 function broadcastLLMCommunication (type, content, robot) {
+    // Check if video is playing for this robot - if so, block broadcast
+    if (isVideoPlaying && videoPlayingRobot === robot) {
+        console.log(`[LLM Broadcast] 🚫 Blocking ${type} broadcast - video playing for robot ${robot}`)
+        return
+    }
+
     const message = {
         type: type, // 'llm-user-input' or 'llm-ai-response'
         content: content,
@@ -173,6 +185,10 @@ function broadcastLLMCommunication (type, content, robot) {
 // variables
 let sendSockets = [] // Keep for backward compatibility
 let sendWebSockets = []
+
+// Global video playing state to disable STT/LLM processing
+let isVideoPlaying = false
+let videoPlayingRobot = null
 
 let current_profile = {}
 let all_scripts = {}, scripts = {}
@@ -358,7 +374,7 @@ app.ws('/api/sync', (ws, req) => {
     console.log(`[WebSocket] Total connections: ${sendWebSockets.length}`)
 
     // execute different commands
-    ws.on('message', msg => {
+    ws.on('message', async (msg) => {
         try {
             const parsed = JSON.parse(msg)
             const { cmd, message, robot, type } = parsed
@@ -384,17 +400,21 @@ app.ws('/api/sync', (ws, req) => {
                     // Use Robot API instead of direct socket calls
                     robotAPI.sendMessage({ cmd, type, message, robot }, robot)
                     break
-                case 'play-video':
-                    // Broadcast video play event to all tablets
-                    syncWSWithAll('video-play', { robot })
-                    console.log(`[WebSocket] Broadcasting video play to ${robot}`)
-                    break
-                case 'stop-video':
-                    // Broadcast video stop event to all tablets
-                    syncWSWithAll('video-stop', { robot })
-                    console.log(`[WebSocket] Broadcasting video stop to ${robot}`)
-                    break
+
                 case 'tablet-video-play':
+                    // Set global video playing state
+                    isVideoPlaying = true
+                    videoPlayingRobot = robot
+                    console.log(`[Video Control] 🎬 Video playing started for robot ${robot} - STT/LLM disabled`)
+
+                    // Stop any ongoing robot speech/activities
+                    try {
+                        robotAPI.sendStopActionToRobot(robot)
+                        console.log(`[Video Control] 🛑 Sent $StopAction to robot ${robot} to halt ongoing activities`)
+                    } catch (error) {
+                        console.error(`[Video Control] Failed to send commands to robot ${robot}:`, error)
+                    }
+
                     // Broadcast tablet video play event with proper message format
                     const playMessage = JSON.stringify({
                         cmd: 'tablet-video-play',
@@ -410,6 +430,11 @@ app.ws('/api/sync', (ws, req) => {
                     console.log(`[WebSocket] Broadcasting tablet video play to ${robot}`)
                     break
                 case 'tablet-video-stop':
+                    // Clear global video playing state
+                    isVideoPlaying = false
+                    videoPlayingRobot = null
+                    console.log(`[Video Control] ⏹️ Video playing stopped for robot ${robot} - STT/LLM enabled`)
+
                     // Broadcast tablet video stop event with proper message format
                     const stopMessage = JSON.stringify({
                         cmd: 'tablet-video-stop',
@@ -998,6 +1023,17 @@ class LLMClient {
                             this.pendingRequests.delete(matchedRequestId)
                         }
 
+                        // Check if video is playing - if so, block LLM processing completely
+                        if (isVideoPlaying) {
+                            console.log(`[LLM-${this.sessionId}] 🚫 Blocking LLM processing - video playing for robot ${videoPlayingRobot}`)
+                            // Still forward to frontend for debugging but don't process for robot
+                            this.sendToFrontend({
+                                type: 'llm_message',
+                                data: { ...message, blocked: true, reason: 'video_playing' }
+                            })
+                            return
+                        }
+
                         // Process content for robot speech using Robot API
                         const content = message.content || message.response
                         if (content) {
@@ -1048,6 +1084,16 @@ class LLMClient {
     }
 
     sendMessage (userMessage, sourceInfo = {}) {
+        // Check if video is playing - if so, block LLM requests
+        if (isVideoPlaying) {
+            console.log(`[LLM-${this.sessionId}] 🚫 Blocking LLM request - video playing for robot ${videoPlayingRobot}`)
+            this.sendToFrontend({
+                type: 'llm_message',
+                data: { type: 'blocked', error: 'LLM blocked - video playing', reason: 'video_playing' }
+            })
+            return
+        }
+
         if (this.llmWs && this.isConnected && this.llmWs.readyState === WebSocket.OPEN) {
             const serverSendTime = Date.now()
             const requestId = `${this.sessionId}-${serverSendTime}`
@@ -1763,62 +1809,105 @@ router.post("/api/test-llm-broadcast", (req, res) => {
 
 
 
-// Tablet video control endpoints
-router.post("/api/tablet-video/play", (req, res) => {
+// Tablet video control endpoints - use WebSocket commands for consistency
+router.post("/api/tablet-video/play", async (req, res) => {
     const { robot, videoUrl } = req.body
+    const targetRobot = robot || 'Haku'
 
-    const message = JSON.stringify({
+    // Trigger the same logic as WebSocket command
+    const message = {
         cmd: 'tablet-video-play',
-        robot: robot || 'Haku',
-        videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
-        timestamp: Date.now()
-    })
+        message: { videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4' },
+        robot: targetRobot
+    }
 
-    console.log('[Tablet Video] Broadcasting play command to', sendWebSockets.length, 'connections')
+    // Simulate WebSocket message processing
+    try {
+        // Set global video playing state
+        isVideoPlaying = true
+        videoPlayingRobot = targetRobot
+        console.log(`[Video Control] 🎬 Video playing started for robot ${targetRobot} - STT/LLM disabled`)
 
-    let sentCount = 0
-    sendWebSockets.forEach(ws => {
-        if (ws.readyState === 1) {
-            ws.send(message)
-            sentCount++
-        }
-    })
+        // Stop any ongoing robot speech/activities
+        robotAPI.sendStopActionToRobot(targetRobot)
+        console.log(`[Video Control] 🛑 Sent $StopAction to robot ${targetRobot} to halt ongoing activities`)
 
-    res.status(200).json({
-        success: true,
-        message: 'Tablet video play command sent',
-        robot: robot || 'Haku',
-        videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
-        connections: sendWebSockets.length,
-        sentTo: sentCount
-    })
+        // Broadcast tablet video play event
+        const playMessage = JSON.stringify({
+            cmd: 'tablet-video-play',
+            robot: targetRobot,
+            videoUrl: message.message.videoUrl,
+            timestamp: Date.now()
+        })
+
+        let sentCount = 0
+        sendWebSockets.forEach(ws => {
+            if (ws.readyState === 1) {
+                ws.send(playMessage)
+                sentCount++
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: 'Tablet video play command sent',
+            robot: targetRobot,
+            videoUrl: message.message.videoUrl,
+            connections: sendWebSockets.length,
+            sentTo: sentCount
+        })
+    } catch (error) {
+        console.error(`[Video Control] Failed to send commands to robot ${targetRobot}:`, error)
+        res.status(500).json({ error: error.message })
+    }
 })
 
-router.post("/api/tablet-video/stop", (req, res) => {
+router.post("/api/tablet-video/stop", async (req, res) => {
     const { robot } = req.body
+    const targetRobot = robot || 'Haku'
 
-    const message = JSON.stringify({
-        cmd: 'tablet-video-stop',
-        robot: robot || 'Haku',
-        timestamp: Date.now()
-    })
+    try {
+        // Clear global video playing state
+        isVideoPlaying = false
+        videoPlayingRobot = null
+        console.log(`[Video Control] ⏹️ Video playing stopped for robot ${targetRobot} - STT/LLM enabled`)
 
-    console.log('[Tablet Video] Broadcasting stop command to', sendWebSockets.length, 'connections')
+        // Video stopped, STT/LLM will be re-enabled by state management
 
-    let sentCount = 0
-    sendWebSockets.forEach(ws => {
-        if (ws.readyState === 1) {
-            ws.send(message)
-            sentCount++
-        }
-    })
+        // Broadcast tablet video stop event
+        const stopMessage = JSON.stringify({
+            cmd: 'tablet-video-stop',
+            robot: targetRobot,
+            timestamp: Date.now()
+        })
 
+        let sentCount = 0
+        sendWebSockets.forEach(ws => {
+            if (ws.readyState === 1) {
+                ws.send(stopMessage)
+                sentCount++
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: 'Tablet video stop command sent',
+            robot: targetRobot,
+            connections: sendWebSockets.length,
+            sentTo: sentCount
+        })
+    } catch (error) {
+        console.error(`[Video Control] Failed to unmute robot ${targetRobot}:`, error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// Video status endpoint
+router.get("/api/tablet-video/status", (req, res) => {
     res.status(200).json({
-        success: true,
-        message: 'Tablet video stop command sent',
-        robot: robot || 'Haku',
-        connections: sendWebSockets.length,
-        sentTo: sentCount
+        isVideoPlaying: isVideoPlaying,
+        videoPlayingRobot: videoPlayingRobot,
+        sttLlmDisabled: isVideoPlaying
     })
 })
 
