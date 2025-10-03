@@ -63,13 +63,12 @@
         .main-content {
             background: transparent;
             border: none;
-            border-radius: 8px;
             padding: 0;
             overflow: hidden;
             position: absolute;
             top: 75px;
-            left: 10px;
-            right: 10px;
+            left: 0;
+            right: 0;
             bottom: 60px;
         }
 
@@ -240,6 +239,7 @@
             top: 0;
             left: 0;
             pointer-events: none;
+            object-fit: cover;
         }
 
         #background-video {
@@ -367,57 +367,7 @@
             opacity: 0;
         }
 
-        /* Debug panel */
-        .debug-panel {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 300px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 10000;
-            max-height: 200px;
-            overflow-y: auto;
-        }
 
-        .video-container.playing~.debug-panel {
-            z-index: 1;
-        }
-
-        .debug-panel .debug-item {
-            margin: 2px 0;
-            padding: 2px;
-            border-bottom: 1px solid #333;
-        }
-
-        .test-buttons {
-            position: fixed;
-            bottom: 80px;
-            left: 10px;
-            z-index: 10000;
-        }
-
-        .video-container.playing~.test-buttons {
-            z-index: 1;
-        }
-
-        .test-btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .test-btn:hover {
-            background: #0056b3;
-        }
 
         .video-container.playing {
             z-index: 2147483647;
@@ -488,7 +438,7 @@
 
                 <div class="ai-message-container">
                     <div class="ai-message-label">
-                        <span class="emoji">🤖</span>
+                        <span class="emoji">👤</span>
                         <span class="name">Haku</span>
                     </div>
                     <div class="ai-message-area" id="ai-message-area">
@@ -509,22 +459,7 @@
         <img id="cn-overlay-b" src="http://198.18.0.1:3000/b.jpg" alt="City North B" class="cn-overlay-img">
         <img id="cn-overlay-c" src="http://198.18.0.1:3000/c.jpg" alt="City North C" class="cn-overlay-img">
 
-        <!-- Debug Panel -->
-        <div class="debug-panel" id="debug-panel">
-            <div class="debug-item">Status: <span id="debug-status">Loading...</span></div>
-            <div class="debug-item">WebSocket: <span id="debug-ws">Disconnected</span></div>
-            <div class="debug-item">Last Message: <span id="debug-msg">None</span></div>
-            <div class="debug-item">Video State: <span id="debug-video">Unknown</span></div>
-        </div>
 
-        <!-- Test Buttons -->
-        <div class="test-buttons">
-            <button class="test-btn" onclick="playTabletVideo('http://198.18.0.1/apps/rmit-race/TB_video.mp4')">Play
-                Video</button>
-            <button class="test-btn" onclick="stopTabletVideo()">Stop Video</button>
-            <button class="test-btn" onclick="showCityNorth('http://198.18.0.1:3000/a.jpg')">Show Image</button>
-            <button class="test-btn" onclick="showUserBubble('Test message')">Test Bubble</button>
-        </div>
 
 
     </div>
@@ -596,7 +531,7 @@
                 if (!el) return
                 el.classList.remove('show')
                 el.classList.add('hide')
-                setTimeout(function () { el.classList.remove('hide') }, 400) // 结束后回到基础类
+                setTimeout(function () { el.classList.remove('hide') }, 400)
             }
 
             // ---- City North ----
@@ -669,16 +604,7 @@
                 showCityNorth('http://198.18.0.1:3000/a.jpg')
             }
 
-            // ---- Debug Functions ----
-            function updateDebug (key, value) {
-                var el = document.getElementById('debug-' + key)
-                if (el) el.textContent = value
-            }
 
-            function debugLog (message) {
-                updateDebug('msg', new Date().toLocaleTimeString() + ': ' + message)
-                // Remove text bubble display to avoid conflicts with AI messages
-            }
 
             // ---- Tablet Video Control ----
             var isVideoPlaying = false
@@ -699,14 +625,14 @@
                 playbackVideo.muted = false
                 playbackVideo.currentTime = 0
                 isVideoPlaying = true
-                updateDebug('video', 'Playing')
+
 
                 playbackVideo.onended = function () {
                     stopTabletVideo()
                 }
 
                 playbackVideo.play().catch(function (error) {
-                    updateDebug('video', 'ERROR: ' + error.message)
+                    console.error('Video play error:', error.message)
                 })
             }
 
@@ -745,21 +671,18 @@
                 backgroundVideo.muted = true
                 backgroundVideo.style.zIndex = '1'
                 isVideoPlaying = false
-                updateDebug('video', 'Background: MUTED - INPUT ENABLED')
+
                 console.log('⏹️ Video stopped - enabling user input processing')
 
                 var playPromise = backgroundVideo.play()
                 if (playPromise && typeof playPromise.catch === 'function') {
                     playPromise.catch(function (error) {
-                        updateDebug('video', 'ERROR: ' + error.message)
+                        console.error('Background video error:', error.message)
                     })
                 }
             }
-
             window.playTabletVideo = playTabletVideo
             window.stopTabletVideo = stopTabletVideo
-
-
 
             function getParam (name) {
                 var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
@@ -796,7 +719,7 @@
             var conversationHistory = []
             var currentAIResponseText = ''
             var inactivityTimer = null
-            var aiBubbleShown = false   // 防重复
+            var aiBubbleShown = false
 
 
             function showConversationInterface () {
@@ -844,9 +767,7 @@
                         clearTimeout(inactivityTimer)
                         inactivityTimer = null
                     }
-
                     aiResponseStarted = false
-
                     console.log('Conversation interface hidden, returned to video')
                 }
             }
@@ -876,10 +797,6 @@
                 console.log('AI response force stopped')
             }
 
-
-
-
-
             function updateUserMessage (content) {
                 var userMessageContent = document.getElementById('user-message-content')
                 if (userMessageContent) {
@@ -890,38 +807,109 @@
 
 
 
+            // AI message filter for special signals
+            var fullRawText = ''
+            var inThinkingBlock = false
+            var gtCount = 0
+            var hasRealContent = false
+
+            function filterAIMessage (content) {
+                if (!content) return ''
+
+                // Always work with the complete accumulated text
+                fullRawText = content
+                var result = ''
+                var i = 0
+
+                while (i < fullRawText.length) {
+                    var char = fullRawText[i]
+
+                    if (inThinkingBlock) {
+                        // We're inside a thinking block, look for >
+                        if (char === '>') {
+                            gtCount++
+                            if (gtCount === 2) {
+                                // Found second >, exit thinking block
+                                inThinkingBlock = false
+                                gtCount = 0
+                            }
+                        }
+                        i++
+                        continue
+                    }
+
+                    // Check for thinking tag start
+                    if (char === '<') {
+                        inThinkingBlock = true
+                        gtCount = 0
+                        i++
+                        continue
+                    }
+                    // Check for signal start markers
+                    else if (char === '^' || char === '{') {
+                        var endMarker = char === '^' ? ')' : '}'
+                        var signalEnd = -1
+
+                        // Find the end marker
+                        for (var j = i + 1; j < fullRawText.length; j++) {
+                            if (fullRawText[j] === endMarker) {
+                                signalEnd = j
+                                break
+                            }
+                        }
+
+                        if (signalEnd !== -1) {
+                            // Complete signal found, skip it
+                            var signal = fullRawText.substring(i, signalEnd + 1)
+                            console.log('Filtered signal:', signal)
+                            i = signalEnd + 1
+                        } else {
+                            // Incomplete signal - include the character and continue
+                            result += char
+                            i++
+                        }
+                    } else {
+                        result += char
+                        i++
+                    }
+                }
+
+                // Check if we have real content (not just whitespace)
+                if (result.trim() !== '') {
+                    hasRealContent = true
+                }
+
+                return result
+            }
+
             function updateAIMessage (content) {
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
-                    aiMessageContent.textContent = content || 'Waiting for Haku\'s response...'
-                    aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                    var filteredContent = filterAIMessage(content || '')
+                    // Only update if we have real content or if we already started showing content
+                    if (hasRealContent) {
+                        aiMessageContent.textContent = filteredContent || 'Waiting for Haku\'s response...'
+                        aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                    }
                 }
             }
-
-
 
             function showUserBubble (content) {
                 // User bubble functionality removed - content now shows in conversation interface
                 console.log('User message:', content)
             }
 
-
-
             // ---- robust stream text merge: prefix-or-append ----
             function mergeStreamText (prev, incoming) {
                 incoming = incoming || ''
                 if (!prev) return incoming
 
-                // 完全相同：不变
                 if (incoming === prev) return prev
 
-                // incoming 已经包含在 prev 中：不变（处理重复 delta）
                 if (prev.indexOf(incoming) !== -1) return prev
 
-                // 累积帧：incoming 以 prev 为前缀，直接覆盖
                 if (incoming.indexOf(prev) === 0) return incoming
 
-                // 处理边界重叠：找最长“prev 的后缀 == incoming 的前缀”
                 var max = Math.min(prev.length, incoming.length)
                 for (var k = max; k > 0; k--) {
                     if (prev.slice(-k) === incoming.slice(0, k)) {
@@ -929,7 +917,6 @@
                     }
                 }
 
-                // 其余情况直接追加
                 return prev + incoming
             }
 
@@ -940,6 +927,8 @@
                 if (type === 'user') {
                     aiBubbleShown = false
                     currentAIResponseText = ''
+                    fullRawText = ''
+                    hasRealContent = false
                     showConversationInterface()
                     updateUserMessage(content)
                     updateAIMessage("Waiting for Haku's response...")
@@ -948,7 +937,7 @@
                 }
 
                 if (type === 'ai') {
-                    // No longer rely on isChunk; unified prefix detection for "overwrite or append"
+                    // Merge stream text first
                     currentAIResponseText = mergeStreamText(currentAIResponseText, content)
 
                     // rAF debounce to avoid high-frequency reflow
@@ -960,6 +949,8 @@
                     }
 
                     if (isFinal) {
+                        // Final processing - ensure all content is filtered
+                        fullRawText = ''
                         if (!currentAIResponseText || aiBubbleShown) return
                         aiBubbleShown = true
                         startAutoReturnTimer()
@@ -968,15 +959,8 @@
                 }
             }
 
-
-
-
             window.updateLLMDisplay = updateLLMDisplay
             window.showUserBubble = showUserBubble
-
-
-
-
 
             function parseStreamFlags (msg) {
                 var phase = msg && (msg.phase || msg.event || msg.status)
@@ -1014,19 +998,18 @@
                     mainWs = new WebSocket(url)
 
                     mainWs.onopen = function () {
-                        debugLog('WebSocket connected')
-                        updateDebug('ws', 'CONNECTED')
+                        console.log('WebSocket connected')
                         document.getElementById('network-indicator').className = 'network-dot active'
                         document.getElementById('network-status').textContent = 'ONLINE'
                         try { mainWs.send(JSON.stringify({ type: 'hello', role: 'tablet', robot: robot })) } catch (e) { }
                         heartbeat('ws-open')
                     }
                     mainWs.onmessage = function (evt) {
-                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { debugLog('WS parse error'); return }
-                        debugLog('WS msg: ' + (msg.cmd || msg.type || 'unknown'))
+                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { console.error('WS parse error'); return }
+                        console.log('WS msg:', msg.cmd || msg.type || 'unknown')
                         var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
                         if (!toMe) {
-                            debugLog('Message not for me: ' + msg.robot)
+                            console.log('Message not for me:', msg.robot)
                             return
                         }
                         if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
@@ -1113,18 +1096,13 @@
 
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
-            updateDebug('status', 'Initializing...')
-
             // Ensure video container is visible on startup
             var videoContainer = document.getElementById('video-container')
             if (videoContainer) {
                 videoContainer.style.display = 'block'
                 videoContainer.style.visibility = 'visible'
-                updateDebug('video', 'Background: MUTED')
-                debugLog('Video container initialized')
+                console.log('Video container initialized')
             }
-
-            updateDebug('status', 'Ready')
 
 
 
