@@ -25,8 +25,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.*
 .env
 
 # SSL certificates
 *.pem
+
+# pnpm-specific files and directories
+.pnpm-store/
+.pnpm/
+pnpm-lock.yaml
+
+# Specific
+.github/copilot-instructions.md
+.env.backup*
