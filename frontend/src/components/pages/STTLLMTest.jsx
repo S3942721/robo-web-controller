@@ -1,0 +1,2095 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import robotAPI from '../../utils/robotAPI';
+
+export default function STTLLMTest() {
+    const [sessionId, setSessionId] = useState('');
+    const [sttStatus, setSTTStatus] = useState('disconnected');
+    const [llmStatus, setLLMStatus] = useState('disconnected');
+    const [conversationHistory, setConversationHistory] = useState([]);
+    const [currentTranscription, setCurrentTranscription] = useState('');
+    const [llmResponse, setLLMResponse] = useState('');
+    const [overallStatus, setOverallStatus] = useState('Ready to start conversation');
+    
+    // Configuration - will be loaded from server
+    const [networkConfig, setNetworkConfig] = useState(null);
+    const [autoStart, setAutoStart] = useState(true);
+    
+    const sttWsRef = useRef(null);
+    const llmWsRef = useRef(null);
+    const conversationRef = useRef(null);
+    // Keep the latest conversation history in a ref to avoid stale reads
+    const conversationHistoryRef = useRef([]);
+
+    // LLM request deduplication - prevent duplicate sessions for same utterance
+    const pendingLLMRequestsRef = useRef(new Map()); // utteranceHash -> { timestamp, sessionId }
+    const LLM_DUPLICATE_WINDOW_MS = 5000; // 5 second window to detect duplicates
+
+    // Delay statistics
+    const [delayStats, setDelayStats] = useState({
+        totalRequests: 0,
+        averageDelay: 0,
+        minDelay: 0,
+        maxDelay: 0,
+        recentDelays: []
+    });
+    const [lastDelay, setLastDelay] = useState(null);
+
+    // Add client-side delay tracking
+    const [pendingRequests, setPendingRequests] = useState(new Map());
+    const sttCompleteTimeRef = useRef(null);
+
+    // Add state for debug information
+    const [debugInfo, setDebugInfo] = useState({
+        lastRequest: null,
+        requestTimestamp: null,
+        lastResponse: null,
+        responseTimestamp: null
+    });
+
+    // Add state for LLM chunk processor
+    const [sendToRobot, setSendToRobot] = useState(true);
+    const [targetRobot, setTargetRobot] = useState('Haku');
+    const [chunkConfig, setChunkConfig] = useState(null);
+    
+    // Add video playing state
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+    // Add state for buffer management
+    const [bufferStatus, setBufferStatus] = useState(null);
+    const [currentLLMSession, setCurrentLLMSession] = useState(null);
+
+    // Add session ID tracking
+    const sessionIdRef = useRef(null);
+    const isFirstChunkRef = useRef(new Set()); // Track which sessions are expecting their first chunk
+
+    // Add turn-taking state tracking
+    const [turnTakingViolations, setTurnTakingViolations] = useState([]);
+    const [robotSpeaking, setRobotSpeaking] = useState(false);
+    const [llmActive, setLLMActive] = useState(false);
+
+    // Add comprehensive robot status tracking
+    const [robotStatus, setRobotStatus] = useState({
+        connected: false,
+        speaking: false,
+        listening: false,
+        moving: false,
+        battery_level: null,
+        current_behavior: 'idle',
+        connection_quality: null,
+        face_detected: false,
+        stt_buffer_state: 'ready',
+        last_heartbeat: null,
+        error_count: 0
+    });
+    
+    // Add STT detailed status tracking
+    const [sttDetailedStatus, setSTTDetailedStatus] = useState({
+        status: 'disconnected',
+        transcribing: false,
+        lastTranscription: null,
+        errorCount: 0,
+        sessionsActive: 0
+    });
+
+    // Tablet reload state
+    const [reloadingTablet, setReloadingTablet] = useState(false);
+
+    useEffect(() => {
+        // Load network configuration from server
+        fetch('/api/network-config')
+            .then(res => res.json())
+            .then(config => {
+                console.log('Loaded network config:', config);
+                setNetworkConfig(config);
+            })
+            .catch(err => {
+                console.error('Failed to load network config:', err);
+                setOverallStatus('❌ Failed to load configuration');
+            });
+
+        // Set up WebSocket connection for robot status updates
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = window.location.host;
+        const statusWs = new WebSocket(`${wsProtocol}//${wsHost}/websocket`);
+        
+        statusWs.onopen = () => {
+            console.log('📡 Connected to status WebSocket');
+        };
+        
+        statusWs.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Handle robot status updates
+                if (data.type === 'robot-status-update') {
+                    if (data.robot === targetRobot) {
+                        console.log(`🔄 Robot ${data.robot} ${data.field}: ${data.value}`);
+                        
+                        // Update specific robot status field
+                        setRobotStatus(prevStatus => ({
+                            ...prevStatus,
+                            [data.field]: data.value,
+                            connected: true,
+                            last_heartbeat: new Date().toISOString()
+                        }));
+                        
+                        // Legacy speaking state for backward compatibility
+                        if (data.field === 'speaking') {
+                            setRobotSpeaking(data.value);
+                        }
+                    }
+                }
+                
+                // Handle turn-taking violations
+                if (data.type === 'turn-taking-violation') {
+                    console.error('🚨 Turn-taking violation received:', data);
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: data.violationType,
+                        robot: data.robot,
+                        sessionId: data.sessionId,
+                        message: data.message,
+                        timestamp: data.timestamp
+                    }]);
+                    
+                    // Update status to show violation
+                    setOverallStatus(`🚨 Turn-taking violation: ${data.violationType}`);
+                }
+            } catch (error) {
+                console.error('Failed to parse WebSocket message:', error);
+            }
+        };
+        
+        statusWs.onclose = () => {
+            console.log('📡 Status WebSocket disconnected');
+        };
+
+        // Generate session ID when component mounts or when starting new conversation
+        sessionIdRef.current = `stt-llm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('Generated session ID:', sessionIdRef.current);
+        
+        // Mark this session as expecting its first chunk
+        isFirstChunkRef.current.add(sessionIdRef.current);
+
+        return () => {
+            disconnect();
+            statusWs.close();
+        };
+    }, []);
+
+    // Auto-scroll conversation history
+    useEffect(() => {
+        if (conversationRef.current) {
+            conversationRef.current.scrollTop = conversationRef.current.scrollHeight;
+        }
+    }, [conversationHistory, currentTranscription]);
+
+    // Keep ref synchronized with state for up-to-date payload building
+    useEffect(() => {
+        conversationHistoryRef.current = conversationHistory;
+    }, [conversationHistory]);
+
+    const connectSTT = async () => {
+        if (!networkConfig) {
+            setOverallStatus('❌ Network configuration not loaded');
+            return;
+        }
+
+        try {
+            setOverallStatus('🔗 Connecting to STT server...');
+            
+            // Close existing STT connection if any
+            if (sttWsRef.current) {
+                sttWsRef.current.close();
+            }
+            
+            const sttUrl = networkConfig.stt.defaultUrl;
+            console.log('Connecting to STT server at:', sttUrl);
+            sttWsRef.current = new WebSocket(sttUrl);
+            
+            const timeout = setTimeout(() => {
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.CONNECTING) {
+                    sttWsRef.current.close();
+                    setOverallStatus('❌ STT connection timeout');
+                }
+            }, 10000);
+            
+            sttWsRef.current.onopen = () => {
+                clearTimeout(timeout);
+                console.log('STT WebSocket connected successfully');
+                setSTTStatus('connected');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    status: 'connected',
+                    errorCount: 0
+                }));
+                setOverallStatus('✅ STT connected - Ready to start transcription');
+                
+                // Send reset command first, then resume command
+                console.log('📤 Sending reset command to STT server...');
+                sttWsRef.current.send(JSON.stringify({
+                    type: 'control',
+                    action: 'reset',
+                    timestamp: Date.now()
+                }));
+                
+                // Wait a moment, then send resume command
+                setTimeout(() => {
+                    console.log('📤 Sending resume command to STT server...');
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'control',
+                        action: 'resume',
+                        timestamp: Date.now()
+                    }));
+                }, 100); // 100ms delay between reset and resume
+                
+                // Auto-connect to LLM if enabled
+                if (autoStart) {
+                    console.log('Auto-connecting to LLM services...');
+                    setTimeout(() => {
+                        connectLLM();
+                    }, 500);
+                }
+            };
+            
+            sttWsRef.current.onmessage = (event) => {
+                try {
+                    console.log('STT message received:', event.data);
+                    const data = JSON.parse(event.data);
+                    handleSTTMessage(data);
+                } catch (error) {
+                    console.error('Failed to parse STT message:', error, 'Raw data:', event.data);
+                }
+            };
+            
+            sttWsRef.current.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('STT WebSocket error:', error);
+                setOverallStatus('❌ STT connection error');
+                setSTTStatus('error');
+            };
+            
+            sttWsRef.current.onclose = (event) => {
+                clearTimeout(timeout);
+                console.log('STT WebSocket closed:', event.code, event.reason);
+                setSTTStatus('disconnected');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    status: 'disconnected',
+                    transcribing: false
+                }));
+                
+                if (event.code === 1006) {
+                    setOverallStatus('❌ STT connection lost - server may be down');
+                } else if (event.wasClean) {
+                    setOverallStatus('🔌 STT disconnected');
+                } else {
+                    setOverallStatus('❌ STT connection interrupted');
+                }
+            };
+            
+        } catch (error) {
+            console.error('Failed to connect to STT:', error);
+            setOverallStatus('❌ Failed to connect to STT: ' + error.message);
+            setSTTStatus('error');
+        }
+    };
+
+    const connectLLM = async () => {
+        if (!networkConfig) {
+            setOverallStatus('❌ Network configuration not loaded');
+            return;
+        }
+
+        try {
+            setOverallStatus('🔗 Connecting to LLM gateway...');
+            
+            // Close existing LLM connection if any
+            if (llmWsRef.current) {
+                llmWsRef.current.close();
+            }
+            
+            const llmUrl = networkConfig.llm.defaultUrl;
+            console.log('Connecting to LLM gateway at:', llmUrl);
+            llmWsRef.current = new WebSocket(llmUrl);
+            
+            const timeout = setTimeout(() => {
+                if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.CONNECTING) {
+                    llmWsRef.current.close();
+                    setOverallStatus('❌ LLM connection timeout');
+                }
+            }, 10000);
+            
+            llmWsRef.current.onopen = () => {
+                clearTimeout(timeout);
+                console.log('LLM WebSocket connected successfully');
+                setLLMStatus('connected');
+                setOverallStatus('🤖 LLM connected - Ready for conversation');
+                
+                // Auto-start transcription if both services are connected
+                if (sttStatus === 'connected' && autoStart) {
+                    setTimeout(() => {
+                        console.log('Auto-starting transcription...');
+                        startTranscription();
+                    }, 500);
+                }
+            };
+            
+            llmWsRef.current.onmessage = (event) => {
+                try {
+                    console.log('LLM message received:', event.data);
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'llm_message') {
+                        handleLLMMessage(data.data);
+                    } else if (data.type === 'delay_measurement') {
+                        handleDelayMeasurement(data);
+                    } else if (data.type === 'delay_stats') {
+                        setDelayStats(data.stats);
+                    } else {
+                        handleLLMMessage(data);
+                    }
+                } catch (error) {
+                    console.error('Failed to parse LLM message:', error, 'Raw data:', event.data);
+                }
+            };
+            
+            llmWsRef.current.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('LLM WebSocket error:', error);
+                setOverallStatus('❌ LLM connection error');
+                setLLMStatus('error');
+            };
+            
+            llmWsRef.current.onclose = (event) => {
+                clearTimeout(timeout);
+                console.log('LLM WebSocket closed:', event.code, event.reason);
+                setLLMStatus('disconnected');
+                
+                if (event.code === 1006) {
+                    setOverallStatus('❌ LLM connection lost - server may be down');
+                } else if (event.wasClean) {
+                    setOverallStatus('🔌 LLM disconnected');
+                } else {
+                    setOverallStatus('❌ LLM connection interrupted');
+                }
+            };
+            
+        } catch (error) {
+            console.error('Failed to connect to LLM:', error);
+            setOverallStatus('❌ Failed to connect to LLM: ' + error.message);
+            setLLMStatus('error');
+        }
+    };
+
+    const connect = async () => {
+        // Generate a simple session ID for tracking
+        const newSessionId = Math.random().toString(36).substr(2, 9);
+        setSessionId(newSessionId);
+        sessionIdRef.current = newSessionId;
+        
+        // Mark this session as expecting its first chunk
+        isFirstChunkRef.current.add(newSessionId);
+        
+        // Connect to STT first
+        await connectSTT();
+    };
+
+    const handleSTTMessage = (data) => {
+        console.log('🎤 Processing STT data:', data.type, data);
+        
+        switch(data.type) {
+            case 'partial':
+                // Check if video is playing - if so, ignore STT messages
+                if (isVideoPlaying) {
+                    console.warn('🚫 IGNORING STT partial - video is playing');
+                    return;
+                }
+                
+                // Check turn-taking rules before processing
+                if (robotSpeaking) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT partial while robot is speaking!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_partial_while_robot_speaking',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                if (llmActive) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT partial while LLM is active!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_partial_while_llm_active',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                setCurrentTranscription(data.text || '');
+                setSTTDetailedStatus(prev => ({
+                    ...prev,
+                    transcribing: true,
+                    lastTranscription: data.text
+                }));
+                setOverallStatus('🎤 Listening... (partial result)');
+                break;
+                
+            case 'complete':
+                // Check if video is playing - if so, ignore STT messages
+                if (isVideoPlaying) {
+                    console.warn('🚫 IGNORING STT complete - video is playing');
+                    return;
+                }
+                
+                // Check turn-taking rules before processing
+                if (robotSpeaking) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT complete while robot is speaking!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_complete_while_robot_speaking',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                if (llmActive) {
+                    console.warn('⚠️ TURN-TAKING VIOLATION: Received STT complete while LLM is active!');
+                    setTurnTakingViolations(prev => [...prev, {
+                        type: 'stt_complete_while_llm_active',
+                        message: data.text?.substring(0, 50),
+                        timestamp: Date.now()
+                    }]);
+                    return; // Ignore the message
+                }
+                
+                if (data.text && data.text.trim()) {
+                    console.log('✅ Complete transcription:', data.text);
+                    setSTTDetailedStatus(prev => ({
+                        ...prev,
+                        transcribing: false,
+                        lastTranscription: data.text
+                    }));
+                    
+                    // Record STT complete time for delay measurement
+                    sttCompleteTimeRef.current = Date.now();
+                    
+                    const timestamp = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+                    // Deduplicate back-to-back identical user messages
+                    setConversationHistory(prev => {
+                        const trimmed = (data.text || '').trim();
+                        const last = prev[prev.length - 1];
+                        if (last && last.type === 'user' && typeof last.text === 'string' && last.text.trim() === trimmed) {
+                            console.log('🟡 Skipping duplicate user utterance in history');
+                            return prev;
+                        }
+                        return [...prev, {
+                            text: data.text,
+                            timestamp: timestamp,
+                            confidence: data.confidence,
+                            type: 'user'
+                        }];
+                    });
+                    setCurrentTranscription('');
+                    setOverallStatus('✅ Transcription complete - sending to AI');
+                    
+                    // Send user input to robot for tablet display
+                    if (sendToRobot && targetRobot) {
+                        sendUserInputToRobot(data.text, sessionIdRef.current);
+                    }
+                    
+                    // Automatically send to LLM using a fresh snapshot that includes this user turn
+                    const historySnapshot = [
+                        ...conversationHistoryRef.current,
+                        { text: data.text, type: 'user', timestamp, confidence: data.confidence }
+                    ];
+                    sendToLLM(data.text, historySnapshot);
+                }
+                break;
+                
+            case 'status':
+                console.log('📡 STT Status update:', data.status, data.details);
+                switch(data.status) {
+                    case 'started':
+                        setOverallStatus('🎤 STT started - listening for speech');
+                        break;
+                    case 'stopped':
+                        setOverallStatus('⏹️ STT stopped');
+                        break;
+                    case 'connected':
+                        setOverallStatus('✅ STT connected');
+                        break;
+                    default:
+                        setOverallStatus(`📡 STT Status: ${data.status}`);
+                }
+                break;
+
+            case 'error':
+                console.error('❌ STT Error:', data.error);
+                setOverallStatus('❌ STT Error: ' + data.error);
+                break;
+                
+            default:
+                console.warn('⚠️ Unknown STT message type:', data.type, data);
+        }
+    };
+
+    const updateDelayStats = (delay) => {
+        setLastDelay(delay);
+        setDelayStats(prevStats => {
+            const newTotalRequests = prevStats.totalRequests + 1;
+            const newAverageDelay = ((prevStats.averageDelay * prevStats.totalRequests) + delay) / newTotalRequests;
+            const newMinDelay = prevStats.minDelay === 0 ? delay : Math.min(prevStats.minDelay, delay);
+            const newMaxDelay = Math.max(prevStats.maxDelay, delay);
+            const newRecentDelays = [...prevStats.recentDelays, delay].slice(-10);
+
+            return {
+                totalRequests: newTotalRequests,
+                averageDelay: newAverageDelay,
+                minDelay: newMinDelay,
+                maxDelay: newMaxDelay,
+                recentDelays: newRecentDelays
+            };
+        });
+    };
+
+    const handleDelayMeasurement = (data) => {
+        console.log('Received delay measurement from server:', data);
+        if (data.delay) {
+            updateDelayStats(data.delay);
+        }
+    };
+
+    // Track LLM session ID from responses
+    const handleLLMMessage = (data) => {
+        console.log('🤖 Processing LLM data:', data);
+        
+        // Store debug information for responses
+        setDebugInfo(prev => ({
+            ...prev,
+            lastResponse: data,
+            responseTimestamp: new Date().toISOString()
+        }));
+        
+        if (data.action === 'completion') {
+            // Check if this is the first response chunk with content
+            if (data.content && sttCompleteTimeRef.current) {
+                const responseTime = Date.now();
+                const delay = responseTime - sttCompleteTimeRef.current;
+                
+                console.log(`⏱️ STT→LLM delay: ${delay}ms`);
+                
+                // Update delay statistics
+                updateDelayStats(delay);
+                
+                // Clear the STT complete time since we've measured the delay
+                sttCompleteTimeRef.current = null;
+            }
+            
+            if (data.content) {
+                console.log('✅ LLM response received:', data.content);
+                const timestamp = new Date().toLocaleTimeString();
+                
+                // Track LLM state
+                if (!data.isFinished) {
+                    setLLMActive(true);
+                }
+                
+                // Check if this is the first chunk for this session
+                const sessionId = data.sessionId || sessionIdRef.current;
+                const isFirstChunk = isFirstChunkRef.current.has(sessionId);
+                
+                // Send to robot if enabled - use Robot API directly with session ID
+                if (sendToRobot && data.content) {
+                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk, data.chunkNumber);
+                    
+                    // Remove from first chunk tracking after sending
+                    if (isFirstChunk) {
+                        isFirstChunkRef.current.delete(sessionId);
+                    }
+                }
+                
+                setConversationHistory(prev => {
+                    // Check if the last item is an accumulating assistant message
+                    const lastItem = prev[prev.length - 1];
+                    
+                    if (lastItem && lastItem.type === 'assistant' && lastItem.accumulating) {
+                        // Update the existing accumulating message
+                        const updated = [...prev];
+                        updated[updated.length - 1] = {
+                            ...lastItem,
+                            text: lastItem.text + data.content,
+                            accumulating: !data.isFinished
+                        };
+                        return updated;
+                    } else {
+                        // Create a new assistant message entry
+                        return [...prev, {
+                            text: data.content,
+                            timestamp: timestamp,
+                            type: 'assistant',
+                            accumulating: !data.isFinished
+                        }];
+                    }
+                });
+                
+                if (data.isFinished) {
+                    setLLMActive(false);
+                    setOverallStatus('🤖 AI responded - Ready for your next input');
+                    // Send final chunk marker with session ID
+                    if (sendToRobot) {
+                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false, null);
+                        // Flush any remaining buffer content
+                        flushBuffer(data.sessionId || sessionIdRef.current);
+                    }
+                    
+                    // Clean up pending LLM request tracking for deduplication
+                    const sessionId = data.sessionId || sessionIdRef.current;
+                    if (sessionId) {
+                        // Find and remove from pending requests by sessionId
+                        for (const [hash, request] of pendingLLMRequestsRef.current.entries()) {
+                            if (request.sessionId === sessionId) {
+                                pendingLLMRequestsRef.current.delete(hash);
+                                console.log(`🧹 Cleaned up pending LLM request for session ${sessionId}`);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    setOverallStatus('🤖 AI is responding...');
+                }
+            }
+        } else if (data.content) {
+            // Handle other response formats - create new entry for each response
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Track LLM state
+            setLLMActive(true);
+            
+            // Send to robot if enabled with session ID
+            if (sendToRobot && data.content) {
+                sendLLMResponseToRobot(data.content, true, sessionIdRef.current, false, null); // Assume single chunk responses are finished
+                setLLMActive(false);
+            }
+            
+            setConversationHistory(prev => [...prev, {
+                text: data.content,
+                timestamp: timestamp,
+                type: 'assistant',
+                accumulating: false
+            }]);
+            setLLMResponse(prev => prev + (data.content || ''));
+            setOverallStatus('🤖 AI responded - Ready for your next input');
+        } else if (data.error) {
+            console.error('❌ LLM Error:', data.error);
+            setOverallStatus('❌ LLM Error: ' + data.error);
+            setLLMActive(false);
+        } else {
+            console.log('🤖 Other LLM message:', data);
+        }
+    };
+
+    // Function to send user input to robot for tablet display
+    const sendUserInputToRobot = async (content, sessionId = null) => {
+        if (!sendToRobot || !targetRobot) {
+            return;
+        }
+
+        try {
+            const effectiveSessionId = sessionId || sessionIdRef.current;
+            console.log(`👤 Sending user input to robot ${targetRobot}: "${content}"`);
+            
+            const broadcastMessage = JSON.stringify({
+                type: 'llm-user-input',
+                content: content,
+                robot: targetRobot,
+                sessionId: effectiveSessionId,
+                timestamp: Date.now()
+            });
+            
+            await robotAPI.sendMessage(broadcastMessage, targetRobot, 'broadcast', effectiveSessionId);
+        } catch (error) {
+            console.error(`Failed to send user input to robot ${targetRobot}:`, error);
+        }
+    };
+
+    // Updated function to include session ID and turn-taking
+    const sendLLMResponseToRobot = async (content, isFinished = false, sessionId = null, isFirstChunk = false, chunkNumber = null) => {
+        if (!sendToRobot || !targetRobot) {
+            console.log('🤖 Robot integration disabled or no target robot selected');
+            return;
+        }
+
+        try {
+            const effectiveSessionId = sessionId || sessionIdRef.current;
+            
+            console.log(`🤖 Sending LLM response to robot ${targetRobot} via Robot API (session: ${effectiveSessionId}): "${content}"`);
+            console.log(`🤖 Response chunk finished: ${isFinished}, isFirstChunk: ${isFirstChunk}, chunkNumber: ${chunkNumber}`);
+            
+            // Use Robot API conversation endpoint with turn-taking support
+            const result = await robotAPI.sendConversationResponse(content, targetRobot, effectiveSessionId, isFinished, isFirstChunk, chunkNumber);
+            
+            if (result.success) {
+                console.log(`✅ LLM response sent to robot ${targetRobot} successfully`);
+                setOverallStatus(prev => prev + ' (sent to robot)');
+            } else {
+                console.warn(`⚠️ LLM response queued for robot ${targetRobot}:`, result.message);
+                setOverallStatus(prev => prev + ' (queued for robot)');
+            }
+            
+            // Log turn-taking state
+            if (result.llmActive !== undefined) {
+                console.log(`🔄 LLM session active: ${result.llmActive}`);
+            }
+        } catch (error) {
+            console.error(`❌ Failed to send LLM response to robot ${targetRobot}:`, error);
+            setOverallStatus(prev => prev + ' (robot send failed)');
+        }
+    };
+
+    const sendToLLM = (message, historyOverride = null) => {
+        // Check if video is playing - if so, block LLM requests
+        if (isVideoPlaying) {
+            console.warn('🚫 BLOCKING LLM request - video is playing');
+            setOverallStatus('🚫 LLM blocked - video playing');
+            return;
+        }
+        
+        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
+            console.log('✍️ Sending message to LLM:', message);
+            
+            // LLM request deduplication - prevent duplicate sessions for same utterance
+            const utteranceHash = btoa(message.trim().toLowerCase()).slice(0, 10); // Simple hash
+            const now = Date.now();
+            
+            // Check for recent duplicate requests
+            const existing = pendingLLMRequestsRef.current.get(utteranceHash);
+            if (existing && (now - existing.timestamp) < LLM_DUPLICATE_WINDOW_MS) {
+                console.log(`🟡 Skipping duplicate LLM request for utterance "${message.substring(0, 30)}..." (within ${LLM_DUPLICATE_WINDOW_MS}ms window)`);
+                setTurnTakingViolations(prev => [...prev, {
+                    type: 'llm_duplicate_prevented',
+                    message: `Prevented duplicate LLM request for: "${message.substring(0, 30)}..."`,
+                    timestamp: Date.now()
+                }]);
+                return;
+            }
+            
+            // Clean up old entries (older than window)
+            for (const [hash, data] of pendingLLMRequestsRef.current.entries()) {
+                if ((now - data.timestamp) > LLM_DUPLICATE_WINDOW_MS) {
+                    pendingLLMRequestsRef.current.delete(hash);
+                }
+            }
+            
+            // Track this request
+            const sessionId = Math.random().toString(36).substr(2, 9);
+            pendingLLMRequestsRef.current.set(utteranceHash, { timestamp: now, sessionId });
+            
+            // Record send time if this is from STT
+            if (!sttCompleteTimeRef.current) {
+                sttCompleteTimeRef.current = Date.now();
+            }
+            
+            // Map conversation history (latest snapshot) to the correct format
+            // Use ref to avoid stale state at message send time
+            const historySource = Array.isArray(historyOverride)
+                ? historyOverride
+                : Array.isArray(conversationHistoryRef.current)
+                ? conversationHistoryRef.current
+                : [];
+
+            // Keep a sensible window of context
+            const historyMessages = historySource
+                .filter(m => m && typeof m.text === 'string' && m.text.trim().length > 0)
+                .slice(-12) // increase context depth
+                .map(item => ({
+                    role: item.type === 'user' ? 'user' : 'assistant',
+                    content: item.text
+                }));
+
+            // Avoid duplicating the current user message if it's already the last entry
+            const trimmedMessage = (message || '').trim();
+            const lastMsg = historyMessages[historyMessages.length - 1];
+            const alreadyHasCurrent = lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string' && lastMsg.content.trim() === trimmedMessage;
+            
+            // Use the format expected by AWS API Gateway
+            const llmPayload = {
+                action: 'completion',
+                history: alreadyHasCurrent
+                    ? historyMessages
+                    : [
+                        ...historyMessages,
+                        { role: 'user', content: message }
+                      ]
+            };
+            
+            // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
+            console.group('📤 LLM REQUEST DETAILS');
+            console.log('🎯 Current Message:', message);
+            console.log('📚 Conversation History Length:', historySource.length);
+            console.log('📚 History Used (last 12 + current if needed):', llmPayload.history.length);
+            console.log('📜 Full History Being Sent:');
+            llmPayload.history.forEach((msg, index) => {
+                console.log(`  ${index + 1}. [${msg.role.toUpperCase()}]: "${msg.content}"`);
+            });
+            console.log('📦 Complete Payload Structure:');
+            console.log(JSON.stringify(llmPayload, null, 2));
+            console.log('📡 WebSocket Ready State:', llmWsRef.current.readyState);
+            console.log('🕐 Timestamp:', new Date().toISOString());
+            console.groupEnd();
+            
+            // Store debug information
+            setDebugInfo(prev => ({
+                ...prev,
+                lastRequest: llmPayload,
+                requestTimestamp: new Date().toISOString()
+            }));
+            
+            llmWsRef.current.send(JSON.stringify(llmPayload));
+            setOverallStatus('✍️ Message sent to AI - waiting for response');
+        } else {
+            console.error('❌ Cannot send to LLM - not connected');
+            setOverallStatus('❌ Cannot send to LLM - not connected');
+        }
+    };
+
+    const sendManualMessage = () => {
+        const message = prompt('Enter message to send to LLM:');
+        if (message && message.trim()) {
+            // Add to conversation history
+            const timestamp = new Date().toLocaleTimeString();
+            setConversationHistory(prev => [...prev, {
+                text: message.trim(),
+                timestamp: timestamp,
+                type: 'user',
+                manual: true
+            }]);
+            
+            // Send user input to robot for tablet display
+            if (sendToRobot && targetRobot) {
+                sendUserInputToRobot(message.trim(), sessionIdRef.current);
+            }
+            
+            // Clear STT complete time for manual messages
+            sttCompleteTimeRef.current = Date.now();
+            
+            // Send to LLM with a snapshot that includes this new user message
+            const historySnapshot = [
+                ...conversationHistoryRef.current,
+                { text: message.trim(), timestamp, type: 'user', manual: true }
+            ];
+            sendToLLM(message.trim(), historySnapshot);
+        }
+    };
+
+    const disconnect = () => {
+        console.log('🔌 Disconnecting...');
+        
+        // Close STT connection
+        if (sttWsRef.current) {
+            sttWsRef.current.close();
+            sttWsRef.current = null;
+        }
+        
+        // Close LLM connection
+        if (llmWsRef.current) {
+            llmWsRef.current.close();
+            llmWsRef.current = null;
+        }
+        
+        setSessionId('');
+        setSTTStatus('disconnected');
+        setLLMStatus('disconnected');
+        setOverallStatus('Disconnected');
+    };
+
+    const clearConversation = () => {
+        setConversationHistory([]);
+        setCurrentTranscription('');
+        setLLMResponse('');
+        
+        // Reset delay stats
+        setDelayStats({
+            totalRequests: 0,
+            averageDelay: 0,
+            minDelay: 0,
+            maxDelay: 0,
+            recentDelays: []
+        });
+        setLastDelay(null);
+        sttCompleteTimeRef.current = null;
+    };
+
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'connected':
+                return '#28a745';
+            case 'connecting':
+                return '#ffc107';
+            case 'error':
+                return '#dc3545';
+            default:
+                return '#6c757d';
+        }
+    };
+
+    const startTranscription = () => {
+        if (!sttWsRef.current || sttWsRef.current.readyState !== WebSocket.OPEN) {
+            setOverallStatus('❌ Not connected to STT server');
+            return;
+        }
+        
+        try {
+            console.log('🎤 Starting transcription...');
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'start' }));
+            setOverallStatus('🎤 Started listening - speak now');
+        } catch (error) {
+            console.error('Failed to start transcription:', error);
+            setOverallStatus('❌ Failed to start transcription');
+        }
+    };
+
+    const stopTranscription = () => {
+        if (!sttWsRef.current || sttWsRef.current.readyState !== WebSocket.OPEN) {
+            return;
+        }
+        
+        try {
+            console.log('⏹️ Stopping transcription...');
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'stop' }));
+            setOverallStatus('⏹️ Stopped listening');
+            setCurrentTranscription('');
+        } catch (error) {
+            console.error('Failed to stop transcription:', error);
+            setOverallStatus('❌ Failed to stop transcription');
+        }
+    };
+
+    const connectServices = () => {
+        if (sttStatus !== 'connected') {
+            connectSTT();
+        }
+        if (llmStatus !== 'connected') {
+            connectLLM();
+        }
+        setOverallStatus('🔗 Connecting services...');
+    };
+
+    // Function to reload tablet web view on robot
+    const reloadTabletWebView = async () => {
+        setReloadingTablet(true);
+        try {
+            const response = await fetch(`/api/robot-tablet/reload/${targetRobot}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ robot: targetRobot })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Tablet reload sent to ${targetRobot}`);
+                // You could add a toast notification here if you have one
+            } else {
+                console.error(`❌ Failed to reload tablet for ${targetRobot}:`, result.message);
+            }
+        } catch (error) {
+            console.error('Error reloading tablet:', error);
+        } finally {
+            setReloadingTablet(false);
+        }
+    };
+
+    // Video control functions
+    const playVideo = async () => {
+        try {
+            console.log('🎬 Playing video on tablet...');
+            
+            // Clear any ongoing LLM state
+            setLLMActive(false);
+            setCurrentTranscription('');
+            
+            // Send pause command to STT if connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('📤 Sending pause command to STT...');
+                sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'pause' }));
+            }
+            
+            const response = await fetch('/api/tablet-video/play', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    robot: targetRobot,
+                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Video play command sent to ${targetRobot}`);
+                setIsVideoPlaying(true);
+                setOverallStatus('🎬 Video playing - STT/LLM disabled');
+            } else {
+                console.error(`❌ Failed to play video on ${targetRobot}:`, result.message);
+                setOverallStatus('❌ Failed to play video');
+            }
+        } catch (error) {
+            console.error('Error playing video:', error);
+            setOverallStatus('❌ Error playing video');
+        }
+    };
+
+    const stopVideo = async () => {
+        try {
+            console.log('⏹️ Stopping video on tablet...');
+            
+            // Send resume command to STT if connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('📤 Sending resume command to STT...');
+                sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'resume' }));
+            }
+            
+            const response = await fetch('/api/tablet-video/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    robot: targetRobot
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Video stop command sent to ${targetRobot}`);
+                setIsVideoPlaying(false);
+                setOverallStatus('⏹️ Video stopped - STT/LLM enabled');
+                
+                // STT/LLM will be automatically re-enabled by the server
+            } else {
+                console.error(`❌ Failed to stop video on ${targetRobot}:`, result.message);
+                setOverallStatus('❌ Failed to stop video');
+            }
+        } catch (error) {
+            console.error('Error stopping video:', error);
+            setOverallStatus('❌ Error stopping video');
+        }
+    };
+
+    // Buffer management functions
+    const flushBuffer = async (sessionId) => {
+        const a_sessionId = sessionId || currentLLMSession;
+        if (!a_sessionId) {
+            console.warn('Cannot flush buffer, no session ID available');
+            return;
+        }
+
+        try {
+            console.log(`Flushing remaining buffer for session: ${a_sessionId}`);
+            const response = await fetch(`/api/robot-buffer/flush-remaining/${a_sessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetRobot: targetRobot })
+            });
+            const result = await response.json();
+            if (result.success) {
+                console.log('Buffer flushed successfully:', result);
+                setOverallStatus(prev => prev + ' (buffer flushed)');
+            } else {
+                console.warn('Failed to flush buffer:', result);
+                setOverallStatus(prev => prev + ' (buffer flush failed)');
+            }
+        } catch (error) {
+            console.error('Error flushing buffer:', error);
+            setOverallStatus(prev => prev + ' (buffer flush error)');
+        }
+    };
+
+    const clearBuffer = async () => {
+        if (!currentLLMSession) {
+            setOverallStatus('❌ No active LLM session to clear');
+            return;
+        }
+
+        try {
+            console.log('🗑️ Clearing buffer for session:', currentLLMSession);
+            const result = await robotAPI.clearBuffer(currentLLMSession);
+            
+            if (result.success) {
+                setOverallStatus(`✅ Buffer cleared: ${result.message}`);
+                updateBufferStatus();
+            } else {
+                setOverallStatus(`❌ Clear failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to clear buffer:', error);
+            setOverallStatus('❌ Failed to clear buffer');
+        }
+    };
+
+    const forceProcessBuffer = async () => {
+        if (!currentLLMSession) {
+            setOverallStatus('❌ No active LLM session to process');
+            return;
+        }
+
+        try {
+            console.log('⚡ Force processing buffer for session:', currentLLMSession);
+            const result = await robotAPI.forceProcessBuffer(currentLLMSession, targetRobot);
+            
+            if (result.success) {
+                setOverallStatus(`✅ Force processed: ${result.message}`);
+                updateBufferStatus();
+            } else {
+                setOverallStatus(`❌ Force process failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to force process buffer:', error);
+            setOverallStatus('❌ Failed to force process buffer');
+        }
+    };
+
+    const updateBufferStatus = useCallback(async () => {
+        if (!currentLLMSession) return;
+
+        try {
+            const status = await robotAPI.getBufferStatus(currentLLMSession);
+            setBufferStatus(status);
+        } catch (error) {
+            console.error('Failed to get buffer status:', error);
+        }
+    }, [currentLLMSession]);
+
+    // Update buffer status periodically when session is active
+    useEffect(() => {
+        if (currentLLMSession) {
+            const interval = setInterval(updateBufferStatus, 2000);
+            return () => clearInterval(interval);
+        }
+    }, [currentLLMSession, updateBufferStatus]);
+
+    const getBooleanStatusColor = (value) => {
+        return value ? '#28a745' : '#6c757d';
+    };
+
+    const formatStatusValue = (value, field) => {
+        if (value === null || value === undefined) return 'Unknown';
+        
+        switch(field) {
+            case 'battery_level':
+            case 'cpu_usage':
+            case 'memory_usage':
+            case 'connection_quality':
+                return `${value}%`;
+            case 'temperature':
+                return `${value}°C`;
+            case 'last_heartbeat': {
+                if (!value) return 'None';
+                const timeDiff = new Date() - new Date(value);
+                return timeDiff < 5000 ? 'Live' : `${Math.round(timeDiff/1000)}s ago`;
+            }
+            default:
+                return value.toString();
+        }
+    };
+
+    return (
+        <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+            <h2>Haku Conversation</h2>
+            
+            {/* Connection Configuration */}
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4>Connection Configuration:</h4>
+                {networkConfig ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                STT Server URL:
+                            </label>
+                            <div style={{
+                                padding: '8px',
+                                backgroundColor: '#e9ecef',
+                                border: '1px solid #ced4da',
+                                borderRadius: '4px',
+                                fontFamily: 'monospace'
+                            }}>
+                                {networkConfig.stt.defaultUrl}
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                LLM Gateway URL:
+                            </label>
+                            <div style={{
+                                padding: '8px',
+                                backgroundColor: '#e9ecef',
+                                border: '1px solid #ced4da',
+                                borderRadius: '4px',
+                                fontFamily: 'monospace'
+                            }}>
+                                {networkConfig.llm.defaultUrl}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p>Loading configuration...</p>
+                )}
+                
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                            type="checkbox"
+                            checked={autoStart}
+                            onChange={(e) => setAutoStart(e.target.checked)}
+                        />
+                        <span>Auto-connect and start services when session connects</span>
+                    </label>
+                </div>
+                
+                {/* Service Status */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '4px' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>STT Service</div>
+                        <div style={{ color: getStatusColor(sttStatus), fontWeight: 'bold' }}>
+                            {sttStatus.toUpperCase()}
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '4px' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>LLM Gateway</div>
+                        <div style={{ color: getStatusColor(llmStatus), fontWeight: 'bold' }}>
+                            {llmStatus.toUpperCase()}
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#e9ecef', borderRadius: '4px' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Session ID</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                            {sessionId || 'Not connected'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Live Status Indicators */}
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa', 
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4 style={{ marginBottom: '15px', color: '#495057' }}>🔴 Live Status</h4>
+                
+                {/* Robot Status */}
+                <div style={{ marginBottom: '15px' }}>
+                    <h5 style={{ marginBottom: '10px', color: '#495057' }}>🤖 Robot: {targetRobot}</h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Connection</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.connected), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.connected ? '🟢 CONNECTED' : '🔴 DISCONNECTED'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Speaking</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.speaking), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.speaking ? '🔊 SPEAKING' : '🔇 SILENT'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Listening</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(robotStatus.listening), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {robotStatus.listening ? '👂 LISTENING' : '🚫 NOT LISTENING'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Behavior</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#495057' }}>
+                                {robotStatus.current_behavior?.toUpperCase() || 'UNKNOWN'}
+                            </div>
+                        </div>
+                        
+                        {robotStatus.battery_level !== null && (
+                            <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Battery</div>
+                                <div style={{ 
+                                    color: robotStatus.battery_level > 30 ? '#28a745' : robotStatus.battery_level > 20 ? '#ffc107' : '#dc3545',
+                                    fontWeight: 'bold', 
+                                    fontSize: '14px' 
+                                }}>
+                                    🔋 {formatStatusValue(robotStatus.battery_level, 'battery_level')}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>STT Buffer</div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#495057' }}>
+                                {robotStatus.stt_buffer_state?.toUpperCase() || 'UNKNOWN'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Heartbeat</div>
+                            <div style={{ 
+                                color: robotStatus.last_heartbeat && (new Date() - new Date(robotStatus.last_heartbeat)) < 10000 ? '#28a745' : '#dc3545',
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {formatStatusValue(robotStatus.last_heartbeat, 'last_heartbeat')}
+                            </div>
+                        </div>
+                        
+                        {robotStatus.face_detected !== null && (
+                            <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Face Detection</div>
+                                <div style={{ 
+                                    color: getBooleanStatusColor(robotStatus.face_detected), 
+                                    fontWeight: 'bold', 
+                                    fontSize: '14px' 
+                                }}>
+                                    {robotStatus.face_detected ? '👤 DETECTED' : '👻 NONE'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                {/* STT Status */}
+                <div>
+                    <h5 style={{ marginBottom: '10px', color: '#495057' }}>🎤 STT Service</h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Connection</div>
+                            <div style={{ 
+                                color: getStatusColor(sttDetailedStatus.status), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.status.toUpperCase()}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Transcribing</div>
+                            <div style={{ 
+                                color: getBooleanStatusColor(sttDetailedStatus.transcribing), 
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.transcribing ? '📝 ACTIVE' : '⏸️ IDLE'}
+                            </div>
+                        </div>
+                        
+                        <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #dee2e6' }}>
+                            <div style={{ fontSize: '12px', color: '#6c757d' }}>Errors</div>
+                            <div style={{ 
+                                color: sttDetailedStatus.errorCount > 0 ? '#dc3545' : '#28a745',
+                                fontWeight: 'bold', 
+                                fontSize: '14px' 
+                            }}>
+                                {sttDetailedStatus.errorCount > 0 ? `❌ ${sttDetailedStatus.errorCount}` : '✅ 0'}
+                            </div>
+                        </div>
+                        
+                        {sttDetailedStatus.lastTranscription && (
+                            <div style={{ 
+                                padding: '8px', 
+                                backgroundColor: 'white', 
+                                borderRadius: '4px', 
+                                border: '1px solid #dee2e6',
+                                gridColumn: 'span 2'
+                            }}>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>Last Transcription</div>
+                                <div style={{ 
+                                    fontSize: '14px', 
+                                    color: '#495057',
+                                    fontStyle: 'italic',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    &quot;{sttDetailedStatus.lastTranscription}&quot;
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Control Buttons */}
+            <div style={{ marginBottom: '20px' }}>
+                <button 
+                    onClick={sessionId ? disconnect : connect}
+                    style={{
+                        padding: '12px 25px',
+                        backgroundColor: sessionId ? '#dc3545' : '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        marginRight: '10px'
+                    }}
+                    disabled={!networkConfig}
+                >
+                    {sessionId ? '🔌 Disconnect' : '🔗 Connect'}
+                </button>
+                
+                {sessionId && (
+                    <>
+                        <button 
+                            onClick={connectServices}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                            disabled={sttStatus === 'connected' && llmStatus === 'connected'}
+                        >
+                            🔗 Connect Services
+                        </button>
+                        
+                        <button 
+                            onClick={startTranscription}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: (sttStatus !== 'connected' || isVideoPlaying) ? '#666' : '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: (sttStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px',
+                                opacity: (sttStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
+                            }}
+                            disabled={sttStatus !== 'connected' || isVideoPlaying}
+                        >
+                            {isVideoPlaying ? '🚫 STT Disabled' : '🎤 Start'}
+                        </button>
+                        
+                        <button 
+                            onClick={stopTranscription}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: (sttStatus !== 'connected' || isVideoPlaying) ? '#666' : '#fd7e14',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: (sttStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px',
+                                opacity: (sttStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
+                            }}
+                            disabled={sttStatus !== 'connected' || isVideoPlaying}
+                        >
+                            ⏹️ Stop
+                        </button>
+                        
+                        <button 
+                            onClick={sendManualMessage}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: (llmStatus !== 'connected' || isVideoPlaying) ? '#666' : '#6f42c1',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: (llmStatus !== 'connected' || isVideoPlaying) ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px',
+                                opacity: (llmStatus !== 'connected' || isVideoPlaying) ? 0.6 : 1
+                            }}
+                            disabled={llmStatus !== 'connected' || isVideoPlaying}
+                        >
+                            {isVideoPlaying ? '🚫 LLM Disabled' : '✍️ Manual Message'}
+                        </button>
+                        
+                        <button 
+                            onClick={clearConversation}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                        >
+                            🗑️ Clear
+                        </button>
+                        
+                        <button 
+                            onClick={reloadTabletWebView}
+                            disabled={reloadingTablet}
+                            className="btn"
+                            style={{ 
+                                backgroundColor: reloadingTablet ? '#666' : '#ff6b35',
+                                opacity: reloadingTablet ? 0.6 : 1,
+                                padding: '12px 25px',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px'
+                            }}
+                        >
+                            {reloadingTablet ? 'Reloading...' : '🔄 Reload Tablet'}
+                        </button>
+                        
+                        <button 
+                            onClick={playVideo}
+                            disabled={isVideoPlaying}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: isVideoPlaying ? '#666' : '#e91e63',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: isVideoPlaying ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px',
+                                opacity: isVideoPlaying ? 0.6 : 1
+                            }}
+                        >
+                            {isVideoPlaying ? '🚫 Video Playing' : '▶️ Play Video'}
+                        </button>
+                        
+                        <button 
+                            onClick={stopVideo}
+                            disabled={!isVideoPlaying}
+                            style={{
+                                padding: '12px 25px',
+                                backgroundColor: !isVideoPlaying ? '#666' : '#795548',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: !isVideoPlaying ? 'not-allowed' : 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                marginRight: '10px',
+                                opacity: !isVideoPlaying ? 0.6 : 1
+                            }}
+                        >
+                            ⏹️ Stop Video
+                        </button>
+                    </>
+                )}
+                
+                <div style={{ 
+                    marginTop: '15px', 
+                    padding: '10px', 
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    fontStyle: 'italic'
+                }}>
+                    Status: {overallStatus}
+                </div>
+            </div>
+
+            {/* Conversation Display */}
+            <div style={{ 
+                padding: '20px', 
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px',
+                marginBottom: '20px'
+            }}>
+                <h4>Live Conversation</h4>
+                
+                {/* Current Transcription */}
+                {currentTranscription && (
+                    <div style={{ 
+                        marginBottom: '15px',
+                        padding: '15px',
+                        backgroundColor: '#fff3cd',
+                        border: '1px solid #ffeaa7',
+                        borderRadius: '4px'
+                    }}>
+                        <strong>🎤 You (speaking):</strong>
+                        <div style={{ 
+                            fontStyle: 'italic', 
+                            color: '#856404',
+                            marginTop: '5px',
+                            fontSize: '16px'
+                        }}>
+                            &quot;{currentTranscription}&quot;
+                        </div>
+                    </div>
+                )}
+
+                {/* Conversation History */}
+                <div>
+                    <strong>Conversation History:</strong>
+                    <div 
+                        ref={conversationRef}
+                        style={{
+                            maxHeight: '400px',
+                            overflowY: 'auto',
+                            border: '1px solid #dee2e6',
+                            borderRadius: '4px',
+                            padding: '10px',
+                            backgroundColor: 'white',
+                            marginTop: '10px'
+                        }}
+                    >
+                        {conversationHistory.length === 0 ? (
+                            <div style={{ color: '#6c757d', fontStyle: 'italic' }}>
+                                No conversation yet. Connect and start talking to begin.
+                            </div>
+                        ) : (
+                            conversationHistory.map((item, index) => (
+                                <div 
+                                    key={index}
+                                    style={{
+                                        padding: '12px',
+                                        borderBottom: '1px solid #e9ecef',
+                                        marginBottom: '8px',
+                                        backgroundColor: item.type === 'assistant' ? '#f8f9ff' : '#fff8f0',
+                                        borderLeft: `4px solid ${item.type === 'assistant' ? '#007bff' : '#ffc107'}`,
+                                        borderRadius: '4px',
+                                        opacity: item.accumulating ? 0.8 : 1.0 // Slightly fade accumulating messages
+                                    }}
+                                >
+                                    <div style={{ 
+                                        fontSize: '14px', 
+                                        fontWeight: 'bold',
+                                        color: item.type === 'assistant' ? '#007bff' : '#856404',
+                                        marginBottom: '4px'
+                                    }}>
+                                        {item.type === 'assistant' ? '🤖 AI Assistant' : '👤 You'}
+                                        {item.manual && <span style={{ color: '#6c757d' }}> (manual)</span>}
+                                        {item.accumulating && <span style={{ color: '#999', fontSize: '12px' }}> (streaming...)</span>}
+                                    </div>
+                                    <div style={{ fontSize: '16px', marginBottom: '4px' }}>
+                                        &quot;{item.text}&quot;
+                                    </div>
+                                    <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#6c757d' 
+                                    }}>
+                                        {item.timestamp}
+                                        {item.confidence !== null && item.confidence !== undefined && (
+                                            <span> • Confidence: {item.confidence}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Delay Statistics */}
+            <div style={{ 
+                marginTop: '15px', 
+                padding: '15px', 
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d9ff',
+                borderRadius: '8px'
+            }}>
+                <h4>⏱️ Response Time Metrics:</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#007bff' }}>
+                            {lastDelay ? `${lastDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Last Response</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#28a745' }}>
+                            {delayStats.averageDelay ? `${Math.round(delayStats.averageDelay)}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Average</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ffc107' }}>
+                            {delayStats.minDelay && delayStats.minDelay !== Infinity ? `${delayStats.minDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Min</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#dc3545' }}>
+                            {delayStats.maxDelay ? `${delayStats.maxDelay}ms` : '--'}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Max</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#6f42c1' }}>
+                            {delayStats.totalRequests || 0}
+                        </div>
+                        <div style={{ fontSize: '0.9em', color: '#666' }}>Total Requests</div>
+                    </div>
+                </div>
+                
+                {delayStats.recentDelays && delayStats.recentDelays.length > 0 && (
+                    <div style={{ marginTop: '10px' }}>
+                        <strong>Recent Response Times:</strong>
+                        <div style={{ 
+                            marginTop: '5px', 
+                            fontFamily: 'monospace', 
+                            fontSize: '12px',
+                            backgroundColor: '#f8f9fa',
+                            padding: '5px',
+                            borderRadius: '4px'
+                        }}>
+                            {delayStats.recentDelays.map((delay, idx) => (
+                                <span key={idx} style={{ 
+                                    marginRight: '8px',
+                                    color: delay < 1000 ? '#28a745' : delay < 3000 ? '#ffc107' : '#dc3545'
+                                }}>
+                                    {delay}ms
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Buffer Management Section */}
+            {currentLLMSession && (
+                <div style={{ 
+                    marginBottom: '20px', 
+                    padding: '15px', 
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px'
+                }}>
+                    <h4>🔧 Buffer Management</h4>
+                    <p><strong>Session ID:</strong> {currentLLMSession}</p>
+                    
+                    {bufferStatus && bufferStatus.exists && (
+                        <div style={{ marginBottom: '15px' }}>
+                            <p><strong>Buffer Length:</strong> {bufferStatus.bufferLength} characters</p>
+                            <p><strong>Chunk Mode:</strong> {bufferStatus.chunkMode}</p>
+                            <p><strong>Target Robot:</strong> {bufferStatus.targetRobot}</p>
+                            <p><strong>Is Empty:</strong> {bufferStatus.isEmpty ? 'Yes' : 'No'}</p>
+                            {bufferStatus.bufferContent && (
+                                <div style={{ 
+                                    marginTop: '10px',
+                                    padding: '10px',
+                                    backgroundColor: '#e9ecef',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '12px'
+                                }}>
+                                    <strong>Buffer Content:</strong><br />
+                                    &quot;{bufferStatus.bufferContent}&quot;
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button 
+                            onClick={flushBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🚿 Flush Buffer
+                        </button>
+                        
+                        <button 
+                            onClick={clearBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🗑️ Clear Buffer
+                        </button>
+                        
+                        <button 
+                            onClick={forceProcessBuffer}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#fd7e14',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            ⚡ Force Process
+                        </button>
+                        
+                        <button 
+                            onClick={updateBufferStatus}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            🔄 Refresh Status
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Debug Information Panel */}
+            <div style={{ 
+                marginBottom: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px'
+            }}>
+                <h4>🔍 LLM Communication Debug</h4>
+                
+                {/* Last Request */}
+                <div style={{ marginBottom: '15px' }}>
+                    <h5 style={{ color: '#007bff', marginBottom: '10px' }}>📤 Last Request to LLM</h5>
+                    {debugInfo.lastRequest ? (
+                        <div>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#6c757d', 
+                                marginBottom: '5px' 
+                            }}>
+                                Sent at: {debugInfo.requestTimestamp}
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#e7f3ff', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                marginBottom: '10px'
+                            }}>
+                                <strong>Action:</strong> {debugInfo.lastRequest.action}<br />
+                                <strong>History Length:</strong> {debugInfo.lastRequest.history?.length || 0} messages
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#f8f9fa', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                border: '1px solid #dee2e6',
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                            }}>
+                                <strong>Full Conversation History:</strong>
+                                {debugInfo.lastRequest.history?.map((msg, index) => (
+                                    <div key={index} style={{
+                                        margin: '8px 0',
+                                        padding: '8px',
+                                        backgroundColor: msg.role === 'user' ? '#fff3cd' : '#d1ecf1',
+                                        borderLeft: `4px solid ${msg.role === 'user' ? '#ffc107' : '#007bff'}`,
+                                        borderRadius: '4px'
+                                    }}>
+                                        <div style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 'bold',
+                                            color: msg.role === 'user' ? '#856404' : '#004085',
+                                            marginBottom: '4px'
+                                        }}>
+                                            {index + 1}. [{msg.role.toUpperCase()}]
+                                        </div>
+                                        <div style={{ 
+                                            fontSize: '14px', 
+                                            fontFamily: 'monospace',
+                                            wordBreak: 'break-word'
+                                        }}>
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <details style={{ marginTop: '10px' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    View Raw JSON Payload
+                                </summary>
+                                <pre style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    overflow: 'auto',
+                                    maxHeight: '300px',
+                                    border: '1px solid #dee2e6',
+                                    marginTop: '5px'
+                                }}>
+                                    {JSON.stringify(debugInfo.lastRequest, null, 2)}
+                                </pre>
+                            </details>
+                        </div>
+                    ) : (
+                        <div style={{ 
+                            color: '#6c757d', 
+                            fontStyle: 'italic' 
+                        }}>
+                            No LLM request sent yet
+                        </div>
+                    )}
+                </div>
+                
+                {/* Last Response */}
+                <div>
+                    <h5 style={{ color: '#28a745', marginBottom: '10px' }}>📥 Last Response from LLM</h5>
+                    {debugInfo.lastResponse ? (
+                        <div>
+                            <div style={{ 
+                                fontSize: '12px', 
+                                color: '#6c757d', 
+                                marginBottom: '5px' 
+                            }}>
+                                Received at: {debugInfo.responseTimestamp}
+                            </div>
+                            
+                            <div style={{ 
+                                backgroundColor: '#d4edda', 
+                                padding: '10px', 
+                                borderRadius: '4px',
+                                marginBottom: '10px'
+                            }}>
+                                <strong>Action:</strong> {debugInfo.lastResponse.action || 'N/A'}<br />
+                                <strong>Content Length:</strong> {debugInfo.lastResponse.content?.length || 0} characters<br />
+                                <strong>Is Finished:</strong> {debugInfo.lastResponse.isFinished ? 'Yes' : 'No'}<br />
+                                <strong>Session ID:</strong> {debugInfo.lastResponse.sessionId || 'N/A'}
+                            </div>
+                            
+                            {debugInfo.lastResponse.content && (
+                                <div style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    border: '1px solid #dee2e6',
+                                    maxHeight: '150px',
+                                    overflowY: 'auto'
+                                }}>
+                                    <strong>Content:</strong>
+                                    <div style={{ 
+                                        marginTop: '5px',
+                                        fontFamily: 'monospace',
+                                        fontSize: '14px',
+                                        wordBreak: 'break-word'
+                                    }}>
+                                        {debugInfo.lastResponse.content}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <details style={{ marginTop: '10px' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+                                    View Raw Response JSON
+                                </summary>
+                                <pre style={{ 
+                                    backgroundColor: '#f8f9fa', 
+                                    padding: '10px', 
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    overflow: 'auto',
+                                    maxHeight: '300px',
+                                    border: '1px solid #dee2e6',
+                                    marginTop: '5px'
+                                }}>
+                                    {JSON.stringify(debugInfo.lastResponse, null, 2)}
+                                </pre>
+                            </details>
+                        </div>
+                    ) : (
+                        <div style={{ 
+                            color: '#6c757d', 
+                            fontStyle: 'italic' 
+                        }}>
+                            No LLM response received yet
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Instructions */}
+            <div style={{ 
+                padding: '15px', 
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d9ff',
+                borderRadius: '8px'
+            }}>
+                <h4>📋 Instructions:</h4>
+                <ol>
+                    <li>Make sure your STT server is running: <code>node stt-server.js</code></li>
+                    <li>Make sure your LLM gateway is running and accessible</li>
+                    <li>Click "Connect" to establish the conversation session</li>
+                    <li>Click "Connect Services" to connect to both STT and LLM</li>
+                    <li>Click "Start" to begin voice transcription</li>
+                    <li>Speak naturally - your speech will be transcribed and automatically sent to the LLM</li>
+                    <li>See the AI responses in real-time</li>
+                    <li>Use "Manual Message" to send text directly to the LLM</li>
+                </ol>
+                
+                <div style={{ 
+                    marginTop: '15px',
+                    padding: '10px',
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '4px'
+                }}>
+                    <strong>Configuration:</strong>
+                    <ul>
+                        <li><strong>Server Configuration:</strong> URLs and settings loaded from environment variables</li>
+                        <li><strong>STT Integration:</strong> Configured speech-to-text server connection</li>
+                        <li><strong>LLM Gateway:</strong> Configured language model gateway connection</li>
+                        <li><strong>Auto-reconnect:</strong> STT service will attempt to reconnect if connection is lost</li>
+                        <li><strong>Thinking Filter:</strong> Content between &lt;Thinking&gt; and &lt;/Thinking&gt; tags is automatically filtered out by the backend before being sent to the robot</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}

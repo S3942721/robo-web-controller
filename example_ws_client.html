@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASR WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            background-color: white;
+        }
+        .partial {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .complete {
+            background-color: #e8f5e8;
+            border-left: 4px solid #4caf50;
+        }
+        .status {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .connect-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .connect-section input, .connect-section button {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .connect-section button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .connect-section button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected { background-color: #28a745; }
+        .disconnected { background-color: #dc3545; }
+        .connecting { background-color: #ffc107; }
+        
+        .current-partial {
+            font-size: 1.2em;
+            font-weight: bold;
+            min-height: 40px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 2px dashed #dee2e6;
+            transition: all 0.2s ease;
+        }
+        .current-partial.active {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #fafafa;
+        }
+        
+        .utterance-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #e8f5e8;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .test-controls button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #17a2b8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 ASR WebSocket Test Client</h1>
+    
+    <div class="connect-section">
+        <h3>Connection</h3>
+        <span class="status-indicator disconnected" id="statusIndicator"></span>
+        <span id="connectionStatus">Disconnected</span><br>
+        
+        <label for="wsUrl">WebSocket URL:</label>
+        <input type="text" id="wsUrl" value="ws://localhost:8765" style="width: 250px;">
+        <button onclick="connect()" id="connectBtn">Connect</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+        
+        <div class="test-controls">
+            <button onclick="clearLog()">Clear Log</button>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+            <button onclick="exportLog()">Export Log</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="messageCount">0</div>
+                <div class="stat-label">Messages</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="partialCount">0</div>
+                <div class="stat-label">Partial</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="completeCount">0</div>
+                <div class="stat-label">Complete</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="connectionTime">--</div>
+                <div class="stat-label">Connected</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>🔄 Current Partial Transcription</h3>
+        <div id="currentPartial" class="current-partial">
+            (waiting for audio...)
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>✅ Complete Utterances</h3>
+        <div id="completeUtterances">
+            <em>No complete utterances yet</em>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3>📋 Message Log</h3>
+        <div id="messageLog" class="log-container"></div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let messageCount = 0;
+        let partialCount = 0;
+        let completeCount = 0;
+        let connectionStartTime = null;
+        let connectionTimeInterval = null;
+        let allMessages = [];
+
+        function updateConnectionStatus(status, className) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('connectionStatus');
+            
+            indicator.className = `status-indicator ${className}`;
+            statusText.textContent = status;
+            
+            document.getElementById('connectBtn').disabled = (className === 'connected' || className === 'connecting');
+            document.getElementById('disconnectBtn').disabled = (className === 'disconnected');
+            
+            if (className === 'connected') {
+                connectionStartTime = new Date();
+                startConnectionTimer();
+            } else {
+                stopConnectionTimer();
+            }
+        }
+
+        function startConnectionTimer() {
+            connectionTimeInterval = setInterval(updateConnectionTime, 1000);
+        }
+
+        function stopConnectionTimer() {
+            if (connectionTimeInterval) {
+                clearInterval(connectionTimeInterval);
+                connectionTimeInterval = null;
+            }
+            document.getElementById('connectionTime').textContent = '--';
+        }
+
+        function updateConnectionTime() {
+            if (connectionStartTime) {
+                const now = new Date();
+                const diff = Math.floor((now - connectionStartTime) / 1000);
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                document.getElementById('connectionTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('messageCount').textContent = messageCount;
+            document.getElementById('partialCount').textContent = partialCount;
+            document.getElementById('completeCount').textContent = completeCount;
+        }
+
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            
+            updateConnectionStatus('Connecting...', 'connecting');
+            
+            try {
+                websocket = new WebSocket(url);
+                
+                websocket.onopen = function(event) {
+                    updateConnectionStatus('Connected', 'connected');
+                    addLogMessage('Connected to ASR WebSocket server', 'status');
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    } catch (e) {
+                        addLogMessage(`Error parsing message: ${e.message}`, 'error');
+                        console.error('Message parse error:', e, 'Raw data:', event.data);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    updateConnectionStatus('Disconnected', 'disconnected');
+                    const reason = event.reason || 'Unknown reason';
+                    addLogMessage(`Disconnected from ASR WebSocket server (Code: ${event.code}, Reason: ${reason})`, 'status');
+                    websocket = null;
+                };
+                
+                websocket.onerror = function(error) {
+                    updateConnectionStatus('Error', 'disconnected');
+                    addLogMessage(`WebSocket error: ${error}`, 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+            } catch (e) {
+                updateConnectionStatus('Error', 'disconnected');
+                addLogMessage(`Connection error: ${e.message}`, 'error');
+                console.error('Connection error:', e);
+            }
+        }
+
+        function disconnect() {
+            if (websocket) {
+                websocket.close(1000, 'User requested disconnect');
+            }
+        }
+
+        function sendTestMessage() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const testMsg = {
+                    type: "test",
+                    message: "Test message from client",
+                    timestamp: Date.now() / 1000
+                };
+                websocket.send(JSON.stringify(testMsg));
+                addLogMessage('Sent test message to server', 'status');
+            } else {
+                addLogMessage('Cannot send test message: not connected', 'error');
+            }
+        }
+
+        function handleMessage(data) {
+            messageCount++;
+            allMessages.push({...data, received_at: new Date()});
+            
+            switch (data.type) {
+                case 'partial':
+                    partialCount++;
+                    updatePartialTranscription(data.text, data.timestamp);
+                    addLogMessage(`Partial: "${data.text}"`, 'partial', data.timestamp);
+                    break;
+                    
+                case 'complete':
+                    completeCount++;
+                    addCompleteUtterance(data.text, data.timestamp);
+                    addLogMessage(`Complete: "${data.text}"`, 'complete', data.timestamp);
+                    clearPartialTranscription();
+                    break;
+                    
+                case 'status':
+                    addLogMessage(`Status: ${data.status}${data.details ? ' - ' + JSON.stringify(data.details) : ''}`, 'status', data.timestamp);
+                    break;
+                    
+                default:
+                    addLogMessage(`Unknown message type: ${data.type} - ${JSON.stringify(data)}`, 'error');
+            }
+            
+            updateStats();
+        }
+
+        function updatePartialTranscription(text, timestamp) {
+            const element = document.getElementById('currentPartial');
+            element.textContent = text;
+            element.classList.add('active');
+            
+            // Reset active state after animation
+            setTimeout(() => {
+                element.classList.remove('active');
+            }, 200);
+        }
+
+        function clearPartialTranscription() {
+            const element = document.getElementById('currentPartial');
+            element.textContent = '(waiting for audio...)';
+            element.classList.remove('active');
+        }
+
+        function addCompleteUtterance(text, timestamp) {
+            const container = document.getElementById('completeUtterances');
+            
+            // Remove placeholder text
+            if (container.innerHTML.includes('No complete utterances yet')) {
+                container.innerHTML = '';
+            }
+            
+            const div = document.createElement('div');
+            div.className = 'utterance-item';
+            div.innerHTML = `
+                <strong>"${text}"</strong>
+                <div class="timestamp">${new Date(timestamp * 1000).toLocaleTimeString()}</div>
+            `;
+            
+            container.insertBefore(div, container.firstChild);
+            
+            // Keep only last 10 utterances
+            while (container.children.length > 10) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function addLogMessage(message, type, timestamp = null) {
+            const container = document.getElementById('messageLog');
+            const div = document.createElement('div');
+            div.className = `container ${type}`;
+            
+            const time = timestamp ? new Date(timestamp * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+            
+            div.innerHTML = `
+                <div>#${messageCount}: ${message}</div>
+                <div class="timestamp">${time}</div>
+            `;
+            
+            container.insertBefore(div, container.firstChild);
+            
+            // Keep only last 100 messages
+            while (container.children.length > 100) {
+                container.removeChild(container.lastChild);
+            }
+            
+            // Auto-scroll to top for new messages
+            container.scrollTop = 0;
+        }
+
+        function clearLog() {
+            document.getElementById('messageLog').innerHTML = '';
+            document.getElementById('completeUtterances').innerHTML = '<em>No complete utterances yet</em>';
+            clearPartialTranscription();
+            messageCount = 0;
+            partialCount = 0;
+            completeCount = 0;
+            allMessages = [];
+            updateStats();
+        }
+
+        function exportLog() {
+            const data = {
+                export_time: new Date().toISOString(),
+                stats: {
+                    total_messages: messageCount,
+                    partial_count: partialCount,
+                    complete_count: completeCount,
+                    connection_start: connectionStartTime ? connectionStartTime.toISOString() : null
+                },
+                messages: allMessages
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `asr_websocket_log_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case 'Enter':
+                        e.preventDefault();
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            disconnect();
+                        } else {
+                            connect();
+                        }
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        clearLog();
+                        break;
+                    case 't':
+                        e.preventDefault();
+                        sendTestMessage();
+                        break;
+                }
+            }
+        });
+
+        // Auto-connect on page load (uncomment if desired)
+        // window.onload = function() {
+        //     connect();
+        // };
+    </script>
+</body>
+</html>

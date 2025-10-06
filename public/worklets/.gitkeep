@@ -1,0 +1,1 @@
+// This file ensures the worklets directory exists for the pcm16_resampler.js AudioWorklet module

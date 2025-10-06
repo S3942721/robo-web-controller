@@ -1,6 +1,7 @@
 node_modules
 test*
 dist
+recordings/
 
 # Logs
 logs
@@ -24,4 +25,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.*
+.env
+
+# SSL certificates
+*.pem
+
+# pnpm-specific files and directories
+.pnpm-store/
+.pnpm/
+
+# Specific
+.github/copilot-instructions.md
+.env.backup*

@@ -14,6 +14,10 @@ import { useEffect } from "react"
 import MoveController from "./pages/MoveController"
 import Puppeteer from "./pages/Puppeteer"
 import Tom from "./pages/Tom"
+import NovaSonicForT from "./pages/NovaSonicForT"
+import STTTest from "./pages/STTTest"
+import STTLLMTest from "./pages/STTLLMTest"
+import RobotAPITest from "./pages/RobotAPITest"
 
 export default function App() {
     function globalBackspaceListener(event) {
@@ -56,12 +60,28 @@ export default function App() {
                 element: <MoveController />
             },
             {
+                path: '/stt-test',
+                element: <STTTest />
+            },
+            {
                 path: '/puppeteer',
                 element: <Puppeteer />
             },
             {
                 path: '/tom',
                 element: <Tom />
+                },
+            {
+                path: '/test',
+                element: <NovaSonicForT />
+            },
+            {
+                path: '/stt-llm-test',
+                element: <STTLLMTest />
+            },
+            {
+                path: '/robot-api-test',
+                element: <RobotAPITest />
             }
         ])} />
     )

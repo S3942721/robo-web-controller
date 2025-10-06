@@ -6,6 +6,7 @@ import PagedShortCuts from "./PagedShortCuts";
 
 export default function Puppeteer() {
     const [activeButton, setActiveButton] = useState("Bandit");
+    const [reloadingTablet, setReloadingTablet] = useState(false); // Tablet reload state
 
     // Update global active robot variable whenever activeButton changes
     useEffect(() => {
@@ -32,11 +33,45 @@ export default function Puppeteer() {
         }
     }, [activeButton]);
 
+    // Function to reload tablet web view on robot
+    const reloadTabletWebView = async () => {
+        setReloadingTablet(true);
+        try {
+            const response = await fetch(`/api/robot-tablet/reload/${activeButton}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ robot: activeButton })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Tablet reload sent to ${activeButton}`);
+                // You could add a toast notification here if you have one
+            } else {
+                console.error(`❌ Failed to reload tablet for ${activeButton}:`, result.message);
+            }
+        } catch (error) {
+            console.error('Error reloading tablet:', error);
+        } finally {
+            setReloadingTablet(false);
+        }
+    };
+
     return (
         <div className={'full-screen-unscrollable'}>
             <div className={'grid-container'}>
                 <div className={'grid-item'}>
-                    <MoveController foldable={false} compact={true} profile_switcher={true} activeRobot={activeButton} />
+                    <MoveController 
+                        foldable={false} 
+                        compact={true} 
+                        profile_switcher={true} 
+                        activeRobot={activeButton}
+                        reloadTabletWebView={reloadTabletWebView}
+                        reloadingTablet={reloadingTablet}
+                    />
                 </div>
                 <div className={'grid-item'}>
                     <div className={'grid-container robot-target-scripts'}>
@@ -59,6 +94,7 @@ export default function Puppeteer() {
                                 >
                                     Haku
                                 </button>
+
                             </div>
                         </div>
                     </div>

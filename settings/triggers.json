@@ -72,6 +72,10 @@
             "Signal": "ControlMovement",
             "Value": true
         },
+        "Audio Stream": {
+            "Signal": "ControlAudioStreaming",
+            "Value": false
+        },
         "Greetings": {
             "Signal": "ControlGreetings",
             "Value": false
