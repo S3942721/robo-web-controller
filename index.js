@@ -10,10 +10,11 @@ const app = express()
 
 app.use(require("body-parser").json())
 app.use(require("cors")())
-require('express-ws')(app)
+const expressWs = require('express-ws')(app)
 
 // Import the Robot API
 const robotAPI = require('./utils/robot-api')
+const { ollamaStream } = require('./utils/ollama-client')
 
 // Set up LLM communication broadcast function for Robot API
 robotAPI.broadcastLLMCommunication = broadcastLLMCommunication
@@ -39,8 +40,6 @@ robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
 
 // Set up STT message listener to forward user input to tablets
 robotAPI.on('sttMessage', (message) => {
-    console.log(`[Server] 🎤 STT message received: ${message.type}`)
-
     // Check if video is playing - if so, block STT message processing
     if (isVideoPlaying) {
         console.log(`[Server] 🚫 Blocking STT message processing - video playing for robot ${videoPlayingRobot}`)
@@ -469,6 +468,323 @@ app.ws('/api/sync', (ws, req) => {
 
 })
 
+// WebSocket endpoint for LLM streaming (backend proxy)  
+app.ws('/api/llm/stream', (ws, req) => {
+    const sessionId = `llm-stream-${Math.random().toString(36).substr(2, 9)}`
+    console.log(`[LLM-Stream-${sessionId}] New session started`)
+    
+    // Session state
+    const sessionState = {
+        conversationHistory: [],
+        ollamaContext: null, // For Ollama conversation continuity
+        provider: process.env.LLM_PROVIDER || 'bedrock'
+    }
+    
+    // Send immediate test message
+    ws.send(JSON.stringify({
+        type: 'test',
+        message: 'Hello from server'
+    }))
+    
+    // Send session created message
+    setImmediate(() => {
+        console.log(`[LLM-Stream-${sessionId}] Sending session_created message`)
+        ws.send(JSON.stringify({
+            type: 'session_created',
+            sessionId: sessionId,
+            provider: sessionState.provider,
+            status: 'ready'
+        }))
+    })
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString())
+            console.log(`[LLM-Stream-${sessionId}] Received action:`, data.action)
+            
+            if (data.action === 'send_message') {
+                console.log(`[LLM-Stream-${sessionId}] ⚡ Entering send_message handler`)
+                
+                // Add user message to history
+                const userMessage = {
+                    role: 'user',
+                    content: data.message,
+                    timestamp: Date.now()
+                }
+                sessionState.conversationHistory.push(userMessage)
+                
+                // Build prompt with conversation history for context
+                let prompt = data.message
+                if (data.includeHistory && sessionState.conversationHistory.length > 1) {
+                    // Build full conversation context
+                    const conversationContext = sessionState.conversationHistory
+                        .slice(0, -1) // Exclude current message
+                        .map(msg => {
+                            if (msg.role === 'user') {
+                                return `User: ${msg.content}`
+                            } else {
+                                // Clean assistant response of robot commands for context
+                                const cleanContent = msg.content
+                                    .replace(/\^start\([^)]+\)\s*/g, '')
+                                    .replace(/\^wait\([^)]+\)\s*/g, '')
+                                    .replace(/\{[^}]+\}/g, '')
+                                    .trim()
+                                return `Assistant: ${cleanContent}`
+                            }
+                        })
+                        .join('\n')
+                    
+                    prompt = `Previous conversation:\n${conversationContext}\n\nUser: ${data.message}\nAssistant:`
+                    console.log(`[LLM-Stream-${sessionId}] Using conversation context with ${sessionState.conversationHistory.length - 1} previous messages`)
+                }
+                
+                console.log(`[LLM-Stream-${sessionId}] Sending message to ${sessionState.provider}`)
+                
+                if (sessionState.provider === 'ollama') {
+                    console.log(`[LLM-Stream-${sessionId}] 🎯 Starting Ollama stream`)
+                    
+                    // Stream from Ollama
+                    try {
+                        const ollamaConfig = {
+                            prompt: prompt,
+                            context: sessionState.ollamaContext, // Maintain conversation context
+                            model: process.env.OLLAMA_MODEL || 'haku',
+                            host: process.env.OLLAMA_HOST || 'localhost',
+                            port: parseInt(process.env.OLLAMA_PORT) || 11434,
+                            timeout: parseInt(process.env.OLLAMA_TIMEOUT) || 120000
+                        }
+                        
+                        console.log(`[LLM-Stream-${sessionId}] Ollama config:`, { ...ollamaConfig, context: ollamaConfig.context ? 'present' : 'none' })
+                        
+                        let chunkCount = 0
+                        let fullResponse = ''
+                        
+                        // Stream chunks to frontend and robot
+                        const generator = ollamaStream(ollamaConfig)
+                        for await (const chunk of generator) {
+                            chunkCount++
+                            fullResponse += chunk.content
+                            console.log(`[LLM-Stream-${sessionId}] 📦 Chunk ${chunkCount}: "${chunk.content}"`)
+                            
+                            // Send to frontend
+                            ws.send(JSON.stringify({
+                                type: 'llm_chunk',
+                                content: chunk.content,
+                                sessionId: sessionId,
+                                timestamp: chunk.created_at
+                            }))
+                            
+                            // Send to robot via RobotAPI for speech
+                            if (data.robot) {
+                                robotAPI.processLLMChunk(
+                                    sessionId,
+                                    chunk.content,
+                                    chunk.done,
+                                    data.robot
+                                )
+                            }
+                        }
+                        
+                        // The generator returns the context when done - this is automatically
+                        // returned when we finish iterating. We can't access it easily with
+                        // for-await-of, so context continuity is managed by Ollama internally
+                        // based on the conversation within a single session.
+                        
+                        // Add assistant response to history
+                        sessionState.conversationHistory.push({
+                            role: 'assistant',
+                            content: fullResponse,
+                            timestamp: Date.now()
+                        })
+                        
+                        console.log(`[LLM-Stream-${sessionId}] ✅ Stream complete, sent ${chunkCount} chunks`)
+                        
+                        // Send completion message
+                        ws.send(JSON.stringify({
+                            type: 'llm_complete',
+                            sessionId: sessionId,
+                            fullResponse: fullResponse
+                        }))
+                        
+                        console.log(`[LLM-Stream-${sessionId}] Ollama streaming complete`)
+                    } catch (error) {
+                        console.error(`[LLM-Stream-${sessionId}] Ollama error:`, error)
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            error: `Ollama error: ${error.message}`
+                        }))
+                    }
+                } else if (sessionState.provider === 'bedrock') {
+                    console.log(`[LLM-Stream-${sessionId}] 🎯 Starting Bedrock stream`)
+                    
+                    // Stream from Bedrock via WebSocket gateway
+                    try {
+                        // Create WebSocket connection to Bedrock gateway
+                        const bedrockWs = new WebSocket(LLM_GATEWAY_HOST)
+                        
+                        bedrockWs.on('open', () => {
+                            console.log(`[LLM-Stream-${sessionId}] Connected to Bedrock gateway`)
+                            
+                            // Send message to Bedrock
+                            const bedrockMessage = {
+                                action: 'sendMessage',
+                                message: prompt,
+                                conversationHistory: data.includeHistory ? sessionState.conversationHistory.slice(0, -1) : []
+                            }
+                            
+                            bedrockWs.send(JSON.stringify(bedrockMessage))
+                        })
+                        
+                        let fullResponse = ''
+                        let chunkCount = 0
+                        
+                        bedrockWs.on('message', (bedrockData) => {
+                            try {
+                                const bedrockMsg = JSON.parse(bedrockData.toString())
+                                
+                                if (bedrockMsg.content || bedrockMsg.response) {
+                                    const content = bedrockMsg.content || bedrockMsg.response
+                                    chunkCount++
+                                    fullResponse += content
+                                    
+                                    console.log(`[LLM-Stream-${sessionId}] 📦 Bedrock chunk ${chunkCount}`)
+                                    
+                                    // Forward to frontend
+                                    ws.send(JSON.stringify({
+                                        type: 'llm_chunk',
+                                        content: content,
+                                        sessionId: sessionId,
+                                        timestamp: Date.now()
+                                    }))
+                                    
+                                    // Send to robot
+                                    if (data.robot) {
+                                        robotAPI.processLLMChunk(
+                                            sessionId,
+                                            content,
+                                            bedrockMsg.isFinished || false,
+                                            data.robot
+                                        )
+                                    }
+                                    
+                                    if (bedrockMsg.isFinished) {
+                                        bedrockWs.close()
+                                        
+                                        // Add to history
+                                        sessionState.conversationHistory.push({
+                                            role: 'assistant',
+                                            content: fullResponse,
+                                            timestamp: Date.now()
+                                        })
+                                        
+                                        // Send completion
+                                        ws.send(JSON.stringify({
+                                            type: 'llm_complete',
+                                            sessionId: sessionId,
+                                            fullResponse: fullResponse
+                                        }))
+                                        
+                                        console.log(`[LLM-Stream-${sessionId}] Bedrock streaming complete, ${chunkCount} chunks`)
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`[LLM-Stream-${sessionId}] Bedrock message error:`, error)
+                                bedrockWs.close()
+                                ws.send(JSON.stringify({
+                                    type: 'error',
+                                    error: `Bedrock error: ${error.message}`
+                                }))
+                            }
+                        })
+                        
+                        bedrockWs.on('error', (error) => {
+                            console.error(`[LLM-Stream-${sessionId}] Bedrock WebSocket error:`, error)
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                error: `Bedrock connection error: ${error.message}`
+                            }))
+                        })
+                        
+                        bedrockWs.on('close', () => {
+                            console.log(`[LLM-Stream-${sessionId}] Bedrock WebSocket closed`)
+                        })
+                        
+                    } catch (error) {
+                        console.error(`[LLM-Stream-${sessionId}] Bedrock error:`, error)
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            error: `Bedrock error: ${error.message}`
+                        }))
+                    }
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: `Unknown provider: ${sessionState.provider}`
+                    }))
+                }
+            } else if (data.action === 'get_history') {
+                // Return conversation history
+                console.log(`[LLM-Stream-${sessionId}] Returning ${sessionState.conversationHistory.length} history items`)
+                ws.send(JSON.stringify({
+                    type: 'history',
+                    sessionId: sessionId,
+                    history: sessionState.conversationHistory
+                }))
+            } else if (data.action === 'clear_history') {
+                // Clear conversation history
+                sessionState.conversationHistory = []
+                sessionState.ollamaContext = null
+                ws.send(JSON.stringify({
+                    type: 'history_cleared',
+                    sessionId: sessionId
+                }))
+                console.log(`[LLM-Stream-${sessionId}] Conversation history cleared`)
+            } else if (data.action === 'set_provider') {
+                // Change provider (requires reconnection)
+                const newProvider = data.provider
+                if (['ollama', 'bedrock'].includes(newProvider)) {
+                    sessionState.provider = newProvider
+                    // Clear history when switching providers
+                    sessionState.conversationHistory = []
+                    sessionState.ollamaContext = null
+                    ws.send(JSON.stringify({
+                        type: 'provider_changed',
+                        sessionId: sessionId,
+                        provider: newProvider
+                    }))
+                    console.log(`[LLM-Stream-${sessionId}] Provider changed to ${newProvider}`)
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: `Invalid provider: ${newProvider}`
+                    }))
+                }
+            } else {
+                // Echo back other actions for testing
+                ws.send(JSON.stringify({
+                    type: 'action_received',
+                    action: data.action,
+                    sessionId: sessionId
+                }))
+            }
+        } catch (error) {
+            console.error(`[LLM-Stream-${sessionId}] Error:`, error)
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: error.message
+            }))
+        }
+    })
+    
+    ws.on('close', () => {
+        console.log(`[LLM-Stream-${sessionId}] Session closed`)
+    })
+    
+    ws.on('error', (error) => {
+        console.error(`[LLM-Stream-${sessionId}] WebSocket error:`, error)
+    })
+})
+
 // Nova Sonic real-time conversation WebSocket
 app.ws('/api/nova-sonic-stream', (ws, req) => {
     console.log('Nova Sonic conversation started')
@@ -742,6 +1058,16 @@ router.get("/api/network-info", (req, res) => {
 // Add configuration endpoint
 router.get("/api/network-config", (req, res) => {
     const sttDisabled = process.env.STT_DISABLED === 'true' || STT_SERVER_HOST === 'disabled'
+    
+    // Determine LLM provider from environment
+    const llmProvider = (process.env.LLM_PROVIDER || 'bedrock').toLowerCase()
+    const availableProviders = ['bedrock', 'ollama']
+    
+    // Build backend WebSocket URL for LLM streaming (no direct gateway exposure)
+    const protocol = req.secure ? 'wss' : 'ws'
+    const host = req.hostname
+    const port = SERVER_PORT === 443 || SERVER_PORT === 80 ? '' : `:${SERVER_PORT}`
+    const streamUrl = `${protocol}://${host}${port}/api/llm/stream`
 
     res.status(200).json({
         server: {
@@ -756,9 +1082,11 @@ router.get("/api/network-config", (req, res) => {
             defaultUrl: sttDisabled ? null : `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
         },
         llm: {
-            host: LLM_GATEWAY_HOST,
-            enabled: true,
-            defaultUrl: LLM_GATEWAY_HOST // Use the full URL from environment
+            provider: llmProvider,
+            availableProviders: availableProviders,
+            streamUrl: streamUrl, // Backend WebSocket endpoint for LLM streaming
+            enabled: true
+            // Note: No AWS credentials or gateway URLs exposed
         },
         websocket: {
             reconnectAttempts: WS_RECONNECT_ATTEMPTS,

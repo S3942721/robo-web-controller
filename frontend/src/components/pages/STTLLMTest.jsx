@@ -301,15 +301,17 @@ export default function STTLLMTest() {
         }
 
         try {
-            setOverallStatus('🔗 Connecting to LLM gateway...');
+            setOverallStatus('🔗 Connecting to LLM backend proxy...');
             
             // Close existing LLM connection if any
             if (llmWsRef.current) {
                 llmWsRef.current.close();
             }
             
-            const llmUrl = networkConfig.llm.defaultUrl;
-            console.log('Connecting to LLM gateway at:', llmUrl);
+            // Use backend proxy URL from config
+            const llmUrl = networkConfig.llm.streamUrl || networkConfig.llm.defaultUrl;
+            console.log('Connecting to LLM backend proxy at:', llmUrl);
+            console.log('Provider:', networkConfig.llm.provider);
             llmWsRef.current = new WebSocket(llmUrl);
             
             const timeout = setTimeout(() => {
@@ -321,7 +323,7 @@ export default function STTLLMTest() {
             
             llmWsRef.current.onopen = () => {
                 clearTimeout(timeout);
-                console.log('LLM WebSocket connected successfully');
+                console.log('LLM WebSocket connected to backend proxy successfully');
                 setLLMStatus('connected');
                 setOverallStatus('🤖 LLM connected - Ready for conversation');
                 
@@ -336,16 +338,50 @@ export default function STTLLMTest() {
             
             llmWsRef.current.onmessage = (event) => {
                 try {
-                    console.log('LLM message received:', event.data);
+                    console.log('LLM backend proxy message received:', event.data);
                     const data = JSON.parse(event.data);
                     
-                    if (data.type === 'llm_message') {
+                    // Handle new backend proxy message types
+                    if (data.type === 'session_created') {
+                        console.log('✅ Backend session created:', data.sessionId);
+                        console.log('   Provider:', data.provider);
+                        setOverallStatus(`🤖 LLM connected (${data.provider}) - Ready for conversation`);
+                    } else if (data.type === 'llm_chunk') {
+                        // Convert to format expected by handleLLMMessage
+                        handleLLMMessage({
+                            action: 'completion',
+                            content: data.content,
+                            isFinished: data.isFinished,
+                            sessionId: data.sessionId,
+                            chunkNumber: data.chunkNumber
+                        });
+                    } else if (data.type === 'llm_complete') {
+                        console.log('✅ LLM response complete');
+                        handleLLMMessage({
+                            action: 'completion',
+                            content: '',
+                            isFinished: true,
+                            sessionId: data.sessionId
+                        });
+                    } else if (data.type === 'history') {
+                        console.log('📚 Received history:', data.history.length, 'messages');
+                    } else if (data.type === 'history_cleared') {
+                        console.log('🗑️ History cleared');
+                    } else if (data.type === 'provider_changed') {
+                        console.log('🔄 Provider changed to:', data.provider);
+                        setOverallStatus(`🔄 Switched to ${data.provider} provider`);
+                    } else if (data.type === 'error') {
+                        console.error('❌ LLM backend error:', data.error);
+                        setOverallStatus('❌ LLM Error: ' + data.error);
+                    } else if (data.type === 'llm_message') {
+                        // Legacy format support
                         handleLLMMessage(data.data);
                     } else if (data.type === 'delay_measurement') {
                         handleDelayMeasurement(data);
                     } else if (data.type === 'delay_stats') {
                         setDelayStats(data.stats);
                     } else {
+                        // Try to handle as old format
                         handleLLMMessage(data);
                     }
                 } catch (error) {
@@ -756,7 +792,7 @@ export default function STTLLMTest() {
         }
         
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
-            console.log('✍️ Sending message to LLM:', message);
+            console.log('✍️ Sending message to LLM backend proxy:', message);
             
             // LLM request deduplication - prevent duplicate sessions for same utterance
             const utteranceHash = btoa(message.trim().toLowerCase()).slice(0, 10); // Simple hash
@@ -790,49 +826,22 @@ export default function STTLLMTest() {
                 sttCompleteTimeRef.current = Date.now();
             }
             
-            // Map conversation history (latest snapshot) to the correct format
-            // Use ref to avoid stale state at message send time
-            const historySource = Array.isArray(historyOverride)
-                ? historyOverride
-                : Array.isArray(conversationHistoryRef.current)
-                ? conversationHistoryRef.current
-                : [];
-
-            // Keep a sensible window of context
-            const historyMessages = historySource
-                .filter(m => m && typeof m.text === 'string' && m.text.trim().length > 0)
-                .slice(-12) // increase context depth
-                .map(item => ({
-                    role: item.type === 'user' ? 'user' : 'assistant',
-                    content: item.text
-                }));
-
-            // Avoid duplicating the current user message if it's already the last entry
-            const trimmedMessage = (message || '').trim();
-            const lastMsg = historyMessages[historyMessages.length - 1];
-            const alreadyHasCurrent = lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string' && lastMsg.content.trim() === trimmedMessage;
-            
-            // Use the format expected by AWS API Gateway
+            // Use new backend proxy format
             const llmPayload = {
-                action: 'completion',
-                history: alreadyHasCurrent
-                    ? historyMessages
-                    : [
-                        ...historyMessages,
-                        { role: 'user', content: message }
-                      ]
+                action: 'send_message',
+                message: message,
+                includeHistory: true, // Backend will use conversation history
+                robot: targetRobot,
+                sessionId: sessionIdRef.current
             };
             
             // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
-            console.group('📤 LLM REQUEST DETAILS');
-            console.log('🎯 Current Message:', message);
-            console.log('📚 Conversation History Length:', historySource.length);
-            console.log('📚 History Used (last 12 + current if needed):', llmPayload.history.length);
-            console.log('📜 Full History Being Sent:');
-            llmPayload.history.forEach((msg, index) => {
-                console.log(`  ${index + 1}. [${msg.role.toUpperCase()}]: "${msg.content}"`);
-            });
-            console.log('📦 Complete Payload Structure:');
+            console.group('📤 LLM BACKEND PROXY REQUEST');
+            console.log('🎯 Message:', message);
+            console.log('🤖 Target Robot:', targetRobot);
+            console.log('📚 Include History:', true);
+            console.log('🆔 Session ID:', sessionIdRef.current);
+            console.log('📦 Complete Payload:');
             console.log(JSON.stringify(llmPayload, null, 2));
             console.log('📡 WebSocket Ready State:', llmWsRef.current.readyState);
             console.log('🕐 Timestamp:', new Date().toISOString());
@@ -846,7 +855,7 @@ export default function STTLLMTest() {
             }));
             
             llmWsRef.current.send(JSON.stringify(llmPayload));
-            setOverallStatus('✍️ Message sent to AI - waiting for response');
+            setOverallStatus('✍️ Message sent to AI backend - waiting for response');
         } else {
             console.error('❌ Cannot send to LLM - not connected');
             setOverallStatus('❌ Cannot send to LLM - not connected');
@@ -879,6 +888,20 @@ export default function STTLLMTest() {
                 { text: message.trim(), timestamp, type: 'user', manual: true }
             ];
             sendToLLM(message.trim(), historySnapshot);
+        }
+    };
+
+    const switchProvider = (newProvider) => {
+        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
+            console.log(`🔄 Switching LLM provider to: ${newProvider}`);
+            llmWsRef.current.send(JSON.stringify({
+                action: 'set_provider',
+                provider: newProvider
+            }));
+            setOverallStatus(`🔄 Switching to ${newProvider} provider...`);
+        } else {
+            console.error('❌ Cannot switch provider - not connected');
+            setOverallStatus('❌ Cannot switch provider - not connected');
         }
     };
 
@@ -1213,36 +1236,108 @@ export default function STTLLMTest() {
             }}>
                 <h4>Connection Configuration:</h4>
                 {networkConfig ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                                STT Server URL:
-                            </label>
-                            <div style={{
-                                padding: '8px',
-                                backgroundColor: '#e9ecef',
-                                border: '1px solid #ced4da',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace'
-                            }}>
-                                {networkConfig.stt.defaultUrl}
+                    <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    STT Server URL:
+                                </label>
+                                <div style={{
+                                    padding: '8px',
+                                    backgroundColor: '#e9ecef',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px'
+                                }}>
+                                    {networkConfig.stt.defaultUrl}
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    LLM Backend Proxy URL:
+                                </label>
+                                <div style={{
+                                    padding: '8px',
+                                    backgroundColor: '#e9ecef',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px'
+                                }}>
+                                    {networkConfig.llm.streamUrl || networkConfig.llm.defaultUrl}
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                                LLM Gateway URL:
-                            </label>
-                            <div style={{
-                                padding: '8px',
-                                backgroundColor: '#e9ecef',
-                                border: '1px solid #ced4da',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace'
+                        
+                        {/* Provider Configuration */}
+                        {networkConfig.llm && (
+                            <div style={{ 
+                                marginBottom: '15px',
+                                padding: '12px',
+                                backgroundColor: '#e7f3ff',
+                                border: '1px solid #b3d9ff',
+                                borderRadius: '6px'
                             }}>
-                                {networkConfig.llm.defaultUrl}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div>
+                                        <span style={{ fontWeight: 'bold', marginRight: '8px' }}>Current Provider:</span>
+                                        <span style={{ 
+                                            padding: '4px 12px',
+                                            backgroundColor: '#007bff',
+                                            color: 'white',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase',
+                                            fontSize: '13px'
+                                        }}>
+                                            {networkConfig.llm.provider || 'Unknown'}
+                                        </span>
+                                    </div>
+                                    
+                                    {networkConfig.llm.availableProviders && networkConfig.llm.availableProviders.length > 1 && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 'bold' }}>Switch to:</span>
+                                            {networkConfig.llm.availableProviders
+                                                .filter(p => p !== networkConfig.llm.provider)
+                                                .map(provider => (
+                                                    <button
+                                                        key={provider}
+                                                        onClick={() => switchProvider(provider)}
+                                                        disabled={llmStatus !== 'connected'}
+                                                        style={{
+                                                            padding: '4px 12px',
+                                                            backgroundColor: llmStatus === 'connected' ? '#28a745' : '#6c757d',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            cursor: llmStatus === 'connected' ? 'pointer' : 'not-allowed',
+                                                            fontWeight: 'bold',
+                                                            textTransform: 'uppercase',
+                                                            fontSize: '12px',
+                                                            opacity: llmStatus === 'connected' ? 1 : 0.6
+                                                        }}
+                                                    >
+                                                        {provider}
+                                                    </button>
+                                                ))
+                                            }
+                                        </div>
+                                    )}
+                                    
+                                    {networkConfig.llm.enabled === false && (
+                                        <div style={{ 
+                                            color: '#dc3545',
+                                            fontWeight: 'bold',
+                                            fontSize: '13px'
+                                        }}>
+                                            ⚠️ LLM Backend Disabled
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        )}
+                    </>
                 ) : (
                     <p>Loading configuration...</p>
                 )}

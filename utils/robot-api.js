@@ -804,7 +804,11 @@ class RobotAPI extends EventEmitter {
             this.sttWebSocket.on('message', (data) => {
                 try {
                     const message = JSON.parse(data);
-                    console.log('[RobotAPI] 📥 STT message received:', message);
+                    
+                    // Only log non-health-check messages to reduce noise
+                    if (!message.healthCheck && message.type !== 'pong' && message.type !== 'command_ack' && message.type !== 'state_response' && message.type !== 'partial') {
+                        console.log('[RobotAPI] 📥 STT message received:', message);
+                    }
                     
                     // Update health check timestamp
                     this.sttState.lastHealthCheck = Date.now();
@@ -869,7 +873,10 @@ class RobotAPI extends EventEmitter {
 
         try {
             this.sttWebSocket.send(JSON.stringify(command));
-            console.log(`[RobotAPI] 📤 STT command sent: ${action}`, command);
+            // Only log non-health-check commands to reduce noise
+            if (!additionalData.healthCheck) {
+                console.log(`[RobotAPI] 📤 STT command sent: ${action}`, command);
+            }
             return true;
         } catch (error) {
             console.error(`[RobotAPI] ❌ Failed to send STT command ${action}:`, error);
@@ -1119,13 +1126,15 @@ class RobotAPI extends EventEmitter {
                 }
             }
         } else if (message.type === 'command_ack') {
-            console.log(`[RobotAPI] ✅ STT command acknowledged: ${message.action}`);
+            // Only log non-health-check acknowledgments
+            if (!message.healthCheck && message.action !== 'ping' && message.type !== 'pong') {
+                console.log(`[RobotAPI] ✅ STT command acknowledged: ${message.action}`);
+            }
             // Command was received, but state might not have changed yet
             // Don't reset retries here, wait for actual state change
         } else if (message.type === 'pong' || (message.type === 'status' && message.healthCheck)) {
-            // Health check response
+            // Health check response - silent to reduce log noise
             this.sttState.lastHealthCheck = Date.now();
-            console.log('[RobotAPI] STT server health check OK');
         }
     }
     
@@ -1694,22 +1703,25 @@ class RobotAPI extends EventEmitter {
                 const activeLLMSessions = this.llmActiveSessions.size > 0;
                 const anyRobotSpeaking = Array.from(this.detailedRobotStatus.values()).some(status => status.speaking);
                 
-                console.log(`[RobotAPI] 🔍 STT broadcast check - LLM sessions: ${activeLLMSessions} (${Array.from(this.llmActiveSessions).join(', ')}), robot speaking: ${anyRobotSpeaking}, message: "${message.text?.substring(0, 30)}"`);
-                
+                if (message.type === 'complete') {
+                    console.log(`[RobotAPI] 🔍 STT broadcast check - LLM sessions: ${activeLLMSessions} (${Array.from(this.llmActiveSessions).join(', ')}), robot speaking: ${anyRobotSpeaking}, message: "${message.text?.substring(0, 30)}"`);
+                }
+
                 if (activeLLMSessions || anyRobotSpeaking) {
-                    console.log(`[RobotAPI] 📢 Broadcasting user input to tablet: "${message.text}" (type: ${message.type}) - LLM active: ${activeLLMSessions}, robot speaking: ${anyRobotSpeaking}`);
+                    if (message.type === 'complete') {
+                        console.log(`[RobotAPI] 📢 Broadcasting user input to tablet: "${message.text}" (type: ${message.type}) - LLM active: ${activeLLMSessions}, robot speaking: ${anyRobotSpeaking}`);
+                    }
                     this.broadcastLLMCommunication('llm-user-input', message.text, 'Haku');
                 } else {
-                    console.log(`[RobotAPI] 🔇 Skipping tablet broadcast - no active LLM sessions or speaking robots`);
+                    if (message.type === 'complete') {
+                        console.log(`[RobotAPI] 🔇 Skipping tablet broadcast - no active LLM sessions or speaking robots`);
+                    }
                 }
             } else if ((message.type === 'complete' || message.type === 'partial') && message.text && message.text.trim()) {
                 console.log(`[RobotAPI] 🚫 No broadcastLLMCommunication function available`);
             }
         }
-        
-        // Process valid STT messages
-        console.log(`[RobotAPI] ✅ Processing valid STT message: ${message.type}`);
-        
+                
         // Special handling for complete transcripts
         if (message.type === 'complete') {
             console.log(`[RobotAPI] 🎯 Complete STT transcript received: "${message.text}"`);
