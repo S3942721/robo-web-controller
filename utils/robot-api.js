@@ -2892,8 +2892,8 @@ class RobotAPI extends EventEmitter {
         
         const extractedChunks = [];
         
-        // Create sentence boundary regex
-        const sentenceRegex = new RegExp(`([${LLM_SENTENCE_MARKERS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]\\s+)`, 'g');
+        // Create sentence boundary regex - match sentence endings with optional trailing whitespace
+        const sentenceRegex = new RegExp(`([${LLM_SENTENCE_MARKERS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]\\s*)`, 'g');
         const sentences = session.speechBuffer.split(sentenceRegex);
         
         let currentChunk = '';
