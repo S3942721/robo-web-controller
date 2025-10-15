@@ -5,7 +5,7 @@ import MoveController from "./MoveController";
 import PagedShortCuts from "./PagedShortCuts";
 
 export default function Puppeteer() {
-    const [activeButton, setActiveButton] = useState("Bandit");
+    const [activeButton, setActiveButton] = useState("Haku");
     const [reloadingTablet, setReloadingTablet] = useState(false); // Tablet reload state
 
     // Update global active robot variable whenever activeButton changes
