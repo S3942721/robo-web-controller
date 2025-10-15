@@ -631,19 +631,6 @@ export default function STTLLMTest() {
                     setLLMActive(true);
                 }
                 
-                // Check if this is the first chunk for this session
-                const sessionId = data.sessionId || sessionIdRef.current;
-                const isFirstChunk = isFirstChunkRef.current.has(sessionId);
-                
-                // Send to robot if enabled - use Robot API directly with session ID
-                if (sendToRobot && data.content) {
-                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk, data.chunkNumber);
-                    
-                    // Remove from first chunk tracking after sending
-                    if (isFirstChunk) {
-                        isFirstChunkRef.current.delete(sessionId);
-                    }
-                }
                 
                 setConversationHistory(prev => {
                     // Check if the last item is an accumulating assistant message
@@ -672,12 +659,6 @@ export default function STTLLMTest() {
                 if (data.isFinished) {
                     setLLMActive(false);
                     setOverallStatus('🤖 AI responded - Ready for your next input');
-                    // Send final chunk marker with session ID
-                    if (sendToRobot) {
-                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false, null);
-                        // Flush any remaining buffer content
-                        flushBuffer(data.sessionId || sessionIdRef.current);
-                    }
                     
                     // Clean up pending LLM request tracking for deduplication
                     const sessionId = data.sessionId || sessionIdRef.current;

@@ -599,6 +599,16 @@ app.ws('/api/llm/stream', (ws, req) => {
                         
                         console.log(`[LLM-Stream-${sessionId}] ✅ Stream complete, sent ${chunkCount} chunks`)
                         
+                        // Flush any remaining buffered content to robot
+                        if (data.robot) {
+                            robotAPI.processLLMChunk(
+                                sessionId,
+                                '', // No new content, just flush
+                                true, // isFinished = true
+                                data.robot
+                            )
+                        }
+                        
                         // Send completion message
                         ws.send(JSON.stringify({
                             type: 'llm_complete',
