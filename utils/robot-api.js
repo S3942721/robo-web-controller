@@ -2253,7 +2253,8 @@ class RobotAPI extends EventEmitter {
         
         // If IP identification failed and we allow socket identification, mark as pending
         if (robotName === this.defaultRobotName && (this.identificationMethod === 'socket' || this.identificationMethod === 'both')) {
-            robotName = 'pending';
+            robotName = 'Bandit'; // TODO: FIXME: Change back to 'pending' after testing
+            // robotName = 'pending'; // TODO: FIXME: Change back to 'pending' after testing
         }
         
         const connectionInfo = {
