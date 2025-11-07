@@ -381,7 +381,6 @@ export default function STTLLMTest() {
                     } else if (data.type === 'delay_stats') {
                         setDelayStats(data.stats);
                     } else {
-                        // Try to handle as old format
                         handleLLMMessage(data);
                     }
                 } catch (error) {
@@ -1028,7 +1027,8 @@ export default function STTLLMTest() {
                 },
                 body: JSON.stringify({ 
                     robot: targetRobot,
-                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+                    localVideoUrl: '/TB_video.mp4'
                 })
             });
             

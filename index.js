@@ -2114,6 +2114,11 @@ router.get("/tablet", (req, res) => {
     res.sendFile(join(__dirname, 'public', 'tablet.html'))
 })
 
+// Tablet local controller route - serve the local tablet interface
+router.get("/tablet-local", (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'tablet-local.html'))
+})
+
 // Add polling endpoint for tablet fallback
 router.get("/api/pull", (req, res) => {
     const robot = req.query.robot
@@ -2149,13 +2154,16 @@ router.post("/api/test-llm-broadcast", (req, res) => {
 
 // Tablet video control endpoints - use WebSocket commands for consistency
 router.post("/api/tablet-video/play", async (req, res) => {
-    const { robot, videoUrl } = req.body
+    const { robot, videoUrl, localVideoUrl } = req.body
     const targetRobot = robot || 'Haku'
 
     // Trigger the same logic as WebSocket command
     const message = {
         cmd: 'tablet-video-play',
-        message: { videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4' },
+        message: { 
+            videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+            localVideoUrl: localVideoUrl || '/TB_video.mp4'
+        },
         robot: targetRobot
     }
 
@@ -2175,6 +2183,7 @@ router.post("/api/tablet-video/play", async (req, res) => {
             cmd: 'tablet-video-play',
             robot: targetRobot,
             videoUrl: message.message.videoUrl,
+            localVideoUrl: message.message.localVideoUrl,
             timestamp: Date.now()
         })
 
@@ -2191,6 +2200,7 @@ router.post("/api/tablet-video/play", async (req, res) => {
             message: 'Tablet video play command sent',
             robot: targetRobot,
             videoUrl: message.message.videoUrl,
+            localVideoUrl: message.message.localVideoUrl,
             connections: sendWebSockets.length,
             sentTo: sentCount
         })
