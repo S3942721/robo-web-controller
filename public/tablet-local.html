@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Brain Interface</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #000000;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            border: 1px solid #666666;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+            height: 35px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #ffffff;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .header .robot-name {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 14px;
+            padding: 5px 10px;
+            border: 1px solid #666666;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+
+        .main-content {
+            background: transparent;
+            border: none;
+            padding: 0;
+            overflow: hidden;
+            position: absolute;
+            top: 75px;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+        }
+
+        .conversation-interface {
+            display: none;
+            height: 100%;
+            padding: 0;
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            background: rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .conversation-interface.active {
+            display: block;
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 50;
+        }
+
+        .user-message-container {
+            position: absolute;
+            top: 5%;
+            left: 2%;
+            width: 75%;
+            height: 35%;
+        }
+
+        .user-message-area {
+            width: 100%;
+            height: 100%;
+            background: #e3f2fd;
+            border: 3px solid #2196f3;
+            border-radius: 12px;
+            padding: 3%;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .user-message-label {
+            position: absolute;
+            top: 15%;
+            right: -12%;
+            text-align: center;
+            width: 10%;
+        }
+
+        .user-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .user-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .ai-message-container {
+            position: absolute;
+            bottom: 5%;
+            right: 2%;
+            width: 75%;
+            height: 45%;
+        }
+
+        .ai-message-area {
+            width: 100%;
+            height: 100%;
+            background: #f3e5f5;
+            border: 3px solid #9c27b0;
+            border-radius: 12px;
+            padding: 3%;
+            box-sizing: border-box;
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        .ai-message-label {
+            position: absolute;
+            top: 15%;
+            left: -12%;
+            text-align: center;
+            width: 10%;
+        }
+
+        .ai-message-label .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .ai-message-label .name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .message-content {
+            font-size: 32px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 100%;
+            overflow-y: auto;
+            text-align: left;
+            padding: 0;
+        }
+
+        .user-message-area .message-content {
+            color: #1565c0;
+        }
+
+        .ai-message-area .message-content {
+            color: #7b1fa2;
+        }
+
+        .ai-response-streaming {
+            position: relative;
+        }
+
+        .ai-response-streaming::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #9c27b0;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: block;
+            z-index: -1;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block !important;
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            object-fit: cover;
+        }
+
+        #background-video {
+            z-index: 0;
+        }
+
+        #playback-video {
+            z-index: 2147483647;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #playback-video.playing {
+            opacity: 1;
+            visibility: visible;
+            z-index: 2147483647;
+        }
+
+        .footer {
+            background: rgba(40, 40, 40, 0.9);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            opacity: 0.9;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 30px;
+            line-height: 30px;
+        }
+
+
+
+        .footer img {
+            height: 35px;
+            vertical-align: middle;
+            margin-top: -5px;
+        }
+
+        /* Network activity indicator */
+        .network-activity {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 12px;
+            display: none;
+            -webkit-box-align: center;
+            -ms-flex-align: center;
+            align-items: center;
+        }
+
+        .network-activity span:last-child {
+            margin-left: 5px;
+        }
+
+        .network-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: networkBlink 2s infinite;
+        }
+
+        .network-dot.active {
+            background: #00ff00;
+            animation: networkActive 0.5s infinite;
+        }
+
+        @keyframes networkBlink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0.3;
+            }
+        }
+
+        @keyframes networkActive {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.2);
+            }
+        }
+
+        /* City North image pop up */
+        .cn-overlay-img {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            margin-left: -480px;
+            margin-top: -360px;
+            width: 960px;
+            height: 720px;
+            border: 2px solid #E60028;
+            border-radius: 12px;
+            background: #000000;
+            z-index: 9999999;
+            isolation: isolate;
+            opacity: 0;
+            pointer-events: none;
+            display: none;
+        }
+
+        .cn-overlay-img.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .cn-overlay-img.hide {
+            opacity: 0;
+        }
+
+
+
+        .video-container.playing {
+            z-index: 2147483647;
+        }
+
+        .video-container.playing #playback-video {
+            z-index: 2147483647;
+        }
+
+        /* Force top-layer fullscreen video layer */
+        .force-top {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 2147483647 !important;
+            pointer-events: none !important;
+            background: #000 !important;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            contain: strict;
+        }
+
+        #playback-video.force-top {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="network-activity">
+                <div class="network-dot" id="network-indicator"></div>
+                <span id="network-status">OFFLINE</span>
+            </div>
+            <h1>Hi, I'm HAKU</h1>
+            <div class="robot-name" id="robot-name">Haku</div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-container" id="video-container">
+                <!-- Background video -->
+                <video id="background-video" autoplay muted loop playsinline preload="auto">
+                    <source src="heart-beat.mp4" type="video/mp4">
+                    <source src="out_0p5x.webm" type="video/webm">
+                    Your browser does not support the video tag.
+                </video>
+                <!-- Preloaded video for playback -->
+                <video id="playback-video" playsinline preload="auto">
+                    <source src="TB_video.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="conversation-interface" id="conversation-interface">
+                <div class="user-message-container">
+                    <div class="user-message-label">
+                        <span class="emoji">👤</span>
+                        <span class="name">You</span>
+                    </div>
+                    <div class="user-message-area" id="user-message-area">
+                        <div class="message-content" id="user-message-content">Waiting for your message...</div>
+                    </div>
+                </div>
+
+                <div class="ai-message-container">
+                    <div class="ai-message-label">
+                        <span class="emoji">👤</span>
+                        <span class="name">Haku</span>
+                    </div>
+                    <div class="ai-message-area" id="ai-message-area">
+                        <div class="message-content" id="ai-message-content">Waiting for Haku's response...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="footer">
+            <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
+        </div>
+
+        <!-- Preloaded City North Images -->
+        <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
+        <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
+        <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
+
+
+
+
+    </div>
+    <script>
+        (function () {
+            var logEl = document.getElementById('log-content')
+            function addLog (s) {
+                try {
+                    var t = (new Date()).toLocaleTimeString()
+                    if (logEl) { logEl.innerHTML += '[' + t + '] ' + s + '<br>'; logEl.scrollTop = logEl.scrollHeight }
+                } catch (e) { }
+            }
+            window.onerror = function (msg, url, line, col, err) { addLog('ONERROR: ' + msg + ' @' + line + ':' + col) }
+
+            // cover console
+            var c = window.console = window.console || {};
+            ['log', 'warn', 'error'].forEach(function (k) {
+                var orig = c[k] || function () { }
+                c[k] = function () {
+                    try {
+                        var s = Array.prototype.slice.call(arguments).join(' ')
+                        addLog((k === 'log' ? '' : (k.toUpperCase() + ': ')) + s)
+                        orig.apply ? orig.apply(console, arguments) : orig(s)
+                    } catch (e) { }
+                }
+            })
+
+            // ---- preload & safe show/hide helpers ----
+            var ASSETS = {
+                images: [
+                    'a.jpg',
+                    'b.jpg',
+                    'c.jpg'
+                ],
+                videos: [
+                    'TB_video.mp4'
+                ]
+            }
+            var ready = { images: {}, videos: {} }
+
+            function preloadAssets () {
+                ASSETS.images.forEach(function (src) {
+                    var img = new Image()
+                    img.onload = function () { ready.images[src] = true }
+                    img.onerror = function () { ready.images[src] = false }
+                    img.src = src
+                })
+
+                // Preload videos
+                var playbackVideo = document.getElementById('playback-video')
+                if (playbackVideo) {
+                    playbackVideo.onloadeddata = function () {
+                        ready.videos['TB_video.mp4'] = true
+                    }
+                    playbackVideo.onerror = function () {
+                        ready.videos['TB_video.mp4'] = false
+                    }
+                }
+            }
+            preloadAssets()
+
+            function showEl (el, showClass) {
+                if (!el) return
+                el.style.removeProperty('display')
+                el.classList.remove('hide')
+                el.classList.add(showClass || 'show')
+            }
+            function hideEl (el) {
+                if (!el) return
+                el.classList.remove('show')
+                el.classList.add('hide')
+                setTimeout(function () { el.classList.remove('hide') }, 400)
+            }
+
+            // ---- City North ----
+            var cnOverlays = {
+                'a.jpg': document.getElementById('cn-overlay-a'),
+                'b.jpg': document.getElementById('cn-overlay-b'),
+                'c.jpg': document.getElementById('cn-overlay-c')
+            }
+            var particles = []
+            var _cnBusy = 0
+            var currentOverlay = null
+            var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
+
+            function showCityNorth (imageSrc) {
+                if (_cnBusy) return
+                _cnBusy = 1
+
+                var src = imageSrc || 'a.jpg'
+                console.log('showCityNorth called with:', src)
+                var overlay = cnOverlays[src]
+                if (!overlay) {
+                    console.error('City North image not found:', src)
+                    _cnBusy = 0
+                    return
+                }
+
+                // Simplified - just show immediately
+                currentOverlay = overlay
+                showEl(currentOverlay, 'show')
+                setTimeout(hideCityNorth, 10000)
+            }
+
+            function hideCityNorth () {
+                if (!currentOverlay) { _cnBusy = 0; return }
+                hideEl(currentOverlay)
+                currentOverlay = null
+                _cnBusy = 0
+            }
+
+            function createParticles () {
+                var container = document.querySelector('.container')
+                if (!container) return
+
+                for (var i = 0; i < 10; i++) {
+                    var particle = document.createElement('div')
+                    particle.className = 'particle'
+                    particle.style.left = Math.random() * 100 + '%'
+                    particle.style.top = Math.random() * 100 + '%'
+                    particle.style.animationDelay = Math.random() * 3 + 's'
+                    container.appendChild(particle)
+                    particles.push(particle)
+                }
+            }
+
+            function clearParticles () {
+                particles.forEach(function (particle) {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle)
+                    }
+                })
+                particles = []
+            }
+
+            window.showCityNorth = showCityNorth
+            window.hideCityNorth = hideCityNorth
+
+            // Test function for City North
+            window.testCityNorth = function () {
+                console.log('Testing City North display...')
+                showCityNorth('a.jpg')
+            }
+
+
+
+            // ---- Tablet Video Control ----
+            var isVideoPlaying = false
+
+            function playTabletVideo (videoUrl) {
+                var backgroundVideo = document.getElementById('background-video')
+                var playbackVideo = document.getElementById('playback-video')
+                var videoContainer = document.getElementById('video-container')
+
+                if (!backgroundVideo || !playbackVideo || !videoContainer) return
+
+                console.log('🎬 Playing video:', videoUrl)
+                console.log('Video muted before play:', playbackVideo.muted)
+                console.log('Video volume:', playbackVideo.volume)
+
+                // Hide conversation interface
+                hideConversationInterface()
+
+                // Setup video playback
+                videoContainer.classList.add('playing')
+                playbackVideo.classList.add('playing', 'force-top')
+                playbackVideo.muted = false
+                playbackVideo.volume = 1.0
+                playbackVideo.currentTime = 0
+                isVideoPlaying = true
+
+                console.log('Video muted after setup:', playbackVideo.muted)
+                console.log('Video volume after setup:', playbackVideo.volume)
+
+                playbackVideo.onended = function () {
+                    stopTabletVideo()
+                }
+
+                playbackVideo.play().then(function() {
+                    console.log('✅ Video playing, muted:', playbackVideo.muted, 'volume:', playbackVideo.volume)
+                }).catch(function (error) {
+                    console.error('Video play error:', error.message)
+                })
+            }
+
+            function stopTabletVideo () {
+                var backgroundVideo = document.getElementById('background-video')
+                var playbackVideo = document.getElementById('playback-video')
+                var videoContainer = document.getElementById('video-container')
+
+                if (!backgroundVideo || !playbackVideo) {
+                    return
+                }
+
+                // Remove force-top classes and hide playback video
+                playbackVideo.classList.remove('force-top')
+                videoContainer.classList.remove('force-top', 'playing')
+                playbackVideo.className = ''     // Keep original logic: hide playback layer
+                playbackVideo.pause()
+                playbackVideo.currentTime = 0
+
+                // Send resume command to robot via WebSocket
+                if (mainWs && mainWs.readyState === WebSocket.OPEN) {
+                    try {
+                        mainWs.send(JSON.stringify({
+                            cmd: 'req-execute',
+                            type: 'control',
+                            message: 'resume',
+                            robot: robot
+                        }))
+                        console.log('▶️ Sent resume command to robot')
+                    } catch (e) {
+                        console.error('Failed to send resume command:', e)
+                    }
+                }
+
+                // Ensure background video is playing with proper z-index
+                backgroundVideo.muted = true
+                backgroundVideo.style.zIndex = '1'
+                isVideoPlaying = false
+
+                console.log('⏹️ Video stopped - enabling user input processing')
+
+                var playPromise = backgroundVideo.play()
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(function (error) {
+                        console.error('Background video error:', error.message)
+                    })
+                }
+            }
+            window.playTabletVideo = playTabletVideo
+            window.stopTabletVideo = stopTabletVideo
+
+            function getParam (name) {
+                var m = (location.search || '').match(new RegExp('[?&]' + name + '=([^&]+)'))
+                return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''
+            }
+            var robot = (getParam('robot') || window.DEFAULT_ROBOT_NAME || 'Haku')
+            var BASE = getParam('base')
+            if (!/^https?:\/\//i.test(BASE || '')) { BASE = (location.origin || (location.protocol + '//' + location.host)); addLog('No ?base=, fallback to ' + BASE) }
+            document.getElementById('robot-name').textContent = robot
+
+            function abs (p) { return (BASE.replace(/\/$/, '') + p) }
+
+            // ---- XHR tool（replace fetch/await）----
+            function xhr (method, url, body, cb) {
+                try {
+                    var x = new XMLHttpRequest()
+                    x.open(method, url, true)
+                    if (method === 'POST') x.setRequestHeader('Content-Type', 'application/json')
+                    x.onreadystatechange = function () {
+                        if (x.readyState === 4) { cb(null, x.status, x.responseText) }
+                    }
+                    x.onerror = function () { cb(new Error('network')) }
+                    x.send(body || null)
+                } catch (e) { cb(e) }
+            }
+
+            // ---- heartbeat ----
+            function heartbeat (tag) {
+                xhr('POST', abs('/api/robot-tablet/heartbeat'), JSON.stringify({ robot: robot, tag: tag || 'tick' }), function () { })
+            }
+
+            // ---- conversation interface ----
+            var conversationActive = false
+            var conversationHistory = []
+            var currentAIResponseText = ''
+            var inactivityTimer = null
+            var aiBubbleShown = false
+
+
+            function showConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    conversationInterface.style.display = 'block'
+                    conversationInterface.className = 'conversation-interface'
+
+                    setTimeout(function () {
+                        conversationInterface.className = 'conversation-interface active'
+                    }, 50)
+
+                    conversationActive = true
+
+                    // Clear any existing auto-return timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+
+                    console.log('Conversation interface shown')
+                }
+            }
+
+            function hideConversationInterface () {
+                var videoContainer = document.getElementById('video-container')
+                var conversationInterface = document.getElementById('conversation-interface')
+
+                if (videoContainer && conversationInterface) {
+                    conversationInterface.className = 'conversation-interface'
+
+                    setTimeout(function () {
+                        conversationInterface.style.display = 'none'
+                    }, 500)
+
+                    // Ensure video container is always visible
+                    videoContainer.style.display = 'block'
+                    videoContainer.style.visibility = 'visible'
+                    conversationActive = false
+
+                    // Clear any existing timer
+                    if (inactivityTimer) {
+                        clearTimeout(inactivityTimer)
+                        inactivityTimer = null
+                    }
+                    aiResponseStarted = false
+                    console.log('Conversation interface hidden, returned to video')
+                }
+            }
+
+            function startAutoReturnTimer () {
+                // Clear any existing timer
+                if (inactivityTimer) {
+                    clearTimeout(inactivityTimer)
+                }
+
+                // Set 10-second timer to return to video
+                inactivityTimer = setTimeout(function () {
+                    if (conversationActive) {
+                        hideConversationInterface()
+                    }
+                }, 10000) // 5 seconds
+
+                console.log('Auto-return timer started (5 seconds)')
+            }
+
+            function forceStopAIResponse () {
+                aiResponseStarted = false
+                if (aiResponseTimeout) {
+                    clearTimeout(aiResponseTimeout)
+                    aiResponseTimeout = null
+                }
+                console.log('AI response force stopped')
+            }
+
+            function updateUserMessage (content) {
+                var userMessageContent = document.getElementById('user-message-content')
+                if (userMessageContent) {
+                    userMessageContent.textContent = content || 'Waiting for your message...'
+                    userMessageContent.scrollTop = userMessageContent.scrollHeight
+                }
+            }
+
+
+
+            // AI message filter for special signals
+            var fullRawText = ''
+            var inThinkingBlock = false
+            var gtCount = 0
+            var hasRealContent = false
+
+            function filterAIMessage (content) {
+                if (!content) return ''
+
+                // Always work with the complete accumulated text
+                fullRawText = content
+                var result = ''
+                var i = 0
+
+                while (i < fullRawText.length) {
+                    var char = fullRawText[i]
+
+                    if (inThinkingBlock) {
+                        // We're inside a thinking block, look for >
+                        if (char === '>') {
+                            gtCount++
+                            if (gtCount === 2) {
+                                // Found second >, exit thinking block
+                                inThinkingBlock = false
+                                gtCount = 0
+                            }
+                        }
+                        i++
+                        continue
+                    }
+
+                    // Check for thinking tag start
+                    if (char === '<') {
+                        inThinkingBlock = true
+                        gtCount = 0
+                        i++
+                        continue
+                    }
+                    // Check for signal start markers
+                    else if (char === '^' || char === '{') {
+                        var endMarker = char === '^' ? ')' : '}'
+                        var signalEnd = -1
+
+                        // Find the end marker
+                        for (var j = i + 1; j < fullRawText.length; j++) {
+                            if (fullRawText[j] === endMarker) {
+                                signalEnd = j
+                                break
+                            }
+                        }
+
+                        if (signalEnd !== -1) {
+                            // Complete signal found, skip it
+                            var signal = fullRawText.substring(i, signalEnd + 1)
+                            console.log('Filtered signal:', signal)
+                            i = signalEnd + 1
+                        } else {
+                            // Incomplete signal - include the character and continue
+                            result += char
+                            i++
+                        }
+                    } else {
+                        result += char
+                        i++
+                    }
+                }
+
+                // Check if we have real content (not just whitespace)
+                if (result.trim() !== '') {
+                    hasRealContent = true
+                }
+
+                return result
+            }
+
+            function updateAIMessage (content) {
+                var aiMessageContent = document.getElementById('ai-message-content')
+                if (aiMessageContent) {
+                    var filteredContent = filterAIMessage(content || '')
+                    // Only update if we have real content or if we already started showing content
+                    if (hasRealContent) {
+                        aiMessageContent.textContent = filteredContent || 'Waiting for Haku\'s response...'
+                        aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                        
+                        // Check for City North keyword in AI response
+                        var lowerContent = (content || '').toLowerCase()
+                        if (lowerContent.indexOf('city north') !== -1 && !_cnBusy) {
+                            var randomIndex = Math.floor(Math.random() * CN_IMAGES.length)
+                            var randomImage = CN_IMAGES[randomIndex]
+                            console.log('Detected city north, showing:', randomImage)
+                            showCityNorth(randomImage)
+                        }
+                    }
+                }
+            }
+
+            function showUserBubble (content) {
+                // User bubble functionality removed - content now shows in conversation interface
+                console.log('User message:', content)
+            }
+
+            // ---- robust stream text merge: prefix-or-append ----
+            function mergeStreamText (prev, incoming) {
+                incoming = incoming || ''
+                if (!prev) return incoming
+
+                if (incoming === prev) return prev
+
+                if (prev.indexOf(incoming) !== -1) return prev
+
+                if (incoming.indexOf(prev) === 0) return incoming
+
+                var max = Math.min(prev.length, incoming.length)
+                for (var k = max; k > 0; k--) {
+                    if (prev.slice(-k) === incoming.slice(0, k)) {
+                        return prev + incoming.slice(k)
+                    }
+                }
+
+                return prev + incoming
+            }
+
+            // ---- REPLACE the whole function ----
+            function updateLLMDisplay (type, content, isChunk, isFinal) {
+                content = content || ''
+
+                if (type === 'user') {
+                    aiBubbleShown = false
+                    currentAIResponseText = ''
+                    fullRawText = ''
+                    hasRealContent = false
+                    showConversationInterface()
+                    updateUserMessage(content)
+                    updateAIMessage("Waiting for Haku's response...")
+                    startAutoReturnTimer()
+                    return
+                }
+
+                if (type === 'ai') {
+                    // Merge stream text first
+                    currentAIResponseText = mergeStreamText(currentAIResponseText, content)
+
+                    // rAF debounce to avoid high-frequency reflow
+                    if (!updateLLMDisplay._raf) {
+                        updateLLMDisplay._raf = requestAnimationFrame(function () {
+                            updateLLMDisplay._raf = null
+                            updateAIMessage(currentAIResponseText)
+                        })
+                    }
+
+                    if (isFinal) {
+                        // Final processing - ensure all content is filtered
+                        fullRawText = ''
+                        if (!currentAIResponseText || aiBubbleShown) return
+                        aiBubbleShown = true
+                        startAutoReturnTimer()
+                    }
+                    return
+                }
+            }
+
+            window.updateLLMDisplay = updateLLMDisplay
+            window.showUserBubble = showUserBubble
+
+            function parseStreamFlags (msg) {
+                var phase = msg && (msg.phase || msg.event || msg.status)
+                var isFinal = false
+
+                // Check for various final indicators
+                if (msg && (msg.final || msg.done || msg.isFinal || msg.end || msg.isFinished)) isFinal = true
+                if (phase === 'final' || phase === 'end' || phase === 'stop' || phase === 'complete') isFinal = true
+
+                // Only mark as chunk if explicitly indicated
+                var v = msg && (msg.isChunk || msg.chunk || msg.delta)
+                var isChunk = false
+                if (v === true || v === 1 || v === '1' || v === 'true') isChunk = true
+                if (phase === 'delta' || phase === 'chunk' || phase === 'stream') isChunk = true
+
+                // Add fallback at end of parseStreamFlags
+                if (!isFinal && !isChunk) isChunk = true
+
+                return { isChunk, isFinal }
+            }
+
+            // ---- WebSocket ----
+            var mainWs = null, wsTimer = null
+            function wsURL () {
+                var host = BASE.replace(/^https?:\/\//, '')
+                var scheme = (/^https:\/\//i).test(BASE) ? 'wss://' : 'ws://'
+                return scheme + host + '/api/sync'
+            }
+            function connectWS () {
+                try {
+                    if (!('WebSocket' in window)) { console.warn('No WebSocket support'); return }
+                    if (mainWs) { try { mainWs.close() } catch (e) { } mainWs = null }
+                    var url = wsURL()
+                    console.log('WS connect →', url, 'robot=', robot)
+                    mainWs = new WebSocket(url)
+
+                    mainWs.onopen = function () {
+                        console.log('WebSocket connected')
+                        document.getElementById('network-indicator').className = 'network-dot active'
+                        document.getElementById('network-status').textContent = 'ONLINE'
+                        try { mainWs.send(JSON.stringify({ type: 'hello', role: 'tablet', robot: robot })) } catch (e) { }
+                        heartbeat('ws-open')
+                    }
+                    mainWs.onmessage = function (evt) {
+                        var msg = null; try { msg = JSON.parse(evt.data || '{}') } catch (e) { console.error('WS parse error'); return }
+                        console.log('WS msg:', msg.cmd || msg.type || 'unknown')
+                        var toMe = (!msg.robot) || (String(msg.robot).toLowerCase() === String(robot).toLowerCase())
+                        if (!toMe) {
+                            console.log('Message not for me:', msg.robot)
+                            return
+                        }
+                        if (msg.cmd === 'tablet_ping') { heartbeat('pong'); return }
+                        if (msg.type === 'llm-user-input') {
+                            // Check if video is playing - if so, ignore user input
+                            if (isVideoPlaying) {
+                                console.log('🚫 Ignoring user input while video is playing:', msg.content)
+                                return
+                            }
+                            // Process directly to avoid duplicate processing
+                            updateLLMDisplay('user', msg.content, false, false)
+                            return
+                        }
+                        if (msg.type === 'llm-ai-response') {
+                            if (isVideoPlaying) { console.log('🚫 Ignore AI while video'); return }
+
+                            // Unified text extraction
+                            function extractText (m) {
+                                if (!m || typeof m !== 'object') return ''
+                                if (typeof m.content === 'string') return m.content
+                                if (typeof m.delta === 'string') return m.delta
+                                if (typeof m.token === 'string') return m.token
+                                if (typeof m.text === 'string') return m.text
+                                if (m.choices && m.choices[0]) {
+                                    const ch = m.choices[0]
+                                    if (ch.delta && typeof ch.delta.content === 'string') return ch.delta.content
+                                    if (typeof ch.text === 'string') return ch.text
+                                    if (typeof ch.content === 'string') return ch.content
+                                }
+                                return ''
+                            }
+
+                            const flags = parseStreamFlags(msg)
+                            const piece = extractText(msg)
+                            if (piece === '') { return } // Don't overwrite with empty chunks
+
+                            // Use updateLLMDisplay instead of direct processing to avoid duplication
+                            updateLLMDisplay('ai', piece, flags.isChunk, flags.isFinal)
+                            return
+                        }
+
+                        //City North pop up
+                        if (msg.type === 'show-city-north') {
+                            showCityNorth(msg.imageSrc)
+                            return
+                        }
+                        if (msg.type === 'hide-city-north') {
+                            hideCityNorth()
+                            return
+                        }
+
+                        // Tablet video control
+                        if (msg.cmd === 'tablet-video-play') {
+                            var videoUrl = msg.localVideoUrl || msg.videoUrl || 'TB_video.mp4'
+                            console.log('🎬 Received tablet video play command:', videoUrl)
+                            playTabletVideo(videoUrl)
+                            return
+                        }
+                        if (msg.cmd === 'tablet-video-stop') {
+                            console.log('⏹️ Received tablet video stop command')
+                            stopTabletVideo()
+                            return
+                        }
+
+                        console.log('WS other', evt.data)
+                    }
+                    mainWs.onerror = function (e) { console.error('WS error', e) }
+                    mainWs.onclose = function (ev) {
+                        console.warn('WS close', ev && ev.code, ev && ev.reason)
+                        document.getElementById('network-indicator').className = 'network-dot'
+                        document.getElementById('network-status').textContent = 'OFFLINE'
+                        if (wsTimer) clearTimeout(wsTimer)
+                        wsTimer = setTimeout(connectWS, 2000)
+                    }
+                } catch (e) {
+                    console.error('WS create failed', e)
+                    if (wsTimer) clearTimeout(wsTimer)
+                    wsTimer = setTimeout(connectWS, 2000)
+                }
+            }
+
+
+
+
+
+            // ---- start ----
+            addLog('Init robot=' + robot + ' base=' + BASE)
+            // Ensure video container is visible on startup
+            var videoContainer = document.getElementById('video-container')
+            if (videoContainer) {
+                videoContainer.style.display = 'block'
+                videoContainer.style.visibility = 'visible'
+                console.log('Video container initialized')
+            }
+
+
+
+
+            heartbeat('init')
+            connectWS()
+            setInterval(function () {
+                heartbeat('tick')
+                var s = mainWs ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][mainWs.readyState] : 'NULL'
+                var e = document.getElementById('network-status'); if (e) e.textContent = s
+            }, 10000)
+        })();
+    </script>
+
+
+</body>
+
+</html>

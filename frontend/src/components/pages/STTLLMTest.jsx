@@ -242,13 +242,7 @@ export default function STTLLMTest() {
                     }));
                 }, 100); // 100ms delay between reset and resume
                 
-                // Auto-connect to LLM if enabled
-                if (autoStart) {
-                    console.log('Auto-connecting to LLM services...');
-                    setTimeout(() => {
-                        connectLLM();
-                    }, 500);
-                }
+
             };
             
             sttWsRef.current.onmessage = (event) => {
@@ -390,8 +384,8 @@ export default function STTLLMTest() {
         // Mark this session as expecting its first chunk
         isFirstChunkRef.current.add(newSessionId);
         
-        // Connect to STT first
-        await connectSTT();
+        // Connect to LLM directly - STT is optional
+        await connectLLM();
     };
 
     const handleSTTMessage = (data) => {
@@ -966,9 +960,14 @@ export default function STTLLMTest() {
     };
 
     const connectServices = () => {
+        // Try to connect STT (optional)
         if (sttStatus !== 'connected') {
-            connectSTT();
+            connectSTT().catch(err => {
+                console.warn('STT connection failed, but continuing with LLM only:', err);
+                setOverallStatus('⚠️ STT unavailable - Manual input only');
+            });
         }
+        // Connect LLM (required)
         if (llmStatus !== 'connected') {
             connectLLM();
         }
@@ -1024,7 +1023,8 @@ export default function STTLLMTest() {
                 },
                 body: JSON.stringify({ 
                     robot: targetRobot,
-                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+                    localVideoUrl: '/TB_video.mp4'
                 })
             });
             
@@ -1478,7 +1478,7 @@ export default function STTLLMTest() {
                                 fontWeight: 'bold',
                                 marginRight: '10px'
                             }}
-                            disabled={sttStatus === 'connected' && llmStatus === 'connected'}
+                            disabled={llmStatus === 'connected'}
                         >
                             🔗 Connect Services
                         </button>
@@ -2063,14 +2063,12 @@ export default function STTLLMTest() {
             }}>
                 <h4>📋 Instructions:</h4>
                 <ol>
-                    <li>Make sure your STT server is running: <code>node stt-server.js</code></li>
                     <li>Make sure your LLM gateway is running and accessible</li>
                     <li>Click "Connect" to establish the conversation session</li>
-                    <li>Click "Connect Services" to connect to both STT and LLM</li>
-                    <li>Click "Start" to begin voice transcription</li>
-                    <li>Speak naturally - your speech will be transcribed and automatically sent to the LLM</li>
-                    <li>See the AI responses in real-time</li>
                     <li>Use "Manual Message" to send text directly to the LLM</li>
+                    <li>See the AI responses in real-time</li>
+                    <li><strong>Optional:</strong> If STT server is available, click "Connect Services" to enable voice input</li>
+                    <li><strong>Optional:</strong> Click "Start" to begin voice transcription (requires STT)</li>
                 </ol>
                 
                 <div style={{ 
@@ -2083,9 +2081,9 @@ export default function STTLLMTest() {
                     <strong>Configuration:</strong>
                     <ul>
                         <li><strong>Server Configuration:</strong> URLs and settings loaded from environment variables</li>
-                        <li><strong>STT Integration:</strong> Configured speech-to-text server connection</li>
-                        <li><strong>LLM Gateway:</strong> Configured language model gateway connection</li>
-                        <li><strong>Auto-reconnect:</strong> STT service will attempt to reconnect if connection is lost</li>
+                        <li><strong>LLM Gateway:</strong> Required - Configured language model gateway connection</li>
+                        <li><strong>STT Integration:</strong> Optional - Speech-to-text server connection for voice input</li>
+                        <li><strong>Manual Input:</strong> Always available when LLM is connected</li>
                         <li><strong>Thinking Filter:</strong> Content between &lt;Thinking&gt; and &lt;/Thinking&gt; tags is automatically filtered out by the backend before being sent to the robot</li>
                     </ul>
                 </div>
