@@ -414,13 +414,13 @@
             <div class="video-container" id="video-container">
                 <!-- Background video -->
                 <video id="background-video" autoplay muted loop playsinline preload="auto">
-                    <source src="http://198.18.0.1/apps/rmit-race/heart-beat.mp4" type="video/mp4">
-                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.webm" type="video/webm">
+                    <source src="heart-beat.mp4" type="video/mp4">
+                    <source src="out_0p5x.webm" type="video/webm">
                     Your browser does not support the video tag.
                 </video>
                 <!-- Preloaded video for playback -->
                 <video id="playback-video" playsinline preload="auto">
-                    <source src="http://198.18.0.1/apps/rmit-race/TB_video.mp4" type="video/mp4">
+                    <source src="TB_video.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -455,9 +455,9 @@
         </div>
 
         <!-- Preloaded City North Images -->
-        <img id="cn-overlay-a" src="http://198.18.0.1:3000/a.jpg" alt="City North A" class="cn-overlay-img">
-        <img id="cn-overlay-b" src="http://198.18.0.1:3000/b.jpg" alt="City North B" class="cn-overlay-img">
-        <img id="cn-overlay-c" src="http://198.18.0.1:3000/c.jpg" alt="City North C" class="cn-overlay-img">
+        <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
+        <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
+        <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
 
 
 
@@ -490,12 +490,12 @@
             // ---- preload & safe show/hide helpers ----
             var ASSETS = {
                 images: [
-                    'http://198.18.0.1:3000/a.jpg',
-                    'http://198.18.0.1:3000/b.jpg',
-                    'http://198.18.0.1:3000/c.jpg'
+                    'a.jpg',
+                    'b.jpg',
+                    'c.jpg'
                 ],
                 videos: [
-                    'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                    'TB_video.mp4'
                 ]
             }
             var ready = { images: {}, videos: {} }
@@ -512,10 +512,10 @@
                 var playbackVideo = document.getElementById('playback-video')
                 if (playbackVideo) {
                     playbackVideo.onloadeddata = function () {
-                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = true
+                        ready.videos['TB_video.mp4'] = true
                     }
                     playbackVideo.onerror = function () {
-                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = false
+                        ready.videos['TB_video.mp4'] = false
                     }
                 }
             }
@@ -536,20 +536,20 @@
 
             // ---- City North ----
             var cnOverlays = {
-                'http://198.18.0.1:3000/a.jpg': document.getElementById('cn-overlay-a'),
-                'http://198.18.0.1:3000/b.jpg': document.getElementById('cn-overlay-b'),
-                'http://198.18.0.1:3000/c.jpg': document.getElementById('cn-overlay-c')
+                'a.jpg': document.getElementById('cn-overlay-a'),
+                'b.jpg': document.getElementById('cn-overlay-b'),
+                'c.jpg': document.getElementById('cn-overlay-c')
             }
             var particles = []
             var _cnBusy = 0
             var currentOverlay = null
-            var CN_IMAGES = ['http://198.18.0.1:3000/a.jpg', 'http://198.18.0.1:3000/b.jpg', 'http://198.18.0.1:3000/c.jpg']
+            var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
 
             function showCityNorth (imageSrc) {
                 if (_cnBusy) return
                 _cnBusy = 1
 
-                var src = imageSrc || 'http://198.18.0.1:3000/a.jpg'
+                var src = imageSrc || 'a.jpg'
                 console.log('showCityNorth called with:', src)
                 var overlay = cnOverlays[src]
                 if (!overlay) {
@@ -601,7 +601,7 @@
             // Test function for City North
             window.testCityNorth = function () {
                 console.log('Testing City North display...')
-                showCityNorth('http://198.18.0.1:3000/a.jpg')
+                showCityNorth('a.jpg')
             }
 
 
@@ -616,6 +616,10 @@
 
                 if (!backgroundVideo || !playbackVideo || !videoContainer) return
 
+                console.log('🎬 Playing video:', videoUrl)
+                console.log('Video muted before play:', playbackVideo.muted)
+                console.log('Video volume:', playbackVideo.volume)
+
                 // Hide conversation interface
                 hideConversationInterface()
 
@@ -623,15 +627,20 @@
                 videoContainer.classList.add('playing')
                 playbackVideo.classList.add('playing', 'force-top')
                 playbackVideo.muted = false
+                playbackVideo.volume = 1.0
                 playbackVideo.currentTime = 0
                 isVideoPlaying = true
 
+                console.log('Video muted after setup:', playbackVideo.muted)
+                console.log('Video volume after setup:', playbackVideo.volume)
 
                 playbackVideo.onended = function () {
                     stopTabletVideo()
                 }
 
-                playbackVideo.play().catch(function (error) {
+                playbackVideo.play().then(function() {
+                    console.log('✅ Video playing, muted:', playbackVideo.muted, 'volume:', playbackVideo.volume)
+                }).catch(function (error) {
                     console.error('Video play error:', error.message)
                 })
             }
@@ -890,6 +899,15 @@
                     if (hasRealContent || (content && content.length > 0)) {
                         aiMessageContent.textContent = filteredContent || 'Processing response...'
                         aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                        
+                        // Check for City North keyword in AI response
+                        var lowerContent = (content || '').toLowerCase()
+                        if (lowerContent.indexOf('city north') !== -1 && !_cnBusy) {
+                            var randomIndex = Math.floor(Math.random() * CN_IMAGES.length)
+                            var randomImage = CN_IMAGES[randomIndex]
+                            console.log('Detected city north, showing:', randomImage)
+                            showCityNorth(randomImage)
+                        }
                     }
                 }
             }
@@ -1063,8 +1081,9 @@
 
                         // Tablet video control
                         if (msg.cmd === 'tablet-video-play') {
-                            console.log('🎬 Received tablet video play command:', msg.videoUrl)
-                            playTabletVideo(msg.videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4')
+                            var videoUrl = msg.localVideoUrl || msg.videoUrl || 'TB_video.mp4'
+                            console.log('🎬 Received tablet video play command:', videoUrl)
+                            playTabletVideo(videoUrl)
                             return
                         }
                         if (msg.cmd === 'tablet-video-stop') {
