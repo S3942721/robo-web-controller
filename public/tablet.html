@@ -886,9 +886,9 @@
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
                     var filteredContent = filterAIMessage(content || '')
-                    // Only update if we have real content or if we already started showing content
-                    if (hasRealContent) {
-                        aiMessageContent.textContent = filteredContent || 'Waiting for Haku\'s response...'
+                    // Update if we have real content OR if we've received any AI content (even if filtered)
+                    if (hasRealContent || (content && content.length > 0)) {
+                        aiMessageContent.textContent = filteredContent || 'Processing response...'
                         aiMessageContent.scrollTop = aiMessageContent.scrollHeight
                     }
                 }

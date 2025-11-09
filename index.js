@@ -566,13 +566,19 @@ app.ws('/api/llm/stream', (ws, req) => {
                             fullResponse += chunk.content
                             console.log(`[LLM-Stream-${sessionId}] 📦 Chunk ${chunkCount}: "${chunk.content}"`)
                             
-                            // Send to frontend
+                            // Send to frontend (STTLLMTest page)
                             ws.send(JSON.stringify({
                                 type: 'llm_chunk',
                                 content: chunk.content,
                                 sessionId: sessionId,
                                 timestamp: chunk.created_at
                             }))
+                            
+                            // Send to tablets via broadcast
+                            if (data.robot && chunk.content) {
+                                console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets: "${chunk.content}"`)
+                                broadcastLLMCommunication('llm-ai-response', chunk.content, data.robot)
+                            }
                             
                             // Send to robot via RobotAPI for speech
                             if (data.robot) {
@@ -659,7 +665,7 @@ app.ws('/api/llm/stream', (ws, req) => {
                                     
                                     console.log(`[LLM-Stream-${sessionId}] 📦 Bedrock chunk ${chunkCount}`)
                                     
-                                    // Forward to frontend
+                                    // Forward to frontend (STTLLMTest page)
                                     ws.send(JSON.stringify({
                                         type: 'llm_chunk',
                                         content: content,
@@ -667,7 +673,13 @@ app.ws('/api/llm/stream', (ws, req) => {
                                         timestamp: Date.now()
                                     }))
                                     
-                                    // Send to robot
+                                    // Send to tablets via broadcast
+                                    if (data.robot && content) {
+                                        console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets: "${content}"`)
+                                        broadcastLLMCommunication('llm-ai-response', content, data.robot)
+                                    }
+                                    
+                                    // Send to robot via RobotAPI for speech
                                     if (data.robot) {
                                         robotAPI.processLLMChunk(
                                             sessionId,
