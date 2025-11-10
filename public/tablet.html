@@ -167,6 +167,8 @@
             font-size: 48px;
             display: block;
             margin-bottom: 5px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .ai-message-label .name {
@@ -809,86 +811,55 @@
 
             // AI message filter for special signals
             var fullRawText = ''
-            var inThinkingBlock = false
-            var gtCount = 0
             var hasRealContent = false
 
             function filterAIMessage (content) {
                 if (!content) return ''
 
-                // Always work with the complete accumulated text
+                // Store the full accumulated text
                 fullRawText = content
-                var result = ''
-                var i = 0
 
-                while (i < fullRawText.length) {
-                    var char = fullRawText[i]
+                // Filter using regex - process all complete tags in one pass
+                var filtered = fullRawText
 
-                    if (inThinkingBlock) {
-                        // We're inside a thinking block, look for >
-                        if (char === '>') {
-                            gtCount++
-                            if (gtCount === 2) {
-                                // Found second >, exit thinking block
-                                inThinkingBlock = false
-                                gtCount = 0
-                            }
-                        }
-                        i++
-                        continue
-                    }
+                // Remove complete <thinking>...</thinking> tags
+                filtered = filtered.replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
 
-                    // Check for thinking tag start
-                    if (char === '<') {
-                        inThinkingBlock = true
-                        gtCount = 0
-                        i++
-                        continue
-                    }
-                    // Check for signal start markers
-                    else if (char === '^' || char === '{') {
-                        var endMarker = char === '^' ? ')' : '}'
-                        var signalEnd = -1
+                // Remove complete behavior commands: ^start(...), ^wait(...), ^run(...), ^stop(...)
+                filtered = filtered.replace(/\^(start|wait|run|stop)\([^)]*\)/g, ' ')
 
-                        // Find the end marker
-                        for (var j = i + 1; j < fullRawText.length; j++) {
-                            if (fullRawText[j] === endMarker) {
-                                signalEnd = j
-                                break
-                            }
-                        }
+                // Remove complete pause tags: \\pau=...\\ or \pau=..\
+                filtered = filtered.replace(/\\\\pau=\d+\\\\/g, ' ')
+                filtered = filtered.replace(/\\pau=\d+\\/g, ' ')
 
-                        if (signalEnd !== -1) {
-                            // Complete signal found, skip it
-                            var signal = fullRawText.substring(i, signalEnd + 1)
-                            console.log('Filtered signal:', signal)
-                            i = signalEnd + 1
-                        } else {
-                            // Incomplete signal - include the character and continue
-                            result += char
-                            i++
-                        }
-                    } else {
-                        result += char
-                        i++
-                    }
-                }
+                // Remove complete JSON metadata objects
+                filtered = filtered.replace(/\{[^}]*\}/g, ' ')
+
+                // Clean up multiple spaces
+                filtered = filtered.replace(/\s+/g, ' ')
+
+                // Trim leading/trailing whitespace
+                filtered = filtered.trim()
 
                 // Check if we have real content (not just whitespace)
-                if (result.trim() !== '') {
+                if (filtered.trim() !== '') {
                     hasRealContent = true
                 }
 
-                return result
+                return filtered
             }
 
             function updateAIMessage (content) {
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
                     var filteredContent = filterAIMessage(content || '')
+                    
+                    // Use filtered content for display
+                    var displayContent = filteredContent
+                    
                     // Update if we have real content OR if we've received any AI content (even if filtered)
                     if (hasRealContent || (content && content.length > 0)) {
-                        aiMessageContent.textContent = filteredContent || 'Processing response...'
+                        aiMessageContent.textContent = displayContent || 'Processing response...'
                         aiMessageContent.scrollTop = aiMessageContent.scrollHeight
                     }
                 }
@@ -937,21 +908,21 @@
                 }
 
                 if (type === 'ai') {
-                    // Merge stream text first
-                    currentAIResponseText = mergeStreamText(currentAIResponseText, content)
+                    currentAIResponseText = content
 
                     // rAF debounce to avoid high-frequency reflow
                     if (!updateLLMDisplay._raf) {
                         updateLLMDisplay._raf = requestAnimationFrame(function () {
                             updateLLMDisplay._raf = null
+                            // Pass the raw accumulated text - filtering happens inside updateAIMessage
                             updateAIMessage(currentAIResponseText)
                         })
                     }
 
                     if (isFinal) {
-                        // Final processing - ensure all content is filtered
-                        fullRawText = ''
+                        // Final processing - ensure we display final filtered content
                         if (!currentAIResponseText || aiBubbleShown) return
+                        updateAIMessage(currentAIResponseText)
                         aiBubbleShown = true
                         startAutoReturnTimer()
                     }

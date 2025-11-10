@@ -574,12 +574,12 @@ app.ws('/api/llm/stream', (ws, req) => {
                                 timestamp: chunk.created_at
                             }))
                             
-                            // Send to tablets via broadcast
+                            // Send to tablets via broadcast - send ACCUMULATED text
                             if (data.robot && chunk.content) {
-                                console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets: "${chunk.content}"`)
-                                broadcastLLMCommunication('llm-ai-response', chunk.content, data.robot)
+                                console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
                             }
-                            
+                        
                             // Send to robot via RobotAPI for speech
                             if (data.robot) {
                                 robotAPI.processLLMChunk(
@@ -673,10 +673,10 @@ app.ws('/api/llm/stream', (ws, req) => {
                                         timestamp: Date.now()
                                     }))
                                     
-                                    // Send to tablets via broadcast
+                                    // Send to tablets via broadcast - send ACCUMULATED text
                                     if (data.robot && content) {
-                                        console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets: "${content}"`)
-                                        broadcastLLMCommunication('llm-ai-response', content, data.robot)
+                                        console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                        broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
                                     }
                                     
                                     // Send to robot via RobotAPI for speech

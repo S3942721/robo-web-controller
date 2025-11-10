@@ -86,6 +86,7 @@
             background: rgba(0, 0, 0, 0.8);
             pointer-events: none;
             z-index: 50;
+            transition: opacity 0.5s ease-in-out;
         }
 
         .conversation-interface.active {
@@ -101,6 +102,12 @@
             left: 2%;
             width: 75%;
             height: 35%;
+            transform: translateX(-100%);
+            transition: transform 0.6s ease-out;
+        }
+
+        .conversation-interface.active .user-message-container {
+            transform: translateX(0);
         }
 
         .user-message-area {
@@ -113,6 +120,12 @@
             box-sizing: border-box;
             overflow: hidden;
             pointer-events: auto;
+            transform: scale(0.8);
+            transition: transform 0.4s ease-out 0.2s;
+        }
+
+        .conversation-interface.active .user-message-area {
+            transform: scale(1);
         }
 
         .user-message-label {
@@ -121,12 +134,19 @@
             right: -12%;
             text-align: center;
             width: 10%;
+            opacity: 0;
+            transition: opacity 0.4s ease-out 0.4s;
+        }
+
+        .conversation-interface.active .user-message-label {
+            opacity: 1;
         }
 
         .user-message-label .emoji {
             font-size: 48px;
             display: block;
             margin-bottom: 5px;
+            animation: bounce 2s infinite;
         }
 
         .user-message-label .name {
@@ -141,6 +161,12 @@
             right: 2%;
             width: 75%;
             height: 45%;
+            transform: translateX(100%);
+            transition: transform 0.6s ease-out 0.3s;
+        }
+
+        .conversation-interface.active .ai-message-container {
+            transform: translateX(0);
         }
 
         .ai-message-area {
@@ -153,6 +179,12 @@
             box-sizing: border-box;
             overflow: hidden;
             pointer-events: auto;
+            transform: scale(0.8);
+            transition: transform 0.4s ease-out 0.5s;
+        }
+
+        .conversation-interface.active .ai-message-area {
+            transform: scale(1);
         }
 
         .ai-message-label {
@@ -161,12 +193,21 @@
             left: -12%;
             text-align: center;
             width: 10%;
+            opacity: 0;
+            transition: opacity 0.4s ease-out 0.7s;
+        }
+
+        .conversation-interface.active .ai-message-label {
+            opacity: 1;
         }
 
         .ai-message-label .emoji {
             font-size: 48px;
             display: block;
             margin-bottom: 5px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: pulse 2s infinite;
         }
 
         .ai-message-label .name {
@@ -184,6 +225,7 @@
             overflow-y: auto;
             text-align: left;
             padding: 0;
+            opacity: 1;
         }
 
         .user-message-area .message-content {
@@ -205,19 +247,48 @@
         }
 
         @keyframes blink {
-
-            0%,
-            50% {
+            0%, 50% {
                 opacity: 1;
             }
-
-            51%,
-            100% {
+            51%, 100% {
                 opacity: 0;
             }
         }
 
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
 
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         .video-container {
             width: 100%;
@@ -275,8 +346,6 @@
             line-height: 30px;
         }
 
-
-
         .footer img {
             height: 35px;
             vertical-align: middle;
@@ -313,26 +382,19 @@
         }
 
         @keyframes networkBlink {
-
-            0%,
-            50% {
+            0%, 50% {
                 opacity: 1;
             }
-
-            51%,
-            100% {
+            51%, 100% {
                 opacity: 0.3;
             }
         }
 
         @keyframes networkActive {
-
-            0%,
-            100% {
+            0%, 100% {
                 opacity: 1;
                 transform: scale(1);
             }
-
             50% {
                 opacity: 0.7;
                 transform: scale(1.2);
@@ -366,8 +428,6 @@
         .cn-overlay-img.hide {
             opacity: 0;
         }
-
-
 
         .video-container.playing {
             z-index: 2147483647;
@@ -438,7 +498,7 @@
 
                 <div class="ai-message-container">
                     <div class="ai-message-label">
-                        <span class="emoji">👤</span>
+                        <img src="robo-web-controller-logo.png" alt="Haku" class="emoji" style="width: 48px; height: 48px; object-fit: contain;">
                         <span class="name">Haku</span>
                     </div>
                     <div class="ai-message-area" id="ai-message-area">
@@ -448,8 +508,6 @@
             </div>
         </div>
 
-
-
         <div class="footer">
             <img src="PB-RACE-WHITE-WIDE-1.svg" alt="Race Logo">
         </div>
@@ -458,11 +516,8 @@
         <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
         <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
         <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
-
-
-
-
     </div>
+
     <script>
         (function () {
             var logEl = document.getElementById('log-content')
@@ -558,10 +613,28 @@
                     return
                 }
 
-                // Simplified - just show immediately
                 currentOverlay = overlay
-                showEl(currentOverlay, 'show')
-                setTimeout(hideCityNorth, 10000)
+                
+                // Wait 3 seconds before showing the image
+                setTimeout(function() {
+                    // Start invisible and show the element
+                    overlay.style.opacity = '0'
+                    overlay.style.display = 'block'
+                    overlay.classList.add('show')
+                    
+                    // Fade in over 1 second
+                    setTimeout(function() {
+                        overlay.style.transition = 'opacity 1s ease-in-out'
+                        overlay.style.opacity = '1'
+                    }, 50)
+                    
+                    // Start fade out after 3 seconds, then hide after 4 seconds total
+                    setTimeout(function() {
+                        overlay.style.opacity = '0'
+                    }, 3000)
+                    
+                    setTimeout(hideCityNorth, 4000)
+                }, 3000)
             }
 
             function hideCityNorth () {
@@ -603,8 +676,6 @@
                 console.log('Testing City North display...')
                 showCityNorth('a.jpg')
             }
-
-
 
             // ---- Tablet Video Control ----
             var isVideoPlaying = false
@@ -730,18 +801,26 @@
             var inactivityTimer = null
             var aiBubbleShown = false
 
-
             function showConversationInterface () {
                 var videoContainer = document.getElementById('video-container')
                 var conversationInterface = document.getElementById('conversation-interface')
 
                 if (videoContainer && conversationInterface) {
-                    conversationInterface.style.display = 'block'
-                    conversationInterface.className = 'conversation-interface'
+                    // Only animate if not already active to prevent glitchy reappearing
+                    var isAlreadyActive = conversationActive && conversationInterface.classList.contains('active')
+                    
+                    if (!isAlreadyActive) {
+                        conversationInterface.style.display = 'block'
+                        conversationInterface.className = 'conversation-interface'
 
-                    setTimeout(function () {
-                        conversationInterface.className = 'conversation-interface active'
-                    }, 50)
+                        setTimeout(function () {
+                            conversationInterface.className = 'conversation-interface active'
+                        }, 50)
+                        
+                        console.log('Conversation interface shown (animated)')
+                    } else {
+                        console.log('Conversation interface already visible (no animation)')
+                    }
 
                     conversationActive = true
 
@@ -750,8 +829,6 @@
                         clearTimeout(inactivityTimer)
                         inactivityTimer = null
                     }
-
-                    console.log('Conversation interface shown')
                 }
             }
 
@@ -792,9 +869,9 @@
                     if (conversationActive) {
                         hideConversationInterface()
                     }
-                }, 10000) // 5 seconds
+                }, 15000) // 15 seconds
 
-                console.log('Auto-return timer started (5 seconds)')
+                console.log('Auto-return timer started (15 seconds)')
             }
 
             function forceStopAIResponse () {
@@ -814,90 +891,57 @@
                 }
             }
 
-
-
             // AI message filter for special signals
             var fullRawText = ''
-            var inThinkingBlock = false
-            var gtCount = 0
             var hasRealContent = false
 
             function filterAIMessage (content) {
                 if (!content) return ''
 
-                // Always work with the complete accumulated text
+                // Store the full accumulated text
                 fullRawText = content
-                var result = ''
-                var i = 0
 
-                while (i < fullRawText.length) {
-                    var char = fullRawText[i]
+                // Filter using regex - process all complete tags in one pass
+                var filtered = fullRawText
 
-                    if (inThinkingBlock) {
-                        // We're inside a thinking block, look for >
-                        if (char === '>') {
-                            gtCount++
-                            if (gtCount === 2) {
-                                // Found second >, exit thinking block
-                                inThinkingBlock = false
-                                gtCount = 0
-                            }
-                        }
-                        i++
-                        continue
-                    }
+                // Remove complete <thinking>...</thinking> tags
+                filtered = filtered.replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
 
-                    // Check for thinking tag start
-                    if (char === '<') {
-                        inThinkingBlock = true
-                        gtCount = 0
-                        i++
-                        continue
-                    }
-                    // Check for signal start markers
-                    else if (char === '^' || char === '{') {
-                        var endMarker = char === '^' ? ')' : '}'
-                        var signalEnd = -1
+                // Remove complete behavior commands: ^start(...), ^wait(...), ^run(...), ^stop(...)
+                filtered = filtered.replace(/\^(start|wait|run|stop)\([^)]*\)/g, ' ')
 
-                        // Find the end marker
-                        for (var j = i + 1; j < fullRawText.length; j++) {
-                            if (fullRawText[j] === endMarker) {
-                                signalEnd = j
-                                break
-                            }
-                        }
+                // Remove complete pause tags: \\pau=...\\ or \pau=..\
+                filtered = filtered.replace(/\\\\pau=\d+\\\\/g, ' ')
+                filtered = filtered.replace(/\\pau=\d+\\/g, ' ')
 
-                        if (signalEnd !== -1) {
-                            // Complete signal found, skip it
-                            var signal = fullRawText.substring(i, signalEnd + 1)
-                            console.log('Filtered signal:', signal)
-                            i = signalEnd + 1
-                        } else {
-                            // Incomplete signal - include the character and continue
-                            result += char
-                            i++
-                        }
-                    } else {
-                        result += char
-                        i++
-                    }
-                }
+                // Remove complete JSON metadata objects
+                filtered = filtered.replace(/\{[^}]*\}/g, ' ')
+
+                // Clean up multiple spaces
+                filtered = filtered.replace(/\s+/g, ' ')
+
+                // Trim leading/trailing whitespace
+                filtered = filtered.trim()
 
                 // Check if we have real content (not just whitespace)
-                if (result.trim() !== '') {
+                if (filtered.trim() !== '') {
                     hasRealContent = true
                 }
 
-                return result
+                return filtered
             }
 
             function updateAIMessage (content) {
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
                     var filteredContent = filterAIMessage(content || '')
+                    
+                    // Use filtered content for display
+                    var displayContent = filteredContent
+                    
                     // Update if we have real content OR if we've received any AI content (even if filtered)
                     if (hasRealContent || (content && content.length > 0)) {
-                        aiMessageContent.textContent = filteredContent || 'Processing response...'
+                        aiMessageContent.textContent = displayContent || 'Processing response...'
                         aiMessageContent.scrollTop = aiMessageContent.scrollHeight
                         
                         // Check for City North keyword in AI response
@@ -955,21 +999,21 @@
                 }
 
                 if (type === 'ai') {
-                    // Merge stream text first
-                    currentAIResponseText = mergeStreamText(currentAIResponseText, content)
+                    currentAIResponseText = content
 
                     // rAF debounce to avoid high-frequency reflow
                     if (!updateLLMDisplay._raf) {
                         updateLLMDisplay._raf = requestAnimationFrame(function () {
                             updateLLMDisplay._raf = null
+                            // Pass the raw accumulated text - filtering happens inside updateAIMessage
                             updateAIMessage(currentAIResponseText)
                         })
                     }
 
                     if (isFinal) {
-                        // Final processing - ensure all content is filtered
-                        fullRawText = ''
+                        // Final processing - ensure we display final filtered content
                         if (!currentAIResponseText || aiBubbleShown) return
+                        updateAIMessage(currentAIResponseText)
                         aiBubbleShown = true
                         startAutoReturnTimer()
                     }
@@ -1109,10 +1153,6 @@
                 }
             }
 
-
-
-
-
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
             // Ensure video container is visible on startup
@@ -1123,9 +1163,6 @@
                 console.log('Video container initialized')
             }
 
-
-
-
             heartbeat('init')
             connectWS()
             setInterval(function () {
@@ -1135,7 +1172,6 @@
             }, 10000)
         })();
     </script>
-
 
 </body>
 

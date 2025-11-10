@@ -944,7 +944,7 @@ export default function STTLLMTest() {
         
         try {
             console.log('🎤 Starting transcription...');
-            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'start' }));
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'resume' }));
             setOverallStatus('🎤 Started listening - speak now');
         } catch (error) {
             console.error('Failed to start transcription:', error);
