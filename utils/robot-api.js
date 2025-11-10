@@ -1776,7 +1776,7 @@ class RobotAPI extends EventEmitter {
      */
     cleanupThinkingFilter(sessionId) {
         // No longer needed since thinking filtering is integrated into buffer processing
-        console.log(`[RobotAPI] � Thinking filter cleanup no longer needed for session ${sessionId} (integrated into buffer processing)`);
+        console.log(`[RobotAPI] Thinking filter cleanup no longer needed for session ${sessionId} (integrated into buffer processing)`);
     }
 
     /**
