@@ -188,6 +188,50 @@ export default function STTLLMTest() {
         conversationHistoryRef.current = conversationHistory;
     }, [conversationHistory]);
 
+    // Keyboard event handler for 'M' key hold-to-mute
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Only handle 'M' key if not already held down (prevent key repeat)
+            if (event.key === 'm' || event.key === 'M') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Send mute button press command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'press'
+                    }));
+                    console.log('🔇 Mute engaged (M key pressed)');
+                }
+            }
+        };
+
+        const handleKeyUp = (event) => {
+            if (event.key === 'm' || event.key === 'M') {
+                // Send mute button release command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'release'
+                    }));
+                    console.log('🔊 Mute released (M key released)');
+                }
+            }
+        };
+
+        // Add event listeners
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // Cleanup on unmount
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []); // Empty dependency array - only set up once
+
     const connectSTT = async () => {
         if (!networkConfig) {
             setOverallStatus('❌ Network configuration not loaded');
