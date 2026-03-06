@@ -1168,12 +1168,12 @@
                         "^start(hey) I'm Haku, nice to see you ^wait(hey)"
                     ],
                     "Intro Crowd": [
-                        "^speak Hello everyone, I'm Haku",
-                        "^speak Hi everyone, I'm Haku",
-                        "^speak Hey everyone, I'm Haku",
-                        "^speak Hello! I'm Haku",
-                        "^speak I'm Haku, nice to meet you all",
-                        "^speak I'm Haku, nice to see you all"
+                        "^start(hey) Hello everyone, I'm Haku ^wait(hey)",
+                        "^start(hey) Hi everyone, I'm Haku ^wait(hey)",
+                        "^start(hey) Hey everyone, I'm Haku ^wait(hey)",
+                        "^start(hey) Hello! I'm Haku ^wait(hey)",
+                        "^start(hey) I'm Haku, nice to meet you all ^wait(hey)",
+                        "^start(hey) I'm Haku, nice to see you all ^wait(hey)"
                     ],
                     "Vroom Vroom": [
                         "^start(drivecar) Vroom vroom! I'm definitely faster than those F1 cars ^wait(drivecar)",
