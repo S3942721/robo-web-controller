@@ -221,6 +221,9 @@ const TABLET_RELOAD_COOLDOWN_MS = parseInt(process.env.TABLET_RELOAD_COOLDOWN_MS
 const TABLET_TARGET_ROBOT = process.env.TABLET_TARGET_ROBOT || process.env.DEFAULT_ROBOT_NAME || 'Haku'
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || ''
 
+// LLM conversation history configuration
+const LLM_CONVERSATION_CONTEXT_LIMIT = parseInt(process.env.LLM_CONVERSATION_CONTEXT_LIMIT) || 10 // default 10 messages
+
 // Function to parse script object
 function parseScriptObject (obj) {
     const newObj = {}
@@ -516,9 +519,14 @@ app.ws('/api/llm/stream', (ws, req) => {
                 // Build prompt with conversation history for context
                 let prompt = data.message
                 if (data.includeHistory && sessionState.conversationHistory.length > 1) {
-                    // Build full conversation context
-                    const conversationContext = sessionState.conversationHistory
-                        .slice(0, -1) // Exclude current message
+                    // Build full conversation context, limiting to recent messages
+                    // Get the last N messages (excluding current) based on LLM_CONVERSATION_CONTEXT_LIMIT
+                    const historyToInclude = sessionState.conversationHistory.slice(
+                        Math.max(0, sessionState.conversationHistory.length - 1 - LLM_CONVERSATION_CONTEXT_LIMIT),
+                        -1 // Exclude current message
+                    )
+                    
+                    const conversationContext = historyToInclude
                         .map(msg => {
                             if (msg.role === 'user') {
                                 return `User: ${msg.content}`
@@ -535,7 +543,7 @@ app.ws('/api/llm/stream', (ws, req) => {
                         .join('\n')
                     
                     prompt = `Previous conversation:\n${conversationContext}\n\nUser: ${data.message}\nAssistant:`
-                    console.log(`[LLM-Stream-${sessionId}] Using conversation context with ${sessionState.conversationHistory.length - 1} previous messages`)
+                    console.log(`[LLM-Stream-${sessionId}] Using conversation context with ${historyToInclude.length} previous messages (limit: ${LLM_CONVERSATION_CONTEXT_LIMIT}, total history: ${sessionState.conversationHistory.length - 1})`)
                 }
                 
                 console.log(`[LLM-Stream-${sessionId}] Sending message to ${sessionState.provider}`)
@@ -566,7 +574,7 @@ app.ws('/api/llm/stream', (ws, req) => {
                             fullResponse += chunk.content
                             console.log(`[LLM-Stream-${sessionId}] 📦 Chunk ${chunkCount}: "${chunk.content}"`)
                             
-                            // Send to frontend
+                            // Send to frontend (STTLLMTest page)
                             ws.send(JSON.stringify({
                                 type: 'llm_chunk',
                                 content: chunk.content,
@@ -574,6 +582,12 @@ app.ws('/api/llm/stream', (ws, req) => {
                                 timestamp: chunk.created_at
                             }))
                             
+                            // Send to tablets via broadcast - send ACCUMULATED text
+                            if (data.robot && chunk.content) {
+                                console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
+                            }
+                        
                             // Send to robot via RobotAPI for speech
                             if (data.robot) {
                                 robotAPI.processLLMChunk(
@@ -659,7 +673,7 @@ app.ws('/api/llm/stream', (ws, req) => {
                                     
                                     console.log(`[LLM-Stream-${sessionId}] 📦 Bedrock chunk ${chunkCount}`)
                                     
-                                    // Forward to frontend
+                                    // Forward to frontend (STTLLMTest page)
                                     ws.send(JSON.stringify({
                                         type: 'llm_chunk',
                                         content: content,
@@ -667,7 +681,13 @@ app.ws('/api/llm/stream', (ws, req) => {
                                         timestamp: Date.now()
                                     }))
                                     
-                                    // Send to robot
+                                    // Send to tablets via broadcast - send ACCUMULATED text
+                                    if (data.robot && content) {
+                                        console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                        broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
+                                    }
+                                    
+                                    // Send to robot via RobotAPI for speech
                                     if (data.robot) {
                                         robotAPI.processLLMChunk(
                                             sessionId,
@@ -1095,7 +1115,8 @@ router.get("/api/network-config", (req, res) => {
             provider: llmProvider,
             availableProviders: availableProviders,
             streamUrl: streamUrl, // Backend WebSocket endpoint for LLM streaming
-            enabled: true
+            enabled: true,
+            conversationContextLimit: LLM_CONVERSATION_CONTEXT_LIMIT
             // Note: No AWS credentials or gateway URLs exposed
         },
         websocket: {

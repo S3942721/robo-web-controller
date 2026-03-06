@@ -94,6 +94,9 @@ export default function STTLLMTest() {
     // Tablet reload state
     const [reloadingTablet, setReloadingTablet] = useState(false);
 
+    // Track previous robot speaking state to detect transitions
+    const prevRobotSpeakingRef = useRef(false);
+
     useEffect(() => {
         // Load network configuration from server
         fetch('/api/network-config')
@@ -187,6 +190,123 @@ export default function STTLLMTest() {
     useEffect(() => {
         conversationHistoryRef.current = conversationHistory;
     }, [conversationHistory]);
+
+    // Reset audio/speech cache when robot stops speaking
+    useEffect(() => {
+        // Detect transition from speaking to not speaking
+        const wasSpeaking = prevRobotSpeakingRef.current === true;
+        const isNowSpeaking = robotStatus.speaking === true;
+        
+        // If robot just stopped speaking (was speaking, now not speaking)
+        if (wasSpeaking && !isNowSpeaking) {
+            // Only send reset if STT is connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('🔄 Robot stopped speaking - sending reset command to clear audio cache');
+                sttWsRef.current.send(JSON.stringify({
+                    type: 'control',
+                    action: 'reset',
+                    reason: 'robot_finished_speaking',
+                    timestamp: Date.now()
+                }));
+            }
+        }
+        
+        // Update the ref for next comparison
+        prevRobotSpeakingRef.current = robotStatus.speaking;
+    }, [robotStatus.speaking]); // Only watch robotStatus.speaking changes
+
+    // Keyboard event handler for 'M' key hold-to-mute and 'N' key to toggle STT
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Handle 'M' key for mute (hold)
+            if (event.key === 'm' || event.key === 'M') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Send mute button press command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'press'
+                    }));
+                    console.log('🔇 Mute engaged (M key pressed)');
+                }
+            }
+            
+            // Handle 'N' key to toggle STT start/stop
+            if (event.key === 'n' || event.key === 'N') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Check if STT is currently stopped (based on status message)
+                const isStopped = overallStatus.includes('Stopped') || overallStatus.includes('stopped');
+                
+                if (isStopped) {
+                    // STT is stopped, so start it
+                    console.log('🟢 N key pressed - Starting transcription');
+                    
+                    // Manually set robot speaking to false when starting transcription
+                    setRobotSpeaking(false);
+                    setLLMActive(false);
+                    setRobotStatus(prev => ({
+                        ...prev,
+                        speaking: false
+                    }));
+                    console.log('🎤 Manually set robot speaking to false (N key)');
+                    
+                    // Send reset
+
+
+                    // Start/resume STT
+                    startTranscription();
+                } else {
+                    // STT is running, so stop it
+                    console.log('N key pressed - Stopping transcription');
+                    stopTranscription();
+                }
+            }
+            
+            // Handle Shift+Backspace to manually set robot speaking to false
+            if (event.key === 'Backspace' && event.shiftKey) {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                console.log('⌨️ Shift+Backspace pressed - Manually setting robot speaking to false');
+                setRobotSpeaking(false);
+                setLLMActive(false);
+                setRobotStatus(prev => ({
+                    ...prev,
+                    speaking: false
+                }));
+                setOverallStatus('🔇 Robot speaking manually set to false');
+                
+                // Prevent default backspace behavior
+                event.preventDefault();
+            }
+        };
+
+        const handleKeyUp = (event) => {
+            if (event.key === 'm' || event.key === 'M') {
+                // Send mute button release command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'release'
+                    }));
+                    console.log('🔊 Mute released (M key released)');
+                }
+            }
+        };
+
+        // Add event listeners
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // Cleanup on unmount
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [sttStatus, overallStatus]); // Include overallStatus to check current transcription state
 
     const connectSTT = async () => {
         if (!networkConfig) {
@@ -941,10 +1061,23 @@ export default function STTLLMTest() {
             setOverallStatus('❌ Not connected to STT server');
             return;
         }
+        // Reset current transcription and send reset + resume commands
+        setCurrentTranscription('');
+
+        // Send reset command to STT
+        sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'reset' }));
+
+        // Manually set robot to not speaking when starting transcription
+        setRobotSpeaking(false);
+        setLLMActive(false);
+        setRobotStatus(prev => ({
+            ...prev,
+            speaking: false
+        }));
         
         try {
             console.log('🎤 Starting transcription...');
-            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'start' }));
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'resume' }));
             setOverallStatus('🎤 Started listening - speak now');
         } catch (error) {
             console.error('Failed to start transcription:', error);
@@ -1794,6 +1927,78 @@ export default function STTLLMTest() {
                                 </div>
                             ))
                         )}
+                    </div>
+                </div>
+
+                {/* Keyboard Shortcuts Help */}
+                <div style={{ 
+                    marginTop: '15px',
+                    padding: '12px',
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px'
+                }}>
+                    <div style={{ 
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        marginBottom: '8px',
+                        color: '#495057'
+                    }}>
+                        ⌨️ Keyboard Shortcuts:
+                    </div>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>M</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Hold to mute microphone
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>N</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Toggle STT start/stop
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>Shift</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>+</span>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>⌫</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Clear robot speaking state
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
