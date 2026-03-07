@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import FoldableSection from "./FoldableSection";
 import { FaCaretLeft, FaCaretRight } from "react-icons/fa";
 
 export default function SelectProfile({ foldable = true, compact = false, reloadTabletWebView, reloadingTablet, activeButton }) {
     const { profiles, current_profile, setCurrentProfile } = useWebSocket();
-    const [profileIndex, setProfileIndex] = useState(profiles.findIndex(profile => profile.name === current_profile.name));
+    const [profileIndex, setProfileIndex] = useState(0);
+
+    useEffect(() => {
+        if (!profiles.length) {
+            setProfileIndex(0)
+            return
+        }
+
+        const idx = profiles.findIndex(profile => profile.name === current_profile?.name)
+        setProfileIndex(idx >= 0 ? idx : 0)
+    }, [profiles, current_profile]);
 
     function sendUpdateProfile() {
         console.log("Sending update profile request", current_profile);

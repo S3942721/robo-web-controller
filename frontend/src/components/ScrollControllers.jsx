@@ -3,11 +3,14 @@ import FoldableSection from "./FoldableSection";
 import ScrollBar from "./sub-components/ScrollBar";
 import TriggerBehaviour from "./TriggerBehaviour";
 import { useEffect, useState } from "react";
+import { usePersistentState } from "../utils/persistentState";
+
+const SCROLL_VALUES_KEY = 'web-controller.scroll-controllers.robot-values'
 
 export default function ScrollControllers({ foldable, compact = false, triggers = false, activeRobot }) {
     const [scrollConfig, setScrollConfig] = useState({});
     const [scrollValues, setScrollValues] = useState({});
-    const [robotScrolls, setRobotScrolls] = useState({});
+    const [robotScrolls, setRobotScrolls] = usePersistentState(SCROLL_VALUES_KEY, {});
 
     // Fetch the config file once
     useEffect(() => {
