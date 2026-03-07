@@ -2,6 +2,18 @@
     "Dances": {
         "robot": "section"
     },
+    "ALL DANCES IN A ROW (LONG)": {
+        "robot": "Haku",
+        "text": "^run(dance_mika_relax) ^run(dance_hungarian_full) ^run(dance_la_bamba) ^start(dance_gangnamstyle) \\pau=20000\\ ^stop(dance_gangnamstyle) ^run(dance_salsa_dancing) ^run(dance_walk_this_way) ^run(dance_nut_cracker) ^run(dance_dango) ^run(dance_of_the_nights)"
+    },
+    "RANDOM DANCE (With Gangnamstyle)": {
+        "robot": "Haku",
+        "text": ["^run(dance_mika_relax)", "^run(dance_hungarian_full)", "^run(dance_la_bamba)", "^start(dance_gangnamstyle) \\pau=20000\\ ^stop(dance_gangnamstyle)", "^run(dance_salsa_dancing)", "^run(dance_walk_this_way)", "^run(dance_nut_cracker)", "^run(dance_dango)", "^run(dance_of_the_nights)"]
+    },
+    "RANDOM DANCE (No Gangnamstyle)": {
+        "robot": "Haku",
+        "text": "^run(random_dance_full)"
+    },
     "Driver Dance (60s)": {
         "robot": "Haku",
         "text": "^run(dance_hungarian_full)"
