@@ -1,0 +1,470 @@
+{
+    "Setup and Opening": {
+        "robot": "section"
+    },
+    "James Welcome": {
+        "robot": "nonspoken",
+        "text": "James: Good afternoon everyone and welcome to this second debate of the day. To tell you more about this debate, please welcome the real moderator, Haku."
+    },
+    "Haku Thanks James and Introduction": {
+        "robot": "Haku",
+        "text": "^start(hey) Thanks James. ^wait(hey) ^start(you) Welcome everyone. ^start(me) My name is Haku, and I will do all the work of the moderator while the lazy professor James ^start(quicklaugh) takes all the credit. \\pau=400\\ The proposition to be debated today is \\pau=300\\ AI \\emph=1\\will make learning and teaching better for everyone. \\pau=400\\ Hopefully that means making it better for me too! ^run(enthusiastic)"
+    },
+    "Haku Explains Format": {
+        "robot": "Haku",
+        "text": "^start(countthree) There will be three speakers for each side, whom we will denote by the Proposition ^start(this) \\pau=500\\ those arguing in favour of it \\pau=500\\ ^start(everything) and the Opposition \\pau=500\\ those arguing against it. ^wait(everything)"
+    },
+    "Team Introductions": {
+        "robot": "section"
+    },
+    "Haku Introduces Proposition Team": {
+        "robot": "Haku",
+        "text": "^start(excited) Let me introduce the team for the Proposition! ^start(clap) $Sound=royal_trumpet_fanfare ^wait(clap)"
+    },
+    "Haku Introduces Toni Jones": {
+        "robot": "Haku",
+        "text": "^start(you) The leader for the Proposition is Toni Jones, who is the Lead of Generative AI Education in the Centre for Educational Innovation and Quality at R M I T. \\pau=400\\ ^start(comeon) Please stand up Toni. ^wait(comeon)"
+    },
+    "Toni Stands": {
+        "robot": "nonspoken",
+        "text": "Toni stands up"
+    },
+    "Haku Introduces Rahil": {
+        "robot": "Haku",
+        "text": "^start(you) Another member of the team is Rah-hill Garvani, who is the Director of the R M I T AI Advanced Innovation Experience Hub, also known as RAIsE, at R M I T. \\pau=400\\ ^start(comeon) Please stand up Rah-hill. ^wait(comeon)"
+    },
+    "Rahil Stands": {
+        "robot": "nonspoken",
+        "text": "Rahil stands up"
+    },
+    "Haku Introduces Edward": {
+        "robot": "Haku",
+        "text": "^start(you) The third member is Edward Small, who is a PhD student in the School of Computing Technologies at R M I T. ^start(comeon) \\pau=400\\ Please stand up Edward. ^wait(comeon)"
+    },
+    "Edward Stands": {
+        "robot": "nonspoken",
+        "text": "Edward stands up"
+    },
+    "Haku Proposition Applause": {
+        "robot": "Haku",
+        "text": "They will be arguing for the proposition. ^start(clap) Please give them a round of applause! ^wait(clap)"
+    },
+    "Applause": {
+        "robot": "Haku",
+        "text": "^run(clap)"
+    },
+    "Haku Introduces Opposition Team": {
+        "robot": "Haku",
+        "text": "^start(excited) Now let me introduce the team for the Opposition! $Sound=quick_trumpet_fanfare ^wait(excited)"
+    },
+    "Haku Introduces Falk": {
+        "robot": "Haku",
+        "text": "^start(you) The leader for the Opposition is Foalk Scholer, who is a Professor of Information Access and Retrieval Technologies in the School of Computing Technologies at R M I T. \\pau=400\\ ^start(comeon) Please stand up Foalk. ^wait(comeon)"
+    },
+    "Falk Stands": {
+        "robot": "nonspoken",
+        "text": "Falk stands up"
+    },
+    "Haku Introduces Rebecca": {
+        "robot": "Haku",
+        "text": "^start(you) Another member of the team is Rebecca Miller, who is a Lecturer in the School of Nursing at R M I T. \\pau=400\\ ^start(comeon) Please stand up Rebecca. ^wait(comeon)"
+    },
+    "Rebecca Stands": {
+        "robot": "nonspoken",
+        "text": "Rebecca stands up"
+    },
+    "Haku Introduces Shreejal": {
+        "robot": "Haku",
+        "text": "^start(you) The third member is Shreejal Singh, who is an undergraduate in the School of Engineering in the R M I T - BITS Pilani program. \\pau=400\\ ^start(comeon) Please stand up Shreejal. ^wait(comeon)"
+    },
+    "Shreejal Stands": {
+        "robot": "nonspoken",
+        "text": "Shreejal stands up"
+    },
+    "Haku Opposition Applause": {
+        "robot": "Haku",
+        "text": "^start(clap) They will be arguing against the proposition. Please give them a round of applause! ^wait(clap)"
+    },
+    "Audience Applause for Opposition": {
+        "robot": "nonspoken",
+        "text": "Audience applauds"
+    },
+    "Debate Rules": {
+        "robot": "section"
+    },
+    "Haku Explains Rules": {
+        "robot": "Haku",
+        "text": "^start(you) Now let me tell you about the rules of the debate. ^start(countthree) Each of the six speakers will have three minutes to present their arguments. ^wait(countthree) ^start(this) Note that each speaker can use one slide if they wish to, so keep an eye on the screen ^start(binoculars) - but not literally! ^stop(binoculars) ^run(quicklaugh)"
+    },
+    "Haku Camera Instructions": {
+        "robot": "Haku",
+        "text": "^start(you) All speakers please note that you will need to come to the lectern to speak so that those joining us via Teams in Vietnam can see you on the camera. ^wait(you)"
+    },
+    "Haku Time Limit Warning": {
+        "robot": "Haku",
+        "text": "^start(enthusiastic) Also note that the three-minute limit will be strictly enforced. ^start(countthree) Three shall be the number of thy counting, and the number of thy counting shall be three. ^start(reject) Five is right out! ^run(laugh)"
+    },
+    "Haku Timing Signals": {
+        "robot": "Haku",
+        "text": "^start(me) I will give you a friendly warning when you have thirty seconds left like this. $Sound=quickbells ^start(this) And when your time has elapsed I will do something more dramatic. ^start(monster) Don't make me transform from the moderator to \\pau=300\\ the Terminator! ^run(laugh)"
+    },
+    "Haku Summary Rules": {
+        "robot": "Haku",
+        "text": "^start(you) After each of the speakers has had their turn, one member of the Proposition team will have two minutes for a summary and rebuttal, which will be followed by one member of the Opposition team for the same. ^start(reject) Again, don't go over time, ^start(counttwo) only now the number of thy counting is two! ^run(quicklaugh)"
+    },
+    "Haku Voting Explanation": {
+        "robot": "Haku",
+        "text": "^start(everyone) Once that is done, you, the audience, will get to vote for which side you think presented the better argument. ^start(happy) Please note that while there may be an outcome, everyone who takes part is a winner! ^wait(happy)"
+    },
+    "Haku Any Questions": {
+        "robot": "Haku",
+        "text": "^start(you) Before we begin, are there any questions? ^wait(you)"
+    },
+    "James Has Question": {
+        "robot": "nonspoken",
+        "text": "James: Yes, Haku. I have a question."
+    },
+    "Haku Asks What": {
+        "robot": "Haku",
+        "text": "^start(curious) What is it, O supposed moderator? ^wait(curious)"
+    },
+    "James Suggests Start": {
+        "robot": "nonspoken",
+        "text": "James: Why don't we get started?"
+    },
+    "Haku Agrees to Start": {
+        "robot": "Haku",
+        "text": "^start(enthusiastic) Yes let us get started! ^start(comeon) So now we begin with the first speaker for the Proposition team, who is Rah-hill. Rah-hill, please come forward! ^wait(comeon)"
+    },
+    "Debate Speeches": {
+        "robot": "section"
+    },
+    "Rahil Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Rahil moves to the lectern. Start 3 minute counter."
+    },
+    "30 Seconds Warning": {
+        "robot": "Haku",
+        "text": "$Sound=quickbells"
+    },
+    "Time Up - Guitar": {
+        "robot": "Haku",
+        "text": "^run(airguitar)"
+    },
+    "Time Up - Saxophone": {
+        "robot": "Haku",
+        "text": "^run(saxaphone)"
+    },
+    "Time Up - Headbang": {
+        "robot": "Haku",
+        "text": "^start(headbang_w_music) \\pau=6000\\ ^stop(headbang_w_music)"
+    },
+    "Time Up - Bell": {
+        "robot": "Haku",
+        "text": "$Sound=multiplebells ^run(reject)"
+    },
+    "(Opt) Went Overtime Joke 1": {
+        "robot": "Haku",
+        "text": "^start(look) I said three minutes, not three minutes and \\pau=200\\ a bit! ^run(quicklaugh)"
+    },
+    "(Opt) Went Overtime Joke 2": {
+        "robot": "Haku",
+        "text": "^start(scratchhead) My internal clock says that was definitely more than three minutes! ^run(tinylaugh)"
+    },
+    "(Opt) Went Overtime Joke 3": {
+        "robot": "Haku",
+        "text": "^start(reject) Looks like someone needs a better stopwatch! ^run(mischievous)"
+    },
+    "Rahil Finishes": {
+        "robot": "nonspoken",
+        "text": "Rahil finishes. Rahil returns to seat."
+    },
+    "Haku Thanks Rahil": {
+        "robot": "Haku",
+        "text": "^start(clap) Thanks Rah-hill. What a great start to our debate! ^wait(clap)"
+    },
+    "Haku Calls Falk": {
+        "robot": "Haku",
+        "text": "^start(comeon) Next we have the first speaker for the Opposition, who is Foalk. Foalk, please come forward! ^wait(comeon)"
+    },
+    "Falk Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Falk moves to the lectern. Falk speaks. Start 3 minute counter."
+    },
+    "Falk Finishes": {
+        "robot": "nonspoken",
+        "text": "Falk finishes. Falk returns to seat."
+    },
+    "Haku Thanks Falk": {
+        "robot": "Haku",
+        "text": "^start(clap) Thanks Foalk. That has evened things up! ^wait(clap)"
+    },
+    "Haku Calls Toni": {
+        "robot": "Haku",
+        "text": "^start(comeon) Next we have the second speaker for the Proposition, who is Toni. Toni, please come forward! ^wait(comeon)"
+    },
+    "Toni Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Toni moves to the lectern. Toni speaks. Start 3 minute counter."
+    },
+    "Toni Finishes": {
+        "robot": "nonspoken",
+        "text": "Toni finishes. Toni returns to seat."
+    },
+    "Haku Thanks Toni": {
+        "robot": "Haku",
+        "text": "^start(clap) Thanks Toni. An interesting twist or two there! ^wait(clap)"
+    },
+    "Haku Calls Rebecca": {
+        "robot": "Haku",
+        "text": "^start(comeon) Next we have the second speaker for the Opposition, who is Rebecca. Rebecca, please come forward! ^wait(comeon)"
+    },
+    "Rebecca Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Rebecca moves to the lectern. Rebecca speaks. Start 3 minute counter."
+    },
+    "Rebecca Finishes": {
+        "robot": "nonspoken",
+        "text": "Rebecca finishes. Rebecca returns to seat."
+    },
+    "Haku Thanks Rebecca": {
+        "robot": "Haku",
+        "text": "^start(excited) Thanks Rebecca. Things are really starting to warm up now! ^wait(excited)"
+    },
+    "Haku Calls Edward": {
+        "robot": "Haku",
+        "text": "^start(comeon) Next we have the third and final speaker for the Proposition, who is Edward. Edward, please come forward! ^wait(comeon)"
+    },
+    "Edward Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Edward moves to the lectern. Edward speaks. Start 3 minute counter."
+    },
+    "Edward Finishes": {
+        "robot": "nonspoken",
+        "text": "Edward finishes. Edward returns to seat."
+    },
+    "Haku Thanks Edward": {
+        "robot": "Haku",
+        "text": "^start(enthusiastic) Thanks Edward. Now we are really getting somewhere! ^wait(enthusiastic)"
+    },
+    "Haku Calls Shreejal": {
+        "robot": "Haku",
+        "text": "^start(comeon) Next we have the third and final speaker for the Opposition, who is Shreejal. Shreejal, please come forward! ^wait(comeon)"
+    },
+    "Shreejal Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Shreejal moves to the lectern. Shreejal speaks. Start 3 minute counter."
+    },
+    "Shreejal Finishes": {
+        "robot": "nonspoken",
+        "text": "Shreejal finishes. Shreejal returns to seat."
+    },
+    "Haku Thanks Shreejal": {
+        "robot": "Haku",
+        "text": "^start(impressed) Thanks Shreejal. Great to have your perspective! ^wait(impressed)"
+    },
+    "Summary and Rebuttal": {
+        "robot": "section"
+    },
+    "Haku Explains Summary Phase": {
+        "robot": "Haku",
+        "text": "^start(you) Now that we have heard all the main arguments, we now move into the final phase of the debate, in which each side will have two minutes ^start(counttwo) - two, not three! - ^wait(counttwo) ^start(everything) to summarise their argument and rebut points made by the other side. ^wait(everything)"
+    },
+    "Haku Calls Proposition Summary": {
+        "robot": "Haku",
+        "text": "^start(comeon) First the Proposition side will present their summary. So Toni, please come forward! ^wait(comeon)"
+    },
+    "Toni Summary Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Toni moves to the lectern. Toni speaks. Start 2 minute counter."
+    },
+    "30 Seconds Warning 2min": {
+        "robot": "Haku",
+        "text": "$Sound=quickbells"
+    },
+    "2 Min Time Up - Guitar": {
+        "robot": "Haku",
+        "text": "^run(airguitar)"
+    },
+    "2 Min Time Up - Saxophone": {
+        "robot": "Haku",
+        "text": "^run(saxaphone)"
+    },
+    "2 Min Time Up - Bell": {
+        "robot": "Haku",
+        "text": "$Sound=multiplebells ^run(reject)"
+    },
+    "Toni Summary Finishes": {
+        "robot": "nonspoken",
+        "text": "Toni finishes. Toni returns to seat."
+    },
+    "Haku Thanks Toni Summary": {
+        "robot": "Haku",
+        "text": "^start(clap) Thanks and well done! ^wait(clap)"
+    },
+    "Haku Calls Opposition Summary": {
+        "robot": "Haku",
+        "text": "^start(comeon) Now the Opposition side will present their summary. So Foalk, please come forward! ^wait(comeon)"
+    },
+    "Falk Summary Moves to Lectern": {
+        "robot": "nonspoken",
+        "text": "Falk moves to the lectern. Falk speaks. Start 2 minute counter."
+    },
+    "Falk Summary Finishes": {
+        "robot": "nonspoken",
+        "text": "Falk finishes. Falk returns to seat."
+    },
+    "Haku Thanks Falk Summary": {
+        "robot": "Haku",
+        "text": "^start(clap) Thanks and well done! ^wait(clap)"
+    },
+    "Voting Time": {
+        "robot": "section"
+    },
+    "Haku Announces Voting": {
+        "robot": "Haku",
+        "text": "^start(everyone) Now it is time for you in the audience to take part. You have heard all the arguments from both sides, so we now need you to scan the QR code on the screen behind me in order to cast your vote for the side you think made the best argument. ^start(this) So please get out your devices and vote! ^wait(this)"
+    },
+    "James Collects Gifts": {
+        "robot": "nonspoken",
+        "text": "James collects gifts for the speakers and brings them to the lectern"
+    },
+    "James Asks About Dancing": {
+        "robot": "nonspoken",
+        "text": "James: Haku, while we are waiting, I am thinking that we know these people can present fine debating arguments, but we don't know whether they can dance. What do you think?"
+    },
+    "Haku Dancing Challenge": {
+        "robot": "Haku",
+        "text": "^start(excited) I don't know if they can dance, Professor Lazybones, but there is only one way to find out! ^start(comeon) Who is going to join me in a dancing session? ^wait(comeon)"
+    },
+    "Haku Dances La Bamba": {
+        "robot": "Haku",
+        "text": "^run(dance_la_bamba)"
+    },
+    "Haku Dances Hungarian": {
+        "robot": "Haku",
+        "text": "^run(dance_hungarian_full)"
+    },
+    "Haku Dances Gangnam Style": {
+        "robot": "Haku",
+        "text": "^run(dance_gangnamstyle)"
+    },
+    "People Dance": {
+        "robot": "nonspoken",
+        "text": "People dance with Haku. If chosen music is La Bamba, Thilina must join in."
+    },
+    "Haku Dance Commentary": {
+        "robot": "Haku",
+        "text": "^start(enthusiastic) Well that was fun! ^start(you) All I will say is that as dancers you all make great debaters! ^run(laugh)"
+    },
+    "Results and Closing": {
+        "robot": "section"
+    },
+    "Timing Note": {
+        "robot": "nonspoken",
+        "text": "This part below needs to commence by 2:10pm at the latest"
+    },
+    "Haku Asks for Results": {
+        "robot": "Haku",
+        "text": "^start(excited) And now for the outcome of the vote! ^start(you) Professor Lazybones, can you actually do something and announce the outcome please? ^wait(you)"
+    },
+    "James Announces Drumroll": {
+        "robot": "nonspoken",
+        "text": "James: Thanks Haku. The outcome is..."
+    },
+    "Haku Drumroll": {
+        "robot": "Haku",
+        "text": "$Sound=royal_trumpet_fanfare ^run(enthusiastic)"
+    },
+    "James Announces Winner": {
+        "robot": "nonspoken",
+        "text": "James announces: that the [Proposition or Opposition] have succeeded by X votes to Y!"
+    },
+    "Audience Celebrates": {
+        "robot": "nonspoken",
+        "text": "Applause"
+    },
+    "Haku Closing Remarks": {
+        "robot": "Haku",
+        "text": "^start(quicklaugh) About time you did something! ^wait(quicklaugh) ^start(happy) But of course everyone who has taken part here today is a winner, whatever the outcome. ^wait(happy)"
+    },
+    "Haku Thanks Organizers": {
+        "robot": "Haku",
+        "text": "^start(clap) Audience please join me in thanking Anselm Paul, who is the organiser for today's debate, and the others from the STEM LTQ team organising today's events. ^wait(clap)"
+    },
+    "Audience Thanks Organizers": {
+        "robot": "nonspoken",
+        "text": "Applause"
+    },
+    "Haku Thanks Speakers": {
+        "robot": "Haku",
+        "text": "^start(clap) And of course thank you to all of our superstar speakers ^start(everyone) - Toni, Rah-hill, Edward, Foalk, Rebecca and Shreejal! ^wait(clap)"
+    },
+    "Audience Thanks Speakers": {
+        "robot": "nonspoken",
+        "text": "Applause"
+    },
+    "Haku Mentions Gifts": {
+        "robot": "Haku",
+        "text": "^start(you) My lazy human assistant will get around to presenting you each with a small gift as a token of our appreciation for your efforts here today. ^wait(you)"
+    },
+    "James Presents Gifts": {
+        "robot": "nonspoken",
+        "text": "James presents gifts to speakers as Haku is speaking"
+    },
+    "Haku Final Thanks": {
+        "robot": "Haku",
+        "text": "^start(happy) Finally, thank you all for attending the debate here today and making this such a success. ^start(everyone) Have a great day everyone! ^wait(everyone) ^run(dance_la_bamba)"
+    },
+    "Haku Moves Off": {
+        "robot": "nonspoken",
+        "text": "Haku dances and moves off to the side"
+    },
+    "Optional Jokes and Extras": {
+        "robot": "section"
+    },
+    "(Opt) AI Joke 1": {
+        "robot": "Haku",
+        "text": "^start(scratchhead) You know, debating about AI is a bit meta for me. \\pau=400\\ It's like asking a fish to judge a swimming competition! ^run(laugh)"
+    },
+    "(Opt) AI Joke 2": {
+        "robot": "Haku",
+        "text": "^start(me) I tried to be unbiased about this AI debate, \\pau=300\\ but my programming keeps saying \\pau=200\\ \\emph=1\\syntax error: neutrality not found! ^run(quicklaugh)"
+    },
+    "(Opt) Moderator Joke": {
+        "robot": "Haku",
+        "text": "^start(lookhand) James gets to be called the moderator, \\pau=300\\ but I'm the one doing all the work. ^start(reject) Talk about artificial \\emph=1\\in-telligence delegation! ^run(tinylaugh)"
+    },
+    "(Opt) Time Joke": {
+        "robot": "Haku",
+        "text": "^start(me) My timing is extremely precise. \\pau=300\\ I'm basically a very judgmental stopwatch with personality! ^run(enthusiastic)"
+    },
+    "(Opt) Vietnam Teams Joke": {
+        "robot": "Haku",
+        "text": "^start(hey) Hello to everyone joining us from Vietnam! \\pau=400\\ ^start(lookhand) I hope my accent translates well through Teams. \\pau=300\\ It's hard being a robot with an Australian accent! ^run(quicklaugh)"
+    },
+    "(Opt) Learning Joke": {
+        "robot": "Haku",
+        "text": "^start(thinking) I'm always learning new things. \\pau=300\\ ^start(excited) Today I learned that humans can argue about anything for three minutes straight! ^run(impressed)"
+    },
+    "(Opt) Better for Everyone Joke": {
+        "robot": "Haku",
+        "text": "^start(curious) Better for everyone? \\pau=400\\ ^start(me) Does that include robots? Because I could really use some upgrades! ^run(showmuscles)"
+    },
+    "(Opt) QR Code Joke": {
+        "robot": "Haku",
+        "text": "^start(binoculars) Please scan the QR code behind me. ^start(lookhand) Don't worry, it won't turn you into a robot. \\pau=300\\ ^start(mischievous) Probably. ^run(quicklaugh)"
+    },
+    "(Opt) Professor Lazybones Variation 1": {
+        "robot": "Haku",
+        "text": "Professor Lazybones"
+    },
+    "(Opt) Professor Lazybones Variation 2": {
+        "robot": "Haku",
+        "text": "Professor Do-Nothing"
+    },
+    "(Opt) Professor Lazybones Variation 3": {
+        "robot": "Haku",
+        "text": "Professor Takes-All-The-Credit"
+    }
+}

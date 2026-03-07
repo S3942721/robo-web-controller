@@ -1,42 +1,68 @@
-[
-    {
-        "name": "Driver Dance Teaching Profile",
-        "html": "event-agenda-citynorth.html",
-        "flags": {
-            "gap_fill": false,
-            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+{
+    "default_profile": "RMIT Fun Profile",
+    "profiles": [
+        {
+            "name": "RMIT Fun Profile",
+            "script_file": "RMIT_Fun_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "LTQ Debate Profile",
+            "script_file": "LTQ_Debate_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "LTQ Showcase Event Agenda Profile",
+            "script_file": "LTQ_Showcase_Event_Agenda_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "Driver Dance Teaching Profile",
+            "script_file": "Driver_Dance_Teaching_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "Standup Profile",
+            "script_file": "Standup_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "Driving Joke Profile",
+            "script_file": "Driving_Joke_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
+        },
+        {
+            "name": "F1 Driver Haku Bandit Profile",
+            "script_file": "F1_Driver_Haku_Bandit_Profile_Script.json",
+            "html": "event-agenda-citynorth.html",
+            "flags": {
+                "gap_fill": false,
+                "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
+            }
         }
-    },
-    {
-        "name": "RMIT Fun Profile",
-        "html": "event-agenda-citynorth.html",
-        "flags": {
-            "gap_fill": false,
-            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
-        }
-    },
-    {
-        "name": "Standup Profile",
-        "html": "event-agenda-citynorth.html",
-        "flags": {
-            "gap_fill": false,
-            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
-        }
-    },
-    {
-        "name": "Driving Joke Profile",
-        "html": "event-agenda-citynorth.html",
-        "flags": {
-            "gap_fill": false,
-            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
-        }
-    },
-   {
-        "name": "F1 Driver Haku Bandit Profile",
-        "html": "event-agenda-citynorth.html",
-        "flags": {
-            "gap_fill": false,
-            "endpoint": "http://ec2-13-211-94-153.ap-southeast-2.compute.amazonaws.com/v2"
-        }
-    }
-]
+    ]
+}

@@ -4,7 +4,7 @@ require('dotenv').config()
 // EXPRESS SERVER
 const express = require("express")
 const { join } = require("path")
-const { readdirSync, readFileSync, writeFileSync } = require('fs')
+const { readFileSync, writeFileSync, existsSync, mkdirSync } = require('fs')
 
 const app = express()
 
@@ -199,6 +199,18 @@ let paged_shortcuts = []
 let announcements = []
 let all_possible_files = []
 
+const SETTINGS_DIR = join(__dirname, 'settings')
+const SCRIPTS_DIR = join(SETTINGS_DIR, 'scripts')
+
+const NON_PROFILE_UPLOAD_FILES = [
+    'triggers',
+    'shortcuts',
+    'announcements',
+    'paged_shortcuts',
+    'move_config',
+    'scroll_controllers_config'
+]
+
 // Network configuration from environment
 const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0'
 const SERVER_PORT = process.env.SERVER_PORT || 3000
@@ -261,46 +273,140 @@ function parsePagedShortcuts (obj) {
     return result
 }
 
+function defaultScriptFileNameForProfile (profileName) {
+    return `${profileName.replaceAll(' ', '_')}_Script.json`
+}
+
+function normalizeScriptFileName (scriptFileName, profileName) {
+    const fallback = defaultScriptFileNameForProfile(profileName)
+    const normalized = typeof scriptFileName === 'string' && scriptFileName.trim()
+        ? scriptFileName.trim()
+        : fallback
+
+    return /\.json$/i.test(normalized) ? normalized : `${normalized}.json`
+}
+
+function normalizeProfileDefinition (profile, fallbackTemplate) {
+    const name = typeof profile?.name === 'string' ? profile.name.trim() : ''
+    if (!name) {
+        return null
+    }
+
+    const script_file = normalizeScriptFileName(profile.script_file || profile.script, name)
+
+    return {
+        name,
+        script_file,
+        html: (typeof profile.html === 'string' && profile.html.trim()) ? profile.html.trim() : fallbackTemplate.html,
+        flags: (profile.flags && typeof profile.flags === 'object') ? { ...profile.flags } : { ...fallbackTemplate.flags }
+    }
+}
+
+function parseProfilesConfig (rawProfiles) {
+    const defaultTemplate = {
+        html: 'event-agenda-citynorth.html',
+        flags: { gap_fill: false }
+    }
+
+    const explicitProfiles = Array.isArray(rawProfiles)
+        ? rawProfiles
+        : (Array.isArray(rawProfiles?.profiles) ? rawProfiles.profiles : [])
+
+    const configuredDefaultProfileName = typeof rawProfiles?.default_profile === 'string' && rawProfiles.default_profile.trim()
+        ? rawProfiles.default_profile.trim()
+        : null
+
+    const normalizedProfiles = []
+    const seenNames = new Set()
+    const fallbackTemplate = normalizeProfileDefinition(explicitProfiles[0], defaultTemplate) || defaultTemplate
+
+    explicitProfiles.forEach(profile => {
+        const normalizedProfile = normalizeProfileDefinition(profile, fallbackTemplate)
+        if (!normalizedProfile || seenNames.has(normalizedProfile.name)) {
+            return
+        }
+        normalizedProfiles.push(normalizedProfile)
+        seenNames.add(normalizedProfile.name)
+    })
+
+    const envDefaultProfileName = typeof process.env.DEFAULT_PROFILE_NAME === 'string' && process.env.DEFAULT_PROFILE_NAME.trim()
+        ? process.env.DEFAULT_PROFILE_NAME.trim()
+        : null
+
+    return {
+        profiles: normalizedProfiles,
+        defaultProfileName: envDefaultProfileName || configuredDefaultProfileName
+    }
+}
+
+function buildAllPossibleFiles () {
+    const profileNames = profiles.map(profile => profile.name)
+    return [...new Set([...profileNames, ...NON_PROFILE_UPLOAD_FILES])]
+}
+
+function ensureScriptsDirectory () {
+    if (!existsSync(SCRIPTS_DIR)) {
+        mkdirSync(SCRIPTS_DIR, { recursive: true })
+    }
+}
+
+function getScriptPathForProfile (profile) {
+    return join(SCRIPTS_DIR, profile.script_file)
+}
+
+function loadProfileScript (profile) {
+    const scriptPath = getScriptPathForProfile(profile)
+    if (existsSync(scriptPath)) {
+        return parseScriptObject(JSON.parse(readFileSync(scriptPath, { encoding: 'utf-8' })))
+    }
+
+    const legacyPath = join(SETTINGS_DIR, profile.script_file)
+    if (existsSync(legacyPath)) {
+        return parseScriptObject(JSON.parse(readFileSync(legacyPath, { encoding: 'utf-8' })))
+    }
+
+    console.warn(`[Settings] Missing script for profile "${profile.name}": ${profile.script_file}`)
+    return {}
+}
+
 // Function to read settings files
 function readSettings () {
-    const dir = readdirSync(join(__dirname, 'settings'))
-    const script_files = dir.filter(e => /^.*Script\.json$/.test(e))
-    script_files.forEach(e => {
-        const profile_name = e.split('_').slice(0, -1).join(' ')
-        const file_path = join(__dirname, 'settings', e)
-        all_scripts[profile_name] = parseScriptObject(
-            JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }))
-        )
-        // console.log(`Loaded script file: ${file_path}`);
-        // console.log('For profile:', profile_name);
+    ensureScriptsDirectory()
+
+    const profiles_path = join(SETTINGS_DIR, 'profiles.json')
+    const rawProfiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }))
+    const { profiles: parsedProfiles, defaultProfileName } = parseProfilesConfig(rawProfiles)
+    profiles = parsedProfiles
+
+    all_scripts = {}
+    profiles.forEach(profile => {
+        all_scripts[profile.name] = loadProfileScript(profile)
     })
-    scripts = all_scripts[Object.keys(all_scripts)[0]]
 
-    const profiles_path = join(__dirname, 'settings', 'profiles.json')
-    profiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }))
-    // console.log(`Loaded profiles file: ${profiles_path}`);
-    current_profile = profiles[0]
-    // console.log('Current profile:', current_profile);
+    current_profile = profiles.find(profile => profile.name === defaultProfileName)
+        || profiles.find(profile => all_scripts[profile.name])
+        || profiles[0]
+        || {}
 
-    const triggers_path = join(__dirname, 'settings', 'triggers.json')
+    scripts = current_profile?.name ? (all_scripts[current_profile.name] || {}) : {}
+
+    const triggers_path = join(SETTINGS_DIR, 'triggers.json')
     triggers = parseTriggers(JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' })))
     // console.log(`Loaded triggers file: ${triggers_path}`);
 
-    const shortcuts_path = join(__dirname, 'settings', 'shortcuts.json')
+    const shortcuts_path = join(SETTINGS_DIR, 'shortcuts.json')
     shortcuts = JSON.parse(readFileSync(shortcuts_path, { encoding: 'utf-8' }))
     // console.log(`Loaded shortcuts file: ${shortcuts_path}`);
 
-    const paged_shortcuts_path = join(__dirname, 'settings', 'paged_shortcuts.json')
+    const paged_shortcuts_path = join(SETTINGS_DIR, 'paged_shortcuts.json')
     paged_shortcuts = parsePagedShortcuts(JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' })))
     // console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
 
-    const announcements_path = join(__dirname, 'settings', 'announcements.json')
+    const announcements_path = join(SETTINGS_DIR, 'announcements.json')
     announcements = JSON.parse(readFileSync(announcements_path, { encoding: 'utf-8' }))
     // console.log(`Loaded announcements file: ${announcements_path}`);
 
-    const all_possible_files_path = join(__dirname, 'settings', 'all_possible_files.json')
-    all_possible_files = JSON.parse(readFileSync(all_possible_files_path, { encoding: 'utf-8' }))
-    // console.log(`Loaded all possible files: ${all_possible_files_path}`);
+    all_possible_files = buildAllPossibleFiles()
 }
 
 // Initial read of settings files
@@ -345,9 +451,17 @@ if (nova_sonic_config.enabled) {
 }
 
 function writeToJSON (filename, json) {
-    const file_path = join(__dirname, 'settings', filename + '.json')
+    const file_path = join(SETTINGS_DIR, filename + '.json')
     json = JSON.stringify(json, null, 4)
     writeFileSync(file_path, json, { encoding: 'utf-8' })
+}
+
+function writeProfileScript (scriptFileName, json) {
+    ensureScriptsDirectory()
+    const normalizedScriptFile = normalizeScriptFileName(scriptFileName, 'Profile')
+    const filePath = join(SCRIPTS_DIR, normalizedScriptFile)
+    const serialized = JSON.stringify(json, null, 4)
+    writeFileSync(filePath, serialized, { encoding: 'utf-8' })
 }
 
 // handle with websockets with frontend
@@ -1046,12 +1160,21 @@ router.post("/api/file-upload", (req, res) => {
             case 'paged_shortcuts':
                 paged_shortcuts = json; break
             default:
+                const targetProfile = profiles.find(profile => profile.name === name)
+                if (!targetProfile) {
+                    res.status(400).send(`Unknown profile: ${name}`)
+                    return
+                }
+
                 all_scripts[name] = json
                 if (current_profile.name === name) { scripts = json }
-                write_file_name = name.replaceAll(" ", "_") + '_Script'
+                writeProfileScript(targetProfile.script_file, json)
+                write_file_name = null
                 break
         }
-        writeToJSON(write_file_name, json)
+        if (write_file_name) {
+            writeToJSON(write_file_name, json)
+        }
         readSettings() // Read settings files after upload
         syncWSWithAll('res-sync', getFullSyncItem())
         res.status(200).send("done")

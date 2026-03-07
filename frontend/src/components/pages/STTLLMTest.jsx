@@ -218,6 +218,21 @@ export default function STTLLMTest() {
     // Keyboard event handler for 'M' key hold-to-mute and 'N' key to toggle STT
     useEffect(() => {
         const handleKeyDown = (event) => {
+            // Handle 'K' key for manual EOU (End of Utterance)
+            if (event.key === 'k' || event.key === 'K' || event.key === 'X' || event.key === 'x') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Send manual EOU command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'manual_eou',
+                        action: 'press'
+                    }));
+                    console.log('🔚 Manual EOU triggered (B key pressed)');
+                }
+            }
+            
             // Handle 'M' key for mute (hold)
             if (event.key === 'm' || event.key === 'M') {
                 if (event.repeat) return; // Ignore key repeat events
