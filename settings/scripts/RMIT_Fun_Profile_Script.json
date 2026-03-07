@@ -44,5 +44,13 @@
     },
     "Emotions": {
         "robot": "section"
+    },
+    "Happy": {
+        "robot": "Haku",
+        "text": ["^run(happy)", "^run(excited)", "^run(joy)"]
+    },
+    "Sad": {
+        "robot": "Haku",
+        "text": ["^run(sad)", "^run(disappointed)"]
     }
 }
