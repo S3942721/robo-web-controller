@@ -10,6 +10,7 @@ After clone the project, please run
 cd frontend
 pnpm install
 cd ..
+pnpm install
 pnpm run build-start
 ```
 to build frontend and run the server.  
