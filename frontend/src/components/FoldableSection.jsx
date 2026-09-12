@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { CaretRight } from "./icons";
+import { usePersistentState } from "../utils/persistentState";
 
 export default function FoldableSection({ className, children, title, foldable = true, compact = false }) {
 
-    const [folded, setFolded] = useState(false);
+    const sectionKey = useMemo(() => {
+        const base = title || className || 'untitled-section'
+        return `web-controller.foldable-section.${base}`
+    }, [title, className])
+
+    const [folded, setFolded] = usePersistentState(sectionKey, false);
 
     if (!foldable) {
         return (

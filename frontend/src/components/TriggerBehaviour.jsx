@@ -2,11 +2,14 @@ import Trigger from "./sub-components/Trigger"
 import useWebSocket, { requestWS } from "../utils/useWebSocket";
 import FoldableSection from "./FoldableSection";
 import { useEffect, useState } from "react";
+import { usePersistentState } from "../utils/persistentState";
+
+const TRIGGERS_STATE_KEY = 'web-controller.trigger-behaviour.robot-values'
 
 export default function TriggerBehaviour({ foldable=true, compact=false, activeRobot }) {
 
     const [triggersConfig, setTriggersConfig] = useState({});
-    const [robotTriggers, setRobotTriggers] = useState({});
+    const [robotTriggers, setRobotTriggers] = usePersistentState(TRIGGERS_STATE_KEY, {});
     const [triggerValues, setTriggerValues] = useState({});
 
     // Fetch triggers config once

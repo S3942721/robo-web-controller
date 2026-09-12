@@ -94,6 +94,9 @@ export default function STTLLMTest() {
     // Tablet reload state
     const [reloadingTablet, setReloadingTablet] = useState(false);
 
+    // Track previous robot speaking state to detect transitions
+    const prevRobotSpeakingRef = useRef(false);
+
     useEffect(() => {
         // Load network configuration from server
         fetch('/api/network-config')
@@ -187,6 +190,138 @@ export default function STTLLMTest() {
     useEffect(() => {
         conversationHistoryRef.current = conversationHistory;
     }, [conversationHistory]);
+
+    // Reset audio/speech cache when robot stops speaking
+    useEffect(() => {
+        // Detect transition from speaking to not speaking
+        const wasSpeaking = prevRobotSpeakingRef.current === true;
+        const isNowSpeaking = robotStatus.speaking === true;
+        
+        // If robot just stopped speaking (was speaking, now not speaking)
+        if (wasSpeaking && !isNowSpeaking) {
+            // Only send reset if STT is connected
+            if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                console.log('🔄 Robot stopped speaking - sending reset command to clear audio cache');
+                sttWsRef.current.send(JSON.stringify({
+                    type: 'control',
+                    action: 'reset',
+                    reason: 'robot_finished_speaking',
+                    timestamp: Date.now()
+                }));
+            }
+        }
+        
+        // Update the ref for next comparison
+        prevRobotSpeakingRef.current = robotStatus.speaking;
+    }, [robotStatus.speaking]); // Only watch robotStatus.speaking changes
+
+    // Keyboard event handler for 'M' key hold-to-mute and 'N' key to toggle STT
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Handle 'K' key for manual EOU (End of Utterance)
+            if (event.key === 'k' || event.key === 'K' || event.key === 'X' || event.key === 'x') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Send manual EOU command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'manual_eou',
+                        action: 'press'
+                    }));
+                    console.log('🔚 Manual EOU triggered (B key pressed)');
+                }
+            }
+            
+            // Handle 'M' key for mute (hold)
+            if (event.key === 'm' || event.key === 'M') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Send mute button press command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'press'
+                    }));
+                    console.log('🔇 Mute engaged (M key pressed)');
+                }
+            }
+            
+            // Handle 'N' key to toggle STT start/stop
+            if (event.key === 'n' || event.key === 'N') {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                // Check if STT is currently stopped (based on status message)
+                const isStopped = overallStatus.includes('Stopped') || overallStatus.includes('stopped');
+                
+                if (isStopped) {
+                    // STT is stopped, so start it
+                    console.log('🟢 N key pressed - Starting transcription');
+                    
+                    // Manually set robot speaking to false when starting transcription
+                    setRobotSpeaking(false);
+                    setLLMActive(false);
+                    setRobotStatus(prev => ({
+                        ...prev,
+                        speaking: false
+                    }));
+                    console.log('🎤 Manually set robot speaking to false (N key)');
+                    
+                    // Send reset
+
+
+                    // Start/resume STT
+                    startTranscription();
+                } else {
+                    // STT is running, so stop it
+                    console.log('N key pressed - Stopping transcription');
+                    stopTranscription();
+                }
+            }
+            
+            // Handle Shift+Backspace to manually set robot speaking to false
+            if (event.key === 'Backspace' && event.shiftKey) {
+                if (event.repeat) return; // Ignore key repeat events
+                
+                console.log('⌨️ Shift+Backspace pressed - Manually setting robot speaking to false');
+                setRobotSpeaking(false);
+                setLLMActive(false);
+                setRobotStatus(prev => ({
+                    ...prev,
+                    speaking: false
+                }));
+                setOverallStatus('🔇 Robot speaking manually set to false');
+                
+                // Prevent default backspace behavior
+                event.preventDefault();
+            }
+        };
+
+        const handleKeyUp = (event) => {
+            if (event.key === 'm' || event.key === 'M') {
+                // Send mute button release command to STT WebSocket
+                if (sttWsRef.current && sttWsRef.current.readyState === WebSocket.OPEN) {
+                    sttWsRef.current.send(JSON.stringify({
+                        type: 'button',
+                        button: 'not_listen',
+                        action: 'release'
+                    }));
+                    console.log('🔊 Mute released (M key released)');
+                }
+            }
+        };
+
+        // Add event listeners
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // Cleanup on unmount
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [sttStatus, overallStatus]); // Include overallStatus to check current transcription state
 
     const connectSTT = async () => {
         if (!networkConfig) {
@@ -301,15 +436,17 @@ export default function STTLLMTest() {
         }
 
         try {
-            setOverallStatus('🔗 Connecting to LLM gateway...');
+            setOverallStatus('🔗 Connecting to LLM backend proxy...');
             
             // Close existing LLM connection if any
             if (llmWsRef.current) {
                 llmWsRef.current.close();
             }
             
-            const llmUrl = networkConfig.llm.defaultUrl;
-            console.log('Connecting to LLM gateway at:', llmUrl);
+            // Use backend proxy URL from config
+            const llmUrl = networkConfig.llm.streamUrl || networkConfig.llm.defaultUrl;
+            console.log('Connecting to LLM backend proxy at:', llmUrl);
+            console.log('Provider:', networkConfig.llm.provider);
             llmWsRef.current = new WebSocket(llmUrl);
             
             const timeout = setTimeout(() => {
@@ -321,7 +458,7 @@ export default function STTLLMTest() {
             
             llmWsRef.current.onopen = () => {
                 clearTimeout(timeout);
-                console.log('LLM WebSocket connected successfully');
+                console.log('LLM WebSocket connected to backend proxy successfully');
                 setLLMStatus('connected');
                 setOverallStatus('🤖 LLM connected - Ready for conversation');
                 
@@ -336,10 +473,43 @@ export default function STTLLMTest() {
             
             llmWsRef.current.onmessage = (event) => {
                 try {
-                    console.log('LLM message received:', event.data);
+                    console.log('LLM backend proxy message received:', event.data);
                     const data = JSON.parse(event.data);
                     
-                    if (data.type === 'llm_message') {
+                    // Handle new backend proxy message types
+                    if (data.type === 'session_created') {
+                        console.log('✅ Backend session created:', data.sessionId);
+                        console.log('   Provider:', data.provider);
+                        setOverallStatus(`🤖 LLM connected (${data.provider}) - Ready for conversation`);
+                    } else if (data.type === 'llm_chunk') {
+                        // Convert to format expected by handleLLMMessage
+                        handleLLMMessage({
+                            action: 'completion',
+                            content: data.content,
+                            isFinished: data.isFinished,
+                            sessionId: data.sessionId,
+                            chunkNumber: data.chunkNumber
+                        });
+                    } else if (data.type === 'llm_complete') {
+                        console.log('✅ LLM response complete');
+                        handleLLMMessage({
+                            action: 'completion',
+                            content: '',
+                            isFinished: true,
+                            sessionId: data.sessionId
+                        });
+                    } else if (data.type === 'history') {
+                        console.log('📚 Received history:', data.history.length, 'messages');
+                    } else if (data.type === 'history_cleared') {
+                        console.log('🗑️ History cleared');
+                    } else if (data.type === 'provider_changed') {
+                        console.log('🔄 Provider changed to:', data.provider);
+                        setOverallStatus(`🔄 Switched to ${data.provider} provider`);
+                    } else if (data.type === 'error') {
+                        console.error('❌ LLM backend error:', data.error);
+                        setOverallStatus('❌ LLM Error: ' + data.error);
+                    } else if (data.type === 'llm_message') {
+                        // Legacy format support
                         handleLLMMessage(data.data);
                     } else if (data.type === 'delay_measurement') {
                         handleDelayMeasurement(data);
@@ -595,19 +765,6 @@ export default function STTLLMTest() {
                     setLLMActive(true);
                 }
                 
-                // Check if this is the first chunk for this session
-                const sessionId = data.sessionId || sessionIdRef.current;
-                const isFirstChunk = isFirstChunkRef.current.has(sessionId);
-                
-                // Send to robot if enabled - use Robot API directly with session ID
-                if (sendToRobot && data.content) {
-                    sendLLMResponseToRobot(data.content, data.isFinished, sessionId, isFirstChunk, data.chunkNumber);
-                    
-                    // Remove from first chunk tracking after sending
-                    if (isFirstChunk) {
-                        isFirstChunkRef.current.delete(sessionId);
-                    }
-                }
                 
                 setConversationHistory(prev => {
                     // Check if the last item is an accumulating assistant message
@@ -636,12 +793,6 @@ export default function STTLLMTest() {
                 if (data.isFinished) {
                     setLLMActive(false);
                     setOverallStatus('🤖 AI responded - Ready for your next input');
-                    // Send final chunk marker with session ID
-                    if (sendToRobot) {
-                        sendLLMResponseToRobot('', true, data.sessionId || sessionIdRef.current, false, null);
-                        // Flush any remaining buffer content
-                        flushBuffer(data.sessionId || sessionIdRef.current);
-                    }
                     
                     // Clean up pending LLM request tracking for deduplication
                     const sessionId = data.sessionId || sessionIdRef.current;
@@ -756,7 +907,7 @@ export default function STTLLMTest() {
         }
         
         if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
-            console.log('✍️ Sending message to LLM:', message);
+            console.log('✍️ Sending message to LLM backend proxy:', message);
             
             // LLM request deduplication - prevent duplicate sessions for same utterance
             const utteranceHash = btoa(message.trim().toLowerCase()).slice(0, 10); // Simple hash
@@ -790,49 +941,22 @@ export default function STTLLMTest() {
                 sttCompleteTimeRef.current = Date.now();
             }
             
-            // Map conversation history (latest snapshot) to the correct format
-            // Use ref to avoid stale state at message send time
-            const historySource = Array.isArray(historyOverride)
-                ? historyOverride
-                : Array.isArray(conversationHistoryRef.current)
-                ? conversationHistoryRef.current
-                : [];
-
-            // Keep a sensible window of context
-            const historyMessages = historySource
-                .filter(m => m && typeof m.text === 'string' && m.text.trim().length > 0)
-                .slice(-12) // increase context depth
-                .map(item => ({
-                    role: item.type === 'user' ? 'user' : 'assistant',
-                    content: item.text
-                }));
-
-            // Avoid duplicating the current user message if it's already the last entry
-            const trimmedMessage = (message || '').trim();
-            const lastMsg = historyMessages[historyMessages.length - 1];
-            const alreadyHasCurrent = lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string' && lastMsg.content.trim() === trimmedMessage;
-            
-            // Use the format expected by AWS API Gateway
+            // Use new backend proxy format
             const llmPayload = {
-                action: 'completion',
-                history: alreadyHasCurrent
-                    ? historyMessages
-                    : [
-                        ...historyMessages,
-                        { role: 'user', content: message }
-                      ]
+                action: 'send_message',
+                message: message,
+                includeHistory: true, // Backend will use conversation history
+                robot: targetRobot,
+                sessionId: sessionIdRef.current
             };
             
             // 🔍 DETAILED LOGGING: Show exactly what's being sent to LLM
-            console.group('📤 LLM REQUEST DETAILS');
-            console.log('🎯 Current Message:', message);
-            console.log('📚 Conversation History Length:', historySource.length);
-            console.log('📚 History Used (last 12 + current if needed):', llmPayload.history.length);
-            console.log('📜 Full History Being Sent:');
-            llmPayload.history.forEach((msg, index) => {
-                console.log(`  ${index + 1}. [${msg.role.toUpperCase()}]: "${msg.content}"`);
-            });
-            console.log('📦 Complete Payload Structure:');
+            console.group('📤 LLM BACKEND PROXY REQUEST');
+            console.log('🎯 Message:', message);
+            console.log('🤖 Target Robot:', targetRobot);
+            console.log('📚 Include History:', true);
+            console.log('🆔 Session ID:', sessionIdRef.current);
+            console.log('📦 Complete Payload:');
             console.log(JSON.stringify(llmPayload, null, 2));
             console.log('📡 WebSocket Ready State:', llmWsRef.current.readyState);
             console.log('🕐 Timestamp:', new Date().toISOString());
@@ -846,7 +970,7 @@ export default function STTLLMTest() {
             }));
             
             llmWsRef.current.send(JSON.stringify(llmPayload));
-            setOverallStatus('✍️ Message sent to AI - waiting for response');
+            setOverallStatus('✍️ Message sent to AI backend - waiting for response');
         } else {
             console.error('❌ Cannot send to LLM - not connected');
             setOverallStatus('❌ Cannot send to LLM - not connected');
@@ -879,6 +1003,20 @@ export default function STTLLMTest() {
                 { text: message.trim(), timestamp, type: 'user', manual: true }
             ];
             sendToLLM(message.trim(), historySnapshot);
+        }
+    };
+
+    const switchProvider = (newProvider) => {
+        if (llmWsRef.current && llmWsRef.current.readyState === WebSocket.OPEN) {
+            console.log(`🔄 Switching LLM provider to: ${newProvider}`);
+            llmWsRef.current.send(JSON.stringify({
+                action: 'set_provider',
+                provider: newProvider
+            }));
+            setOverallStatus(`🔄 Switching to ${newProvider} provider...`);
+        } else {
+            console.error('❌ Cannot switch provider - not connected');
+            setOverallStatus('❌ Cannot switch provider - not connected');
         }
     };
 
@@ -938,10 +1076,23 @@ export default function STTLLMTest() {
             setOverallStatus('❌ Not connected to STT server');
             return;
         }
+        // Reset current transcription and send reset + resume commands
+        setCurrentTranscription('');
+
+        // Send reset command to STT
+        sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'reset' }));
+
+        // Manually set robot to not speaking when starting transcription
+        setRobotSpeaking(false);
+        setLLMActive(false);
+        setRobotStatus(prev => ({
+            ...prev,
+            speaking: false
+        }));
         
         try {
             console.log('🎤 Starting transcription...');
-            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'start' }));
+            sttWsRef.current.send(JSON.stringify({ type: 'control', action: 'resume' }));
             setOverallStatus('🎤 Started listening - speak now');
         } catch (error) {
             console.error('Failed to start transcription:', error);
@@ -1024,7 +1175,8 @@ export default function STTLLMTest() {
                 },
                 body: JSON.stringify({ 
                     robot: targetRobot,
-                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                    videoUrl: 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+                    localVideoUrl: '/TB_video.mp4'
                 })
             });
             
@@ -1213,36 +1365,108 @@ export default function STTLLMTest() {
             }}>
                 <h4>Connection Configuration:</h4>
                 {networkConfig ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                                STT Server URL:
-                            </label>
-                            <div style={{
-                                padding: '8px',
-                                backgroundColor: '#e9ecef',
-                                border: '1px solid #ced4da',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace'
-                            }}>
-                                {networkConfig.stt.defaultUrl}
+                    <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    STT Server URL:
+                                </label>
+                                <div style={{
+                                    padding: '8px',
+                                    backgroundColor: '#e9ecef',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px'
+                                }}>
+                                    {networkConfig.stt.defaultUrl}
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    LLM Backend Proxy URL:
+                                </label>
+                                <div style={{
+                                    padding: '8px',
+                                    backgroundColor: '#e9ecef',
+                                    border: '1px solid #ced4da',
+                                    borderRadius: '4px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px'
+                                }}>
+                                    {networkConfig.llm.streamUrl || networkConfig.llm.defaultUrl}
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                                LLM Gateway URL:
-                            </label>
-                            <div style={{
-                                padding: '8px',
-                                backgroundColor: '#e9ecef',
-                                border: '1px solid #ced4da',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace'
+                        
+                        {/* Provider Configuration */}
+                        {networkConfig.llm && (
+                            <div style={{ 
+                                marginBottom: '15px',
+                                padding: '12px',
+                                backgroundColor: '#e7f3ff',
+                                border: '1px solid #b3d9ff',
+                                borderRadius: '6px'
                             }}>
-                                {networkConfig.llm.defaultUrl}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div>
+                                        <span style={{ fontWeight: 'bold', marginRight: '8px' }}>Current Provider:</span>
+                                        <span style={{ 
+                                            padding: '4px 12px',
+                                            backgroundColor: '#007bff',
+                                            color: 'white',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase',
+                                            fontSize: '13px'
+                                        }}>
+                                            {networkConfig.llm.provider || 'Unknown'}
+                                        </span>
+                                    </div>
+                                    
+                                    {networkConfig.llm.availableProviders && networkConfig.llm.availableProviders.length > 1 && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 'bold' }}>Switch to:</span>
+                                            {networkConfig.llm.availableProviders
+                                                .filter(p => p !== networkConfig.llm.provider)
+                                                .map(provider => (
+                                                    <button
+                                                        key={provider}
+                                                        onClick={() => switchProvider(provider)}
+                                                        disabled={llmStatus !== 'connected'}
+                                                        style={{
+                                                            padding: '4px 12px',
+                                                            backgroundColor: llmStatus === 'connected' ? '#28a745' : '#6c757d',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            cursor: llmStatus === 'connected' ? 'pointer' : 'not-allowed',
+                                                            fontWeight: 'bold',
+                                                            textTransform: 'uppercase',
+                                                            fontSize: '12px',
+                                                            opacity: llmStatus === 'connected' ? 1 : 0.6
+                                                        }}
+                                                    >
+                                                        {provider}
+                                                    </button>
+                                                ))
+                                            }
+                                        </div>
+                                    )}
+                                    
+                                    {networkConfig.llm.enabled === false && (
+                                        <div style={{ 
+                                            color: '#dc3545',
+                                            fontWeight: 'bold',
+                                            fontSize: '13px'
+                                        }}>
+                                            ⚠️ LLM Backend Disabled
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        )}
+                    </>
                 ) : (
                     <p>Loading configuration...</p>
                 )}
@@ -1718,6 +1942,78 @@ export default function STTLLMTest() {
                                 </div>
                             ))
                         )}
+                    </div>
+                </div>
+
+                {/* Keyboard Shortcuts Help */}
+                <div style={{ 
+                    marginTop: '15px',
+                    padding: '12px',
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px'
+                }}>
+                    <div style={{ 
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        marginBottom: '8px',
+                        color: '#495057'
+                    }}>
+                        ⌨️ Keyboard Shortcuts:
+                    </div>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>M</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Hold to mute microphone
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>N</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Toggle STT start/stop
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>Shift</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>+</span>
+                            <kbd style={{
+                                backgroundColor: '#fff',
+                                border: '1px solid #adb5bd',
+                                borderRadius: '3px',
+                                padding: '2px 6px',
+                                fontSize: '12px',
+                                fontFamily: 'monospace',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>⌫</kbd>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                Clear robot speaking state
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -3,5 +3,6 @@
   	"events": {
 		 "restart": "npm run build"
 	},
-	"watch": "frontend/src"
+	"watch": "frontend/, utils/, index.js, robot-api.js",
+	"ignore": ["frontend/node_modules/", "frontend/build/", "logs/", ".git/", "data/"]
 }

@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
+import { readPersisted, writePersisted } from "./persistentState";
 
 const ws_url = (import.meta.env.PROD ? '' : 'ws://10.234.7.248:3000')+'/api/sync'
 
+const ACTIVE_ROBOT_KEY = 'web-controller.active-robot'
+const SELECTED_PROFILE_KEY = 'web-controller.selected-profile-name'
+
 let g_profiles = [], g_current_profile = {}, g_scripts = {}, g_triggers = {}, g_shortcuts = {},  g_paged_shortcuts = {}, g_announcements = {}, g_active_robot = "";
+
+g_active_robot = readPersisted(ACTIVE_ROBOT_KEY, '') || ''
+
+if (typeof window !== 'undefined') {
+    window.g_active_robot = g_active_robot
+}
 
 const subscribers = {
     profiles: [],
@@ -46,10 +56,31 @@ socket.onmessage = message =>{
             g_paged_shortcuts = value.paged_shortcuts;
             g_announcements = value.announcements;
 
+            const persistedProfileName = readPersisted(SELECTED_PROFILE_KEY, '');
+            const persistedProfile = g_profiles.find(profile => profile?.name === persistedProfileName);
+            if (persistedProfile) {
+                g_current_profile = persistedProfile;
+                if (socket.readyState === WebSocket.OPEN && value.current_profile?.name !== persistedProfile.name) {
+                    socket.send(JSON.stringify({
+                        cmd: 'req-update-profile',
+                        type: 'profile',
+                        message: persistedProfile,
+                        robot: ''
+                    }));
+                }
+            }
+
+            if (g_current_profile?.name) {
+                writePersisted(SELECTED_PROFILE_KEY, g_current_profile.name)
+            }
+
             update()
             break;
         case "res-update-profile":
             g_current_profile = value;
+            if (g_current_profile?.name) {
+                writePersisted(SELECTED_PROFILE_KEY, g_current_profile.name)
+            }
             update('current-profile')
             break;
         case 'res-update-scripts':
@@ -75,6 +106,19 @@ export function requestWS(cmd, payload) {
     if (payload.robot === undefined || payload.robot === null) {
         payload.robot = window.g_active_robot || "";
     }
+
+    if (payload.robot) {
+        g_active_robot = payload.robot
+        writePersisted(ACTIVE_ROBOT_KEY, payload.robot)
+        if (typeof window !== 'undefined') {
+            window.g_active_robot = payload.robot
+        }
+    }
+
+    if (cmd === 'req-update-profile' && payload.message?.name) {
+        writePersisted(SELECTED_PROFILE_KEY, payload.message.name)
+    }
+
     const finalPayload = {
         cmd,
         type: payload.type,

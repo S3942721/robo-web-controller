@@ -3,9 +3,12 @@ import PreDefinedScripts from "../PreDefinedScripts";
 import ScrollControllers from "../ScrollControllers";
 import MoveController from "./MoveController";
 import PagedShortCuts from "./PagedShortCuts";
+import { usePersistentState } from "../../utils/persistentState";
+
+const ACTIVE_ROBOT_KEY = 'web-controller.active-robot'
 
 export default function Puppeteer() {
-    const [activeButton, setActiveButton] = useState("Bandit");
+    const [activeButton, setActiveButton] = usePersistentState(ACTIVE_ROBOT_KEY, "Haku");
     const [reloadingTablet, setReloadingTablet] = useState(false); // Tablet reload state
 
     // Update global active robot variable whenever activeButton changes

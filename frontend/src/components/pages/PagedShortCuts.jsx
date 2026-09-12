@@ -2,10 +2,13 @@ import useWebSocket, { requestWS } from "../../utils/useWebSocket";
 import FoldableSection from "../FoldableSection";
 import { useState, useEffect, useRef } from "react";
 import { FaCaretSquareLeft, FaCaretSquareRight } from "react-icons/fa";
+import { usePersistentState } from "../../utils/persistentState";
+
+const SHORTCUT_PAGE_KEY = 'web-controller.paged-shortcuts.selected-pages'
 
 export default function PagedShortCuts({ full_screen = false, foldable = true, compact = false, activeRobot }) {
     const { paged_shortcuts } = useWebSocket();
-    const [robotSelectedPage, setRobotSelectedPage] = useState({});
+    const [robotSelectedPage, setRobotSelectedPage] = usePersistentState(SHORTCUT_PAGE_KEY, {});
     const [selectedPage, setSelectedPage] = useState("");
     const prevPageButtonRef = useRef(null);
     const nextPageButtonRef = useRef(null);

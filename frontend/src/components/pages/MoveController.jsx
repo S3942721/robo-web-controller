@@ -4,6 +4,9 @@ import { Arrow90degLeft, Arrow90degRight, CaretDown, CaretLeft, CaretRight, Care
 import ScrollBar from "./../sub-components/ScrollBar";
 import FoldableSection from "./../FoldableSection";
 import SelectProfile from "../SelectProfile";
+import { usePersistentState } from "../../utils/persistentState";
+
+const MOVE_SLIDERS_KEY = 'web-controller.move-controller.robot-sliders'
 
 // New slider config and persistence code:
 export default function MoveController({ foldable, compact = false, profile_switcher = false, activeRobot, reloadTabletWebView, reloadingTablet }) {
@@ -30,7 +33,7 @@ export default function MoveController({ foldable, compact = false, profile_swit
 
     const [sliderConfig, setSliderConfig] = useState({});
     const [sliderValues, setSliderValues] = useState({});
-    const [robotSliders, setRobotSliders] = useState({});
+    const [robotSliders, setRobotSliders] = usePersistentState(MOVE_SLIDERS_KEY, {});
 
     // Fetch config once on mount
     useEffect(() => {

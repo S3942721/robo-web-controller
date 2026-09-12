@@ -4,16 +4,17 @@ require('dotenv').config()
 // EXPRESS SERVER
 const express = require("express")
 const { join } = require("path")
-const { readdirSync, readFileSync, writeFileSync } = require('fs')
+const { readFileSync, writeFileSync, existsSync, mkdirSync } = require('fs')
 
 const app = express()
 
 app.use(require("body-parser").json())
 app.use(require("cors")())
-require('express-ws')(app)
+const expressWs = require('express-ws')(app)
 
 // Import the Robot API
 const robotAPI = require('./utils/robot-api')
+const { ollamaStream } = require('./utils/ollama-client')
 
 // Set up LLM communication broadcast function for Robot API
 robotAPI.broadcastLLMCommunication = broadcastLLMCommunication
@@ -39,8 +40,6 @@ robotAPI.on('robotFinishedSpeaking', ({ robot, sessionId, timestamp }) => {
 
 // Set up STT message listener to forward user input to tablets
 robotAPI.on('sttMessage', (message) => {
-    console.log(`[Server] 🎤 STT message received: ${message.type}`)
-
     // Check if video is playing - if so, block STT message processing
     if (isVideoPlaying) {
         console.log(`[Server] 🚫 Blocking STT message processing - video playing for robot ${videoPlayingRobot}`)
@@ -200,6 +199,18 @@ let paged_shortcuts = []
 let announcements = []
 let all_possible_files = []
 
+const SETTINGS_DIR = join(__dirname, 'settings')
+const SCRIPTS_DIR = join(SETTINGS_DIR, 'scripts')
+
+const NON_PROFILE_UPLOAD_FILES = [
+    'triggers',
+    'shortcuts',
+    'announcements',
+    'paged_shortcuts',
+    'move_config',
+    'scroll_controllers_config'
+]
+
 // Network configuration from environment
 const SERVER_HOST = process.env.SERVER_HOST || '0.0.0.0'
 const SERVER_PORT = process.env.SERVER_PORT || 3000
@@ -221,6 +232,9 @@ const TABLET_PING_GRACE_MS = parseInt(process.env.TABLET_PING_GRACE_MS) || 3000 
 const TABLET_RELOAD_COOLDOWN_MS = parseInt(process.env.TABLET_RELOAD_COOLDOWN_MS) || 30000 // min time between reloads
 const TABLET_TARGET_ROBOT = process.env.TABLET_TARGET_ROBOT || process.env.DEFAULT_ROBOT_NAME || 'Haku'
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || ''
+
+// LLM conversation history configuration
+const LLM_CONVERSATION_CONTEXT_LIMIT = parseInt(process.env.LLM_CONVERSATION_CONTEXT_LIMIT) || 10 // default 10 messages
 
 // Function to parse script object
 function parseScriptObject (obj) {
@@ -259,46 +273,140 @@ function parsePagedShortcuts (obj) {
     return result
 }
 
+function defaultScriptFileNameForProfile (profileName) {
+    return `${profileName.replaceAll(' ', '_')}_Script.json`
+}
+
+function normalizeScriptFileName (scriptFileName, profileName) {
+    const fallback = defaultScriptFileNameForProfile(profileName)
+    const normalized = typeof scriptFileName === 'string' && scriptFileName.trim()
+        ? scriptFileName.trim()
+        : fallback
+
+    return /\.json$/i.test(normalized) ? normalized : `${normalized}.json`
+}
+
+function normalizeProfileDefinition (profile, fallbackTemplate) {
+    const name = typeof profile?.name === 'string' ? profile.name.trim() : ''
+    if (!name) {
+        return null
+    }
+
+    const script_file = normalizeScriptFileName(profile.script_file || profile.script, name)
+
+    return {
+        name,
+        script_file,
+        html: (typeof profile.html === 'string' && profile.html.trim()) ? profile.html.trim() : fallbackTemplate.html,
+        flags: (profile.flags && typeof profile.flags === 'object') ? { ...profile.flags } : { ...fallbackTemplate.flags }
+    }
+}
+
+function parseProfilesConfig (rawProfiles) {
+    const defaultTemplate = {
+        html: 'event-agenda-citynorth.html',
+        flags: { gap_fill: false }
+    }
+
+    const explicitProfiles = Array.isArray(rawProfiles)
+        ? rawProfiles
+        : (Array.isArray(rawProfiles?.profiles) ? rawProfiles.profiles : [])
+
+    const configuredDefaultProfileName = typeof rawProfiles?.default_profile === 'string' && rawProfiles.default_profile.trim()
+        ? rawProfiles.default_profile.trim()
+        : null
+
+    const normalizedProfiles = []
+    const seenNames = new Set()
+    const fallbackTemplate = normalizeProfileDefinition(explicitProfiles[0], defaultTemplate) || defaultTemplate
+
+    explicitProfiles.forEach(profile => {
+        const normalizedProfile = normalizeProfileDefinition(profile, fallbackTemplate)
+        if (!normalizedProfile || seenNames.has(normalizedProfile.name)) {
+            return
+        }
+        normalizedProfiles.push(normalizedProfile)
+        seenNames.add(normalizedProfile.name)
+    })
+
+    const envDefaultProfileName = typeof process.env.DEFAULT_PROFILE_NAME === 'string' && process.env.DEFAULT_PROFILE_NAME.trim()
+        ? process.env.DEFAULT_PROFILE_NAME.trim()
+        : null
+
+    return {
+        profiles: normalizedProfiles,
+        defaultProfileName: envDefaultProfileName || configuredDefaultProfileName
+    }
+}
+
+function buildAllPossibleFiles () {
+    const profileNames = profiles.map(profile => profile.name)
+    return [...new Set([...profileNames, ...NON_PROFILE_UPLOAD_FILES])]
+}
+
+function ensureScriptsDirectory () {
+    if (!existsSync(SCRIPTS_DIR)) {
+        mkdirSync(SCRIPTS_DIR, { recursive: true })
+    }
+}
+
+function getScriptPathForProfile (profile) {
+    return join(SCRIPTS_DIR, profile.script_file)
+}
+
+function loadProfileScript (profile) {
+    const scriptPath = getScriptPathForProfile(profile)
+    if (existsSync(scriptPath)) {
+        return parseScriptObject(JSON.parse(readFileSync(scriptPath, { encoding: 'utf-8' })))
+    }
+
+    const legacyPath = join(SETTINGS_DIR, profile.script_file)
+    if (existsSync(legacyPath)) {
+        return parseScriptObject(JSON.parse(readFileSync(legacyPath, { encoding: 'utf-8' })))
+    }
+
+    console.warn(`[Settings] Missing script for profile "${profile.name}": ${profile.script_file}`)
+    return {}
+}
+
 // Function to read settings files
 function readSettings () {
-    const dir = readdirSync(join(__dirname, 'settings'))
-    const script_files = dir.filter(e => /^.*Script\.json$/.test(e))
-    script_files.forEach(e => {
-        const profile_name = e.split('_').slice(0, -1).join(' ')
-        const file_path = join(__dirname, 'settings', e)
-        all_scripts[profile_name] = parseScriptObject(
-            JSON.parse(readFileSync(file_path, { encoding: 'utf-8' }))
-        )
-        // console.log(`Loaded script file: ${file_path}`);
-        // console.log('For profile:', profile_name);
+    ensureScriptsDirectory()
+
+    const profiles_path = join(SETTINGS_DIR, 'profiles.json')
+    const rawProfiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }))
+    const { profiles: parsedProfiles, defaultProfileName } = parseProfilesConfig(rawProfiles)
+    profiles = parsedProfiles
+
+    all_scripts = {}
+    profiles.forEach(profile => {
+        all_scripts[profile.name] = loadProfileScript(profile)
     })
-    scripts = all_scripts[Object.keys(all_scripts)[0]]
 
-    const profiles_path = join(__dirname, 'settings', 'profiles.json')
-    profiles = JSON.parse(readFileSync(profiles_path, { encoding: 'utf-8' }))
-    // console.log(`Loaded profiles file: ${profiles_path}`);
-    current_profile = profiles[0]
-    // console.log('Current profile:', current_profile);
+    current_profile = profiles.find(profile => profile.name === defaultProfileName)
+        || profiles.find(profile => all_scripts[profile.name])
+        || profiles[0]
+        || {}
 
-    const triggers_path = join(__dirname, 'settings', 'triggers.json')
+    scripts = current_profile?.name ? (all_scripts[current_profile.name] || {}) : {}
+
+    const triggers_path = join(SETTINGS_DIR, 'triggers.json')
     triggers = parseTriggers(JSON.parse(readFileSync(triggers_path, { encoding: 'utf-8' })))
     // console.log(`Loaded triggers file: ${triggers_path}`);
 
-    const shortcuts_path = join(__dirname, 'settings', 'shortcuts.json')
+    const shortcuts_path = join(SETTINGS_DIR, 'shortcuts.json')
     shortcuts = JSON.parse(readFileSync(shortcuts_path, { encoding: 'utf-8' }))
     // console.log(`Loaded shortcuts file: ${shortcuts_path}`);
 
-    const paged_shortcuts_path = join(__dirname, 'settings', 'paged_shortcuts.json')
+    const paged_shortcuts_path = join(SETTINGS_DIR, 'paged_shortcuts.json')
     paged_shortcuts = parsePagedShortcuts(JSON.parse(readFileSync(paged_shortcuts_path, { encoding: 'utf-8' })))
     // console.log(`Loaded paged shortcuts file: ${paged_shortcuts_path}`);
 
-    const announcements_path = join(__dirname, 'settings', 'announcements.json')
+    const announcements_path = join(SETTINGS_DIR, 'announcements.json')
     announcements = JSON.parse(readFileSync(announcements_path, { encoding: 'utf-8' }))
     // console.log(`Loaded announcements file: ${announcements_path}`);
 
-    const all_possible_files_path = join(__dirname, 'settings', 'all_possible_files.json')
-    all_possible_files = JSON.parse(readFileSync(all_possible_files_path, { encoding: 'utf-8' }))
-    // console.log(`Loaded all possible files: ${all_possible_files_path}`);
+    all_possible_files = buildAllPossibleFiles()
 }
 
 // Initial read of settings files
@@ -343,9 +451,17 @@ if (nova_sonic_config.enabled) {
 }
 
 function writeToJSON (filename, json) {
-    const file_path = join(__dirname, 'settings', filename + '.json')
+    const file_path = join(SETTINGS_DIR, filename + '.json')
     json = JSON.stringify(json, null, 4)
     writeFileSync(file_path, json, { encoding: 'utf-8' })
+}
+
+function writeProfileScript (scriptFileName, json) {
+    ensureScriptsDirectory()
+    const normalizedScriptFile = normalizeScriptFileName(scriptFileName, 'Profile')
+    const filePath = join(SCRIPTS_DIR, normalizedScriptFile)
+    const serialized = JSON.stringify(json, null, 4)
+    writeFileSync(filePath, serialized, { encoding: 'utf-8' })
 }
 
 // handle with websockets with frontend
@@ -467,6 +583,350 @@ app.ws('/api/sync', (ws, req) => {
         console.log(`[WebSocket] Remaining connections: ${sendWebSockets.length}`)
     })
 
+})
+
+// WebSocket endpoint for LLM streaming (backend proxy)  
+app.ws('/api/llm/stream', (ws, req) => {
+    const sessionId = `llm-stream-${Math.random().toString(36).substr(2, 9)}`
+    console.log(`[LLM-Stream-${sessionId}] New session started`)
+    
+    // Session state
+    const sessionState = {
+        conversationHistory: [],
+        ollamaContext: null, // For Ollama conversation continuity
+        provider: process.env.LLM_PROVIDER || 'bedrock'
+    }
+    
+    // Send immediate test message
+    ws.send(JSON.stringify({
+        type: 'test',
+        message: 'Hello from server'
+    }))
+    
+    // Send session created message
+    setImmediate(() => {
+        console.log(`[LLM-Stream-${sessionId}] Sending session_created message`)
+        ws.send(JSON.stringify({
+            type: 'session_created',
+            sessionId: sessionId,
+            provider: sessionState.provider,
+            status: 'ready'
+        }))
+    })
+    
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message.toString())
+            console.log(`[LLM-Stream-${sessionId}] Received action:`, data.action)
+            
+            if (data.action === 'send_message') {
+                console.log(`[LLM-Stream-${sessionId}] ⚡ Entering send_message handler`)
+                
+                // Add user message to history
+                const userMessage = {
+                    role: 'user',
+                    content: data.message,
+                    timestamp: Date.now()
+                }
+                sessionState.conversationHistory.push(userMessage)
+                
+                // Build prompt with conversation history for context
+                let prompt = data.message
+                if (data.includeHistory && sessionState.conversationHistory.length > 1) {
+                    // Build full conversation context, limiting to recent messages
+                    // Get the last N messages (excluding current) based on LLM_CONVERSATION_CONTEXT_LIMIT
+                    const historyToInclude = sessionState.conversationHistory.slice(
+                        Math.max(0, sessionState.conversationHistory.length - 1 - LLM_CONVERSATION_CONTEXT_LIMIT),
+                        -1 // Exclude current message
+                    )
+                    
+                    const conversationContext = historyToInclude
+                        .map(msg => {
+                            if (msg.role === 'user') {
+                                return `User: ${msg.content}`
+                            } else {
+                                // Clean assistant response of robot commands for context
+                                const cleanContent = msg.content
+                                    .replace(/\^start\([^)]+\)\s*/g, '')
+                                    .replace(/\^wait\([^)]+\)\s*/g, '')
+                                    .replace(/\{[^}]+\}/g, '')
+                                    .trim()
+                                return `Assistant: ${cleanContent}`
+                            }
+                        })
+                        .join('\n')
+                    
+                    prompt = `Previous conversation:\n${conversationContext}\n\nUser: ${data.message}\nAssistant:`
+                    console.log(`[LLM-Stream-${sessionId}] Using conversation context with ${historyToInclude.length} previous messages (limit: ${LLM_CONVERSATION_CONTEXT_LIMIT}, total history: ${sessionState.conversationHistory.length - 1})`)
+                }
+                
+                console.log(`[LLM-Stream-${sessionId}] Sending message to ${sessionState.provider}`)
+                
+                if (sessionState.provider === 'ollama') {
+                    console.log(`[LLM-Stream-${sessionId}] 🎯 Starting Ollama stream`)
+                    
+                    // Stream from Ollama
+                    try {
+                        const ollamaConfig = {
+                            prompt: prompt,
+                            context: sessionState.ollamaContext, // Maintain conversation context
+                            model: process.env.OLLAMA_MODEL || 'haku',
+                            host: process.env.OLLAMA_HOST || 'localhost',
+                            port: parseInt(process.env.OLLAMA_PORT) || 11434,
+                            timeout: parseInt(process.env.OLLAMA_TIMEOUT) || 120000
+                        }
+                        
+                        console.log(`[LLM-Stream-${sessionId}] Ollama config:`, { ...ollamaConfig, context: ollamaConfig.context ? 'present' : 'none' })
+                        
+                        let chunkCount = 0
+                        let fullResponse = ''
+                        
+                        // Stream chunks to frontend and robot
+                        const generator = ollamaStream(ollamaConfig)
+                        for await (const chunk of generator) {
+                            chunkCount++
+                            fullResponse += chunk.content
+                            console.log(`[LLM-Stream-${sessionId}] 📦 Chunk ${chunkCount}: "${chunk.content}"`)
+                            
+                            // Send to frontend (STTLLMTest page)
+                            ws.send(JSON.stringify({
+                                type: 'llm_chunk',
+                                content: chunk.content,
+                                sessionId: sessionId,
+                                timestamp: chunk.created_at
+                            }))
+                            
+                            // Send to tablets via broadcast - send ACCUMULATED text
+                            if (data.robot && chunk.content) {
+                                console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
+                            }
+                        
+                            // Send to robot via RobotAPI for speech
+                            if (data.robot) {
+                                robotAPI.processLLMChunk(
+                                    sessionId,
+                                    chunk.content,
+                                    chunk.done,
+                                    data.robot
+                                )
+                            }
+                        }
+                        
+                        // The generator returns the context when done - this is automatically
+                        // returned when we finish iterating. We can't access it easily with
+                        // for-await-of, so context continuity is managed by Ollama internally
+                        // based on the conversation within a single session.
+                        
+                        // Add assistant response to history
+                        sessionState.conversationHistory.push({
+                            role: 'assistant',
+                            content: fullResponse,
+                            timestamp: Date.now()
+                        })
+                        
+                        console.log(`[LLM-Stream-${sessionId}] ✅ Stream complete, sent ${chunkCount} chunks`)
+                        
+                        // Flush any remaining buffered content to robot
+                        if (data.robot) {
+                            robotAPI.processLLMChunk(
+                                sessionId,
+                                '', // No new content, just flush
+                                true, // isFinished = true
+                                data.robot
+                            )
+                        }
+                        
+                        // Send completion message
+                        ws.send(JSON.stringify({
+                            type: 'llm_complete',
+                            sessionId: sessionId,
+                            fullResponse: fullResponse
+                        }))
+                        
+                        console.log(`[LLM-Stream-${sessionId}] Ollama streaming complete`)
+                    } catch (error) {
+                        console.error(`[LLM-Stream-${sessionId}] Ollama error:`, error)
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            error: `Ollama error: ${error.message}`
+                        }))
+                    }
+                } else if (sessionState.provider === 'bedrock') {
+                    console.log(`[LLM-Stream-${sessionId}] 🎯 Starting Bedrock stream`)
+                    
+                    // Stream from Bedrock via WebSocket gateway
+                    try {
+                        // Create WebSocket connection to Bedrock gateway
+                        const bedrockWs = new WebSocket(LLM_GATEWAY_HOST)
+                        
+                        bedrockWs.on('open', () => {
+                            console.log(`[LLM-Stream-${sessionId}] Connected to Bedrock gateway`)
+                            
+                            // Send message to Bedrock
+                            const bedrockMessage = {
+                                action: 'sendMessage',
+                                message: prompt,
+                                conversationHistory: data.includeHistory ? sessionState.conversationHistory.slice(0, -1) : []
+                            }
+                            
+                            bedrockWs.send(JSON.stringify(bedrockMessage))
+                        })
+                        
+                        let fullResponse = ''
+                        let chunkCount = 0
+                        
+                        bedrockWs.on('message', (bedrockData) => {
+                            try {
+                                const bedrockMsg = JSON.parse(bedrockData.toString())
+                                
+                                if (bedrockMsg.content || bedrockMsg.response) {
+                                    const content = bedrockMsg.content || bedrockMsg.response
+                                    chunkCount++
+                                    fullResponse += content
+                                    
+                                    console.log(`[LLM-Stream-${sessionId}] 📦 Bedrock chunk ${chunkCount}`)
+                                    
+                                    // Forward to frontend (STTLLMTest page)
+                                    ws.send(JSON.stringify({
+                                        type: 'llm_chunk',
+                                        content: content,
+                                        sessionId: sessionId,
+                                        timestamp: Date.now()
+                                    }))
+                                    
+                                    // Send to tablets via broadcast - send ACCUMULATED text
+                                    if (data.robot && content) {
+                                        console.log(`[LLM-Stream-${sessionId}] 📡 Broadcasting to tablets (accumulated): "${fullResponse.substring(0, 50)}..."`)
+                                        broadcastLLMCommunication('llm-ai-response', fullResponse, data.robot)
+                                    }
+                                    
+                                    // Send to robot via RobotAPI for speech
+                                    if (data.robot) {
+                                        robotAPI.processLLMChunk(
+                                            sessionId,
+                                            content,
+                                            bedrockMsg.isFinished || false,
+                                            data.robot
+                                        )
+                                    }
+                                    
+                                    if (bedrockMsg.isFinished) {
+                                        bedrockWs.close()
+                                        
+                                        // Add to history
+                                        sessionState.conversationHistory.push({
+                                            role: 'assistant',
+                                            content: fullResponse,
+                                            timestamp: Date.now()
+                                        })
+                                        
+                                        // Send completion
+                                        ws.send(JSON.stringify({
+                                            type: 'llm_complete',
+                                            sessionId: sessionId,
+                                            fullResponse: fullResponse
+                                        }))
+                                        
+                                        console.log(`[LLM-Stream-${sessionId}] Bedrock streaming complete, ${chunkCount} chunks`)
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`[LLM-Stream-${sessionId}] Bedrock message error:`, error)
+                                bedrockWs.close()
+                                ws.send(JSON.stringify({
+                                    type: 'error',
+                                    error: `Bedrock error: ${error.message}`
+                                }))
+                            }
+                        })
+                        
+                        bedrockWs.on('error', (error) => {
+                            console.error(`[LLM-Stream-${sessionId}] Bedrock WebSocket error:`, error)
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                error: `Bedrock connection error: ${error.message}`
+                            }))
+                        })
+                        
+                        bedrockWs.on('close', () => {
+                            console.log(`[LLM-Stream-${sessionId}] Bedrock WebSocket closed`)
+                        })
+                        
+                    } catch (error) {
+                        console.error(`[LLM-Stream-${sessionId}] Bedrock error:`, error)
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            error: `Bedrock error: ${error.message}`
+                        }))
+                    }
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: `Unknown provider: ${sessionState.provider}`
+                    }))
+                }
+            } else if (data.action === 'get_history') {
+                // Return conversation history
+                console.log(`[LLM-Stream-${sessionId}] Returning ${sessionState.conversationHistory.length} history items`)
+                ws.send(JSON.stringify({
+                    type: 'history',
+                    sessionId: sessionId,
+                    history: sessionState.conversationHistory
+                }))
+            } else if (data.action === 'clear_history') {
+                // Clear conversation history
+                sessionState.conversationHistory = []
+                sessionState.ollamaContext = null
+                ws.send(JSON.stringify({
+                    type: 'history_cleared',
+                    sessionId: sessionId
+                }))
+                console.log(`[LLM-Stream-${sessionId}] Conversation history cleared`)
+            } else if (data.action === 'set_provider') {
+                // Change provider (requires reconnection)
+                const newProvider = data.provider
+                if (['ollama', 'bedrock'].includes(newProvider)) {
+                    sessionState.provider = newProvider
+                    // Clear history when switching providers
+                    sessionState.conversationHistory = []
+                    sessionState.ollamaContext = null
+                    ws.send(JSON.stringify({
+                        type: 'provider_changed',
+                        sessionId: sessionId,
+                        provider: newProvider
+                    }))
+                    console.log(`[LLM-Stream-${sessionId}] Provider changed to ${newProvider}`)
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: `Invalid provider: ${newProvider}`
+                    }))
+                }
+            } else {
+                // Echo back other actions for testing
+                ws.send(JSON.stringify({
+                    type: 'action_received',
+                    action: data.action,
+                    sessionId: sessionId
+                }))
+            }
+        } catch (error) {
+            console.error(`[LLM-Stream-${sessionId}] Error:`, error)
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: error.message
+            }))
+        }
+    })
+    
+    ws.on('close', () => {
+        console.log(`[LLM-Stream-${sessionId}] Session closed`)
+    })
+    
+    ws.on('error', (error) => {
+        console.error(`[LLM-Stream-${sessionId}] WebSocket error:`, error)
+    })
 })
 
 // Nova Sonic real-time conversation WebSocket
@@ -700,12 +1160,21 @@ router.post("/api/file-upload", (req, res) => {
             case 'paged_shortcuts':
                 paged_shortcuts = json; break
             default:
+                const targetProfile = profiles.find(profile => profile.name === name)
+                if (!targetProfile) {
+                    res.status(400).send(`Unknown profile: ${name}`)
+                    return
+                }
+
                 all_scripts[name] = json
                 if (current_profile.name === name) { scripts = json }
-                write_file_name = name.replaceAll(" ", "_") + '_Script'
+                writeProfileScript(targetProfile.script_file, json)
+                write_file_name = null
                 break
         }
-        writeToJSON(write_file_name, json)
+        if (write_file_name) {
+            writeToJSON(write_file_name, json)
+        }
         readSettings() // Read settings files after upload
         syncWSWithAll('res-sync', getFullSyncItem())
         res.status(200).send("done")
@@ -742,6 +1211,16 @@ router.get("/api/network-info", (req, res) => {
 // Add configuration endpoint
 router.get("/api/network-config", (req, res) => {
     const sttDisabled = process.env.STT_DISABLED === 'true' || STT_SERVER_HOST === 'disabled'
+    
+    // Determine LLM provider from environment
+    const llmProvider = (process.env.LLM_PROVIDER || 'bedrock').toLowerCase()
+    const availableProviders = ['bedrock', 'ollama']
+    
+    // Build backend WebSocket URL for LLM streaming (no direct gateway exposure)
+    const protocol = req.secure ? 'wss' : 'ws'
+    const host = req.hostname
+    const port = SERVER_PORT === 443 || SERVER_PORT === 80 ? '' : `:${SERVER_PORT}`
+    const streamUrl = `${protocol}://${host}${port}/api/llm/stream`
 
     res.status(200).json({
         server: {
@@ -756,9 +1235,12 @@ router.get("/api/network-config", (req, res) => {
             defaultUrl: sttDisabled ? null : `ws://${STT_SERVER_HOST}:${STT_SERVER_PORT}`
         },
         llm: {
-            host: LLM_GATEWAY_HOST,
+            provider: llmProvider,
+            availableProviders: availableProviders,
+            streamUrl: streamUrl, // Backend WebSocket endpoint for LLM streaming
             enabled: true,
-            defaultUrl: LLM_GATEWAY_HOST // Use the full URL from environment
+            conversationContextLimit: LLM_CONVERSATION_CONTEXT_LIMIT
+            // Note: No AWS credentials or gateway URLs exposed
         },
         websocket: {
             reconnectAttempts: WS_RECONNECT_ATTEMPTS,
@@ -1776,6 +2258,11 @@ router.get("/tablet", (req, res) => {
     res.sendFile(join(__dirname, 'public', 'tablet.html'))
 })
 
+// Tablet local controller route - serve the local tablet interface
+router.get("/tablet-local", (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'tablet-local.html'))
+})
+
 // Add polling endpoint for tablet fallback
 router.get("/api/pull", (req, res) => {
     const robot = req.query.robot
@@ -1811,13 +2298,16 @@ router.post("/api/test-llm-broadcast", (req, res) => {
 
 // Tablet video control endpoints - use WebSocket commands for consistency
 router.post("/api/tablet-video/play", async (req, res) => {
-    const { robot, videoUrl } = req.body
+    const { robot, videoUrl, localVideoUrl } = req.body
     const targetRobot = robot || 'Haku'
 
     // Trigger the same logic as WebSocket command
     const message = {
         cmd: 'tablet-video-play',
-        message: { videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4' },
+        message: { 
+            videoUrl: videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4',
+            localVideoUrl: localVideoUrl || '/TB_video.mp4'
+        },
         robot: targetRobot
     }
 
@@ -1837,6 +2327,7 @@ router.post("/api/tablet-video/play", async (req, res) => {
             cmd: 'tablet-video-play',
             robot: targetRobot,
             videoUrl: message.message.videoUrl,
+            localVideoUrl: message.message.localVideoUrl,
             timestamp: Date.now()
         })
 
@@ -1853,6 +2344,7 @@ router.post("/api/tablet-video/play", async (req, res) => {
             message: 'Tablet video play command sent',
             robot: targetRobot,
             videoUrl: message.message.videoUrl,
+            localVideoUrl: message.message.localVideoUrl,
             connections: sendWebSockets.length,
             sentTo: sentCount
         })

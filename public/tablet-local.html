@@ -167,8 +167,6 @@
             font-size: 48px;
             display: block;
             margin-bottom: 5px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
         .ai-message-label .name {
@@ -416,13 +414,13 @@
             <div class="video-container" id="video-container">
                 <!-- Background video -->
                 <video id="background-video" autoplay muted loop playsinline preload="auto">
-                    <source src="http://198.18.0.1/apps/rmit-race/heart-beat.mp4" type="video/mp4">
-                    <source src="http://198.18.0.1/apps/rmit-race/out_0p5x.webm" type="video/webm">
+                    <source src="heart-beat.mp4" type="video/mp4">
+                    <source src="out_0p5x.webm" type="video/webm">
                     Your browser does not support the video tag.
                 </video>
                 <!-- Preloaded video for playback -->
                 <video id="playback-video" playsinline preload="auto">
-                    <source src="http://198.18.0.1/apps/rmit-race/TB_video.mp4" type="video/mp4">
+                    <source src="TB_video.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             </div>
@@ -457,9 +455,9 @@
         </div>
 
         <!-- Preloaded City North Images -->
-        <img id="cn-overlay-a" src="http://198.18.0.1:3000/a.jpg" alt="City North A" class="cn-overlay-img">
-        <img id="cn-overlay-b" src="http://198.18.0.1:3000/b.jpg" alt="City North B" class="cn-overlay-img">
-        <img id="cn-overlay-c" src="http://198.18.0.1:3000/c.jpg" alt="City North C" class="cn-overlay-img">
+        <img id="cn-overlay-a" src="a.jpg" alt="City North A" class="cn-overlay-img">
+        <img id="cn-overlay-b" src="b.jpg" alt="City North B" class="cn-overlay-img">
+        <img id="cn-overlay-c" src="c.jpg" alt="City North C" class="cn-overlay-img">
 
 
 
@@ -492,12 +490,12 @@
             // ---- preload & safe show/hide helpers ----
             var ASSETS = {
                 images: [
-                    'http://198.18.0.1:3000/a.jpg',
-                    'http://198.18.0.1:3000/b.jpg',
-                    'http://198.18.0.1:3000/c.jpg'
+                    'a.jpg',
+                    'b.jpg',
+                    'c.jpg'
                 ],
                 videos: [
-                    'http://198.18.0.1/apps/rmit-race/TB_video.mp4'
+                    'TB_video.mp4'
                 ]
             }
             var ready = { images: {}, videos: {} }
@@ -514,10 +512,10 @@
                 var playbackVideo = document.getElementById('playback-video')
                 if (playbackVideo) {
                     playbackVideo.onloadeddata = function () {
-                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = true
+                        ready.videos['TB_video.mp4'] = true
                     }
                     playbackVideo.onerror = function () {
-                        ready.videos['http://198.18.0.1/apps/rmit-race/TB_video.mp4'] = false
+                        ready.videos['TB_video.mp4'] = false
                     }
                 }
             }
@@ -538,20 +536,20 @@
 
             // ---- City North ----
             var cnOverlays = {
-                'http://198.18.0.1:3000/a.jpg': document.getElementById('cn-overlay-a'),
-                'http://198.18.0.1:3000/b.jpg': document.getElementById('cn-overlay-b'),
-                'http://198.18.0.1:3000/c.jpg': document.getElementById('cn-overlay-c')
+                'a.jpg': document.getElementById('cn-overlay-a'),
+                'b.jpg': document.getElementById('cn-overlay-b'),
+                'c.jpg': document.getElementById('cn-overlay-c')
             }
             var particles = []
             var _cnBusy = 0
             var currentOverlay = null
-            var CN_IMAGES = ['http://198.18.0.1:3000/a.jpg', 'http://198.18.0.1:3000/b.jpg', 'http://198.18.0.1:3000/c.jpg']
+            var CN_IMAGES = ['a.jpg', 'b.jpg', 'c.jpg']
 
             function showCityNorth (imageSrc) {
                 if (_cnBusy) return
                 _cnBusy = 1
 
-                var src = imageSrc || 'http://198.18.0.1:3000/a.jpg'
+                var src = imageSrc || 'a.jpg'
                 console.log('showCityNorth called with:', src)
                 var overlay = cnOverlays[src]
                 if (!overlay) {
@@ -603,7 +601,7 @@
             // Test function for City North
             window.testCityNorth = function () {
                 console.log('Testing City North display...')
-                showCityNorth('http://198.18.0.1:3000/a.jpg')
+                showCityNorth('a.jpg')
             }
 
 
@@ -618,6 +616,10 @@
 
                 if (!backgroundVideo || !playbackVideo || !videoContainer) return
 
+                console.log('🎬 Playing video:', videoUrl)
+                console.log('Video muted before play:', playbackVideo.muted)
+                console.log('Video volume:', playbackVideo.volume)
+
                 // Hide conversation interface
                 hideConversationInterface()
 
@@ -625,15 +627,20 @@
                 videoContainer.classList.add('playing')
                 playbackVideo.classList.add('playing', 'force-top')
                 playbackVideo.muted = false
+                playbackVideo.volume = 1.0
                 playbackVideo.currentTime = 0
                 isVideoPlaying = true
 
+                console.log('Video muted after setup:', playbackVideo.muted)
+                console.log('Video volume after setup:', playbackVideo.volume)
 
                 playbackVideo.onended = function () {
                     stopTabletVideo()
                 }
 
-                playbackVideo.play().catch(function (error) {
+                playbackVideo.play().then(function() {
+                    console.log('✅ Video playing, muted:', playbackVideo.muted, 'volume:', playbackVideo.volume)
+                }).catch(function (error) {
                     console.error('Video play error:', error.message)
                 })
             }
@@ -811,56 +818,96 @@
 
             // AI message filter for special signals
             var fullRawText = ''
+            var inThinkingBlock = false
+            var gtCount = 0
             var hasRealContent = false
 
             function filterAIMessage (content) {
                 if (!content) return ''
 
-                // Store the full accumulated text
+                // Always work with the complete accumulated text
                 fullRawText = content
+                var result = ''
+                var i = 0
 
-                // Filter using regex - process all complete tags in one pass
-                var filtered = fullRawText
+                while (i < fullRawText.length) {
+                    var char = fullRawText[i]
 
-                // Remove complete <thinking>...</thinking> tags
-                filtered = filtered.replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
+                    if (inThinkingBlock) {
+                        // We're inside a thinking block, look for >
+                        if (char === '>') {
+                            gtCount++
+                            if (gtCount === 2) {
+                                // Found second >, exit thinking block
+                                inThinkingBlock = false
+                                gtCount = 0
+                            }
+                        }
+                        i++
+                        continue
+                    }
 
-                // Remove complete behavior commands: ^start(...), ^wait(...), ^run(...), ^stop(...)
-                filtered = filtered.replace(/\^(start|wait|run|stop)\([^)]*\)/g, ' ')
+                    // Check for thinking tag start
+                    if (char === '<') {
+                        inThinkingBlock = true
+                        gtCount = 0
+                        i++
+                        continue
+                    }
+                    // Check for signal start markers
+                    else if (char === '^' || char === '{') {
+                        var endMarker = char === '^' ? ')' : '}'
+                        var signalEnd = -1
 
-                // Remove complete pause tags: \\pau=...\\ or \pau=..\
-                filtered = filtered.replace(/\\\\pau=\d+\\\\/g, ' ')
-                filtered = filtered.replace(/\\pau=\d+\\/g, ' ')
+                        // Find the end marker
+                        for (var j = i + 1; j < fullRawText.length; j++) {
+                            if (fullRawText[j] === endMarker) {
+                                signalEnd = j
+                                break
+                            }
+                        }
 
-                // Remove complete JSON metadata objects
-                filtered = filtered.replace(/\{[^}]*\}/g, ' ')
-
-                // Clean up multiple spaces
-                filtered = filtered.replace(/\s+/g, ' ')
-
-                // Trim leading/trailing whitespace
-                filtered = filtered.trim()
+                        if (signalEnd !== -1) {
+                            // Complete signal found, skip it
+                            var signal = fullRawText.substring(i, signalEnd + 1)
+                            console.log('Filtered signal:', signal)
+                            i = signalEnd + 1
+                        } else {
+                            // Incomplete signal - include the character and continue
+                            result += char
+                            i++
+                        }
+                    } else {
+                        result += char
+                        i++
+                    }
+                }
 
                 // Check if we have real content (not just whitespace)
-                if (filtered.trim() !== '') {
+                if (result.trim() !== '') {
                     hasRealContent = true
                 }
 
-                return filtered
+                return result
             }
 
             function updateAIMessage (content) {
                 var aiMessageContent = document.getElementById('ai-message-content')
                 if (aiMessageContent) {
                     var filteredContent = filterAIMessage(content || '')
-                    
-                    // Use filtered content for display
-                    var displayContent = filteredContent
-                    
-                    // Update if we have real content OR if we've received any AI content (even if filtered)
-                    if (hasRealContent || (content && content.length > 0)) {
-                        aiMessageContent.textContent = displayContent || 'Processing response...'
+                    // Only update if we have real content or if we already started showing content
+                    if (hasRealContent) {
+                        aiMessageContent.textContent = filteredContent || 'Waiting for Haku\'s response...'
                         aiMessageContent.scrollTop = aiMessageContent.scrollHeight
+                        
+                        // Check for City North keyword in AI response
+                        var lowerContent = (content || '').toLowerCase()
+                        if (lowerContent.indexOf('city north') !== -1 && !_cnBusy) {
+                            var randomIndex = Math.floor(Math.random() * CN_IMAGES.length)
+                            var randomImage = CN_IMAGES[randomIndex]
+                            console.log('Detected city north, showing:', randomImage)
+                            showCityNorth(randomImage)
+                        }
                     }
                 }
             }
@@ -908,21 +955,21 @@
                 }
 
                 if (type === 'ai') {
-                    currentAIResponseText = content
+                    // Merge stream text first
+                    currentAIResponseText = mergeStreamText(currentAIResponseText, content)
 
                     // rAF debounce to avoid high-frequency reflow
                     if (!updateLLMDisplay._raf) {
                         updateLLMDisplay._raf = requestAnimationFrame(function () {
                             updateLLMDisplay._raf = null
-                            // Pass the raw accumulated text - filtering happens inside updateAIMessage
                             updateAIMessage(currentAIResponseText)
                         })
                     }
 
                     if (isFinal) {
-                        // Final processing - ensure we display final filtered content
+                        // Final processing - ensure all content is filtered
+                        fullRawText = ''
                         if (!currentAIResponseText || aiBubbleShown) return
-                        updateAIMessage(currentAIResponseText)
                         aiBubbleShown = true
                         startAutoReturnTimer()
                     }
@@ -1034,8 +1081,9 @@
 
                         // Tablet video control
                         if (msg.cmd === 'tablet-video-play') {
-                            console.log('🎬 Received tablet video play command:', msg.videoUrl)
-                            playTabletVideo(msg.videoUrl || 'http://198.18.0.1/apps/rmit-race/TB_video.mp4')
+                            var videoUrl = msg.localVideoUrl || msg.videoUrl || 'TB_video.mp4'
+                            console.log('🎬 Received tablet video play command:', videoUrl)
+                            playTabletVideo(videoUrl)
                             return
                         }
                         if (msg.cmd === 'tablet-video-stop') {
@@ -1061,10 +1109,6 @@
                 }
             }
 
-
-
-
-
             // ---- start ----
             addLog('Init robot=' + robot + ' base=' + BASE)
             // Ensure video container is visible on startup
@@ -1075,9 +1119,6 @@
                 console.log('Video container initialized')
             }
 
-
-
-
             heartbeat('init')
             connectWS()
             setInterval(function () {
@@ -1087,7 +1128,6 @@
             }, 10000)
         })();
     </script>
-
 
 </body>
 
